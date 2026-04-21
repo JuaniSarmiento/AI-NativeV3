@@ -1,0 +1,112 @@
+"""Tests unitarios de validación de schemas Pydantic.
+
+Son rápidos (no DB, no red) y se corren en cada PR.
+"""
+from __future__ import annotations
+
+from datetime import date
+from decimal import Decimal
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from academic_service.schemas.carrera import CarreraCreate
+from academic_service.schemas.comision import ComisionCreate, PeriodoCreate
+from academic_service.schemas.universidad import UniversidadCreate
+
+
+class TestUniversidadSchema:
+    def test_valida_codigo_sin_espacios(self) -> None:
+        """El código solo admite alfanuméricos, guiones y underscores."""
+        with pytest.raises(ValidationError) as exc_info:
+            UniversidadCreate(
+                nombre="Test U",
+                codigo="con espacios",
+                keycloak_realm="test",
+            )
+        assert "codigo" in str(exc_info.value)
+
+    def test_crea_minimo(self) -> None:
+        u = UniversidadCreate(
+            nombre="Universidad Nacional de San Luis",
+            codigo="unsl",
+            keycloak_realm="unsl",
+        )
+        assert u.nombre == "Universidad Nacional de San Luis"
+        assert u.config == {}
+
+    def test_rechaza_nombre_corto(self) -> None:
+        with pytest.raises(ValidationError):
+            UniversidadCreate(nombre="X", codigo="x", keycloak_realm="x")
+
+
+class TestCarreraSchema:
+    def test_duracion_en_rango(self) -> None:
+        with pytest.raises(ValidationError):
+            CarreraCreate(
+                universidad_id=uuid4(),
+                nombre="Sistemas",
+                codigo="LIS",
+                duracion_semestres=30,  # fuera de rango
+            )
+
+    def test_modalidad_valida(self) -> None:
+        with pytest.raises(ValidationError):
+            CarreraCreate(
+                universidad_id=uuid4(),
+                nombre="Sistemas",
+                codigo="LIS",
+                modalidad="presencial-hibrida-mixta",  # no está en Literal
+            )
+
+    def test_crea_correctamente(self) -> None:
+        c = CarreraCreate(
+            universidad_id=uuid4(),
+            nombre="Licenciatura en Sistemas",
+            codigo="LIS",
+            duracion_semestres=10,
+            modalidad="presencial",
+        )
+        assert c.duracion_semestres == 10
+
+
+class TestPeriodoSchema:
+    def test_fecha_fin_posterior_a_inicio(self) -> None:
+        with pytest.raises(ValidationError) as exc_info:
+            PeriodoCreate(
+                codigo="2026-S1",
+                nombre="Primer semestre 2026",
+                fecha_inicio=date(2026, 6, 1),
+                fecha_fin=date(2026, 3, 1),  # antes del inicio
+            )
+        assert "fecha_fin" in str(exc_info.value)
+
+    def test_crea_correctamente(self) -> None:
+        p = PeriodoCreate(
+            codigo="2026-S1",
+            nombre="Primer semestre 2026",
+            fecha_inicio=date(2026, 3, 1),
+            fecha_fin=date(2026, 7, 31),
+        )
+        assert p.estado == "abierto"
+
+
+class TestComisionSchema:
+    def test_budget_no_negativo(self) -> None:
+        with pytest.raises(ValidationError):
+            ComisionCreate(
+                materia_id=uuid4(),
+                periodo_id=uuid4(),
+                codigo="A",
+                ai_budget_monthly_usd=Decimal("-10"),
+            )
+
+    def test_cupo_en_rango(self) -> None:
+        with pytest.raises(ValidationError):
+            ComisionCreate(
+                materia_id=uuid4(),
+                periodo_id=uuid4(),
+                codigo="A",
+                cupo_maximo=1000,
+            )

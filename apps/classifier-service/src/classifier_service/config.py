@@ -1,0 +1,37 @@
+"""Config del classifier-service."""
+from functools import lru_cache
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    service_name: str = "classifier-service"
+    service_port: int = 8008
+    environment: str = "development"
+    log_level: str = "info"
+    log_format: str = "json"
+
+    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
+    otel_endpoint: str = "http://localhost:4317"
+    sentry_dsn: str = ""
+
+    # Usa la base ctr_store (las clasificaciones son derivados de eventos)
+    classifier_db_url: str = Field(
+        default="postgresql+asyncpg://ctr_user:ctr_pass@localhost:5432/ctr_store"
+    )
+    db_echo: bool = False
+
+    redis_url: str = "redis://localhost:6379/3"
+
+    # URLs de servicios dependientes
+    ctr_service_url: str = "http://localhost:8007"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

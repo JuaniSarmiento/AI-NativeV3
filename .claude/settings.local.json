@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(tee /tmp/docker-up.log)",
+      "Bash(netstat -ano)",
+      "Bash(docker stop *)",
+      "Bash(docker exec *)",
+      "Bash(tee /tmp/uv-sync.log)",
+      "Bash(pnpm install *)",
+      "Bash(tee /tmp/pnpm-install.log)",
+      "Bash(.venv/Scripts/python.exe --version)",
+      "Bash(uv run *)",
+      "Bash(./scripts/migrate-all.sh)",
+      "Bash(tee /tmp/migrate.log)",
+      "Bash(docker port *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Admin"
+    ]
+  }
+}
