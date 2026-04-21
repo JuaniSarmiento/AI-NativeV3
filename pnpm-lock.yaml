@@ -15,8 +15,8 @@ importers:
         specifier: ^2.2.0
         version: 2.9.6
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
   apps/web-admin:
     dependencies:
@@ -31,7 +31,7 @@ importers:
         version: link:../../packages/ui
       '@tanstack/react-form':
         specifier: ^0.38.0
-        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.6.3)
+        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.99.2(react@19.2.5)
@@ -94,8 +94,8 @@ importers:
         specifier: ^4.0.0-beta.7
         version: 4.2.3
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^6.0.0
         version: 6.4.2(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
@@ -116,7 +116,7 @@ importers:
         version: link:../../packages/ui
       '@tanstack/react-form':
         specifier: ^0.38.0
-        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.6.3)
+        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.99.2(react@19.2.5)
@@ -182,8 +182,8 @@ importers:
         specifier: ^4.0.0-beta.7
         version: 4.2.3
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^6.0.0
         version: 6.4.2(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
@@ -204,7 +204,7 @@ importers:
         version: link:../../packages/ui
       '@tanstack/react-form':
         specifier: ^0.38.0
-        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.6.3)
+        version: 0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.99.2(react@19.2.5)
@@ -267,8 +267,8 @@ importers:
         specifier: ^4.0.0-beta.7
         version: 4.2.3
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^6.0.0
         version: 6.4.2(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
@@ -292,8 +292,8 @@ importers:
         specifier: ^19.0.0
         version: 19.2.14
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/contracts:
     dependencies:
@@ -305,8 +305,8 @@ importers:
         specifier: ^1.9.0
         version: 1.9.4
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/ctr-client:
     dependencies:
@@ -324,8 +324,8 @@ importers:
         specifier: ^6.0.0
         version: 6.2.5
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vitest:
         specifier: ^2.1.0
         version: 2.1.9(jsdom@25.0.1)(lightningcss@1.32.0)
@@ -352,8 +352,8 @@ importers:
         specifier: ^19.0.0
         version: 19.2.14
       typescript:
-        specifier: ~5.6.0
-        version: 5.6.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
 packages:
 
@@ -2275,8 +2275,8 @@ packages:
     resolution: {integrity: sha512-+v2QJey7ZUeUiuigkU+uFfklvNUyPI2VO2vBpMYJA+a1hKFLFiKtUYlRHdb3P9CrAvMzi0upbjI4WT+zKtqkBg==}
     hasBin: true
 
-  typescript@5.6.3:
-    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -2901,9 +2901,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@remix-run/node@2.17.4(typescript@5.6.3)':
+  '@remix-run/node@2.17.4(typescript@6.0.3)':
     dependencies:
-      '@remix-run/server-runtime': 2.17.4(typescript@5.6.3)
+      '@remix-run/server-runtime': 2.17.4(typescript@6.0.3)
       '@remix-run/web-fetch': 4.4.2
       '@web3-storage/multipart-parser': 1.0.0
       cookie-signature: 1.2.2
@@ -2911,11 +2911,11 @@ snapshots:
       stream-slice: 0.1.2
       undici: 6.25.0
     optionalDependencies:
-      typescript: 5.6.3
+      typescript: 6.0.3
 
   '@remix-run/router@1.23.2': {}
 
-  '@remix-run/server-runtime@2.17.4(typescript@5.6.3)':
+  '@remix-run/server-runtime@2.17.4(typescript@6.0.3)':
     dependencies:
       '@remix-run/router': 1.23.2
       '@types/cookie': 0.6.0
@@ -2925,7 +2925,7 @@ snapshots:
       source-map: 0.7.6
       turbo-stream: 2.4.1
     optionalDependencies:
-      typescript: 5.6.3
+      typescript: 6.0.3
 
   '@remix-run/web-blob@3.1.0':
     dependencies:
@@ -3108,9 +3108,9 @@ snapshots:
 
   '@tanstack/query-core@5.99.2': {}
 
-  '@tanstack/react-form@0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.6.3)':
+  '@tanstack/react-form@0.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
     dependencies:
-      '@remix-run/node': 2.17.4(typescript@5.6.3)
+      '@remix-run/node': 2.17.4(typescript@6.0.3)
       '@tanstack/form-core': 0.38.0
       '@tanstack/react-store': 0.5.8(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       decode-formdata: 0.8.0
@@ -4138,7 +4138,7 @@ snapshots:
       '@turbo/windows-64': 2.9.6
       '@turbo/windows-arm64': 2.9.6
 
-  typescript@5.6.3: {}
+  typescript@6.0.3: {}
 
   undici@6.25.0: {}
 
