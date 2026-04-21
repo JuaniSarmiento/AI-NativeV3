@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     log_format: str = "json"
 
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
-    otel_endpoint: str = "http://localhost:4317"
+    otel_endpoint: str = "http://127.0.0.1:4317"
     sentry_dsn: str = ""
 
     # Repo de prompts. En F5 se pulla automáticamente del origen Git con

@@ -77,4 +77,4 @@ PUBLISH_ROLES = ("tutor_service", "superadmin")
 
 # Leer episodios: docentes (solo los de sus comisiones; ABAC adicional),
 # docente_admin del tenant, superadmin
-READ_ROLES = ("docente", "docente_admin", "superadmin", "tutor_service")
+READ_ROLES = ("docente", "docente_admin", "superadmin", "tutor_service", "classifier_worker")

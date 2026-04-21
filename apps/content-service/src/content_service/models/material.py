@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BigInteger, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,7 @@ from content_service.models.base import (
     TimestampMixin,
     fk_uuid,
     uuid_pk,
+    utc_now,
 )
 
 
@@ -109,10 +110,7 @@ class Chunk(Base, TenantMixin):
     # timestamp_seconds, heading_path, ...}
 
     created_at: Mapped[datetime] = mapped_column(
-        default=lambda: __import__("datetime").datetime.now(
-            __import__("datetime").UTC
-        ),
-        nullable=False,
+        DateTime(timezone=True), default=utc_now, nullable=False,
     )
 
     material: Mapped[Material] = relationship(back_populates="chunks")

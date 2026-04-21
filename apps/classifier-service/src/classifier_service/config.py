@@ -14,19 +14,19 @@ class Settings(BaseSettings):
     log_format: str = "json"
 
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
-    otel_endpoint: str = "http://localhost:4317"
+    otel_endpoint: str = "http://127.0.0.1:4317"
     sentry_dsn: str = ""
 
     # Usa la base ctr_store (las clasificaciones son derivados de eventos)
     classifier_db_url: str = Field(
-        default="postgresql+asyncpg://ctr_user:ctr_pass@localhost:5432/ctr_store"
+        default="postgresql+asyncpg://ctr_user:ctr_pass@127.0.0.1:5432/ctr_store"
     )
     db_echo: bool = False
 
-    redis_url: str = "redis://localhost:6379/3"
+    redis_url: str = "redis://127.0.0.1:6379/3"
 
     # URLs de servicios dependientes
-    ctr_service_url: str = "http://localhost:8007"
+    ctr_service_url: str = "http://127.0.0.1:8007"
 
 
 @lru_cache

@@ -121,7 +121,7 @@ POLICIES: list[tuple[str, str, str, str]] = [
 async def seed() -> None:
     db_url = os.environ.get(
         "ACADEMIC_DB_URL",
-        "postgresql+asyncpg://academic_user:academic_pass@localhost:5432/academic_main",
+        "postgresql+asyncpg://academic_user:academic_pass@127.0.0.1:5432/academic_main",
     )
     engine = create_async_engine(db_url)
 

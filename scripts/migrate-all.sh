@@ -4,11 +4,16 @@
 # Uso:
 #   ./scripts/migrate-all.sh [--dry-run]
 #
-# Variables de entorno requeridas:
-#   CTR_STORE_URL         — postgresql://user:pass@host/ctr_store
-#   ACADEMIC_DB_URL       — postgresql://user:pass@host/academic_main
-#   CLASSIFIER_DB_URL     — postgresql://user:pass@host/classifier
-#   CONTENT_DB_URL        — postgresql://user:pass@host/content
+# Variables de entorno requeridas (usar usuario postgres superuser — las
+# migraciones ejecutan CREATE ROLE, ALTER DATABASE y operaciones RLS que
+# requieren privilegios de superusuario):
+#   ACADEMIC_DB_URL       — postgresql+asyncpg://postgres:postgres@localhost:5432/academic_main
+#   CTR_DB_URL         — postgresql+asyncpg://postgres:postgres@localhost:5432/ctr_store
+#   CLASSIFIER_DB_URL     — postgresql+asyncpg://postgres:postgres@localhost:5432/classifier_db
+#   CONTENT_DB_URL        — postgresql+asyncpg://postgres:postgres@localhost:5432/content_db
+#
+# Cada env var es leída directamente por el alembic/env.py del servicio
+# correspondiente. El script exporta la var correcta antes de invocar alembic.
 #
 # Orden:
 #   1. academic-service (tiene users/comisiones — referenciado por los otros)
@@ -40,18 +45,19 @@ _require_env() {
   fi
 }
 
-_require_env CTR_STORE_URL
+_require_env CTR_DB_URL
 _require_env ACADEMIC_DB_URL
 _require_env CLASSIFIER_DB_URL
 _require_env CONTENT_DB_URL
 
 run_migration() {
   local service="$1"
-  local db_url="$2"
+  local env_var="$2"
+  local db_url="$3"
 
   echo ""
   echo "═══════════════════════════════════════════════════════════"
-  echo "▶ $service"
+  echo "▶ $service  ($env_var)"
   echo "═══════════════════════════════════════════════════════════"
 
   local app_dir="apps/$service"
@@ -61,12 +67,13 @@ run_migration() {
   fi
 
   if $DRY_RUN; then
-    echo "[dry-run] cd $app_dir && DATABASE_URL='$db_url' alembic upgrade head"
+    echo "[dry-run] cd $app_dir && export ${env_var}='${db_url}' && alembic upgrade head"
   else
     pushd "$app_dir" > /dev/null
-    DATABASE_URL="$db_url" alembic current
-    DATABASE_URL="$db_url" alembic upgrade head
-    DATABASE_URL="$db_url" alembic current
+    export "${env_var}=${db_url}"
+    alembic current
+    alembic upgrade head
+    alembic current
     popd > /dev/null
   fi
 }
@@ -76,10 +83,10 @@ echo "Dry run: $DRY_RUN"
 
 # Orden importa: academic primero (otros referencian users/comisiones por UUID
 # pero no FK, así que técnicamente no hay dep; pero por convención operacional).
-run_migration "academic-service" "$ACADEMIC_DB_URL"
-run_migration "ctr-service" "$CTR_STORE_URL"
-run_migration "classifier-service" "$CLASSIFIER_DB_URL"
-run_migration "content-service" "$CONTENT_DB_URL"
+run_migration "academic-service" "ACADEMIC_DB_URL" "$ACADEMIC_DB_URL"
+run_migration "ctr-service"      "CTR_DB_URL"   "$CTR_DB_URL"
+run_migration "classifier-service" "CLASSIFIER_DB_URL" "$CLASSIFIER_DB_URL"
+run_migration "content-service"  "CONTENT_DB_URL"  "$CONTENT_DB_URL"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════"

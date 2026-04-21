@@ -30,7 +30,7 @@ class CarreraService:
         new_id = uuid4()
         carrera = await self.repo.create({
             "id": new_id,
-            "tenant_id": universidad.id,
+            "tenant_id": user.tenant_id,
             "universidad_id": universidad.id,
             "facultad_id": data.facultad_id,
             "nombre": data.nombre,
@@ -41,7 +41,7 @@ class CarreraService:
         })
 
         audit = AuditLog(
-            tenant_id=universidad.id,
+            tenant_id=user.tenant_id,
             user_id=user.id,
             action="carrera.create",
             resource_type="carrera",

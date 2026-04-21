@@ -136,7 +136,7 @@ def get_storage() -> BaseStorage:
         return MockStorage()
 
     # Default: intentar S3/MinIO
-    endpoint = os.environ.get("S3_ENDPOINT", "http://localhost:9000")
+    endpoint = os.environ.get("S3_ENDPOINT", "http://127.0.0.1:9000")
     access_key = os.environ.get("S3_ACCESS_KEY", "minioadmin")
     secret_key = os.environ.get("S3_SECRET_KEY", "minioadmin")
     bucket = os.environ.get("S3_BUCKET_MATERIALS", "materials")

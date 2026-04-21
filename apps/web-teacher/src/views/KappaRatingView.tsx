@@ -71,7 +71,7 @@ export function KappaRatingView({ getToken, episodes }: Props) {
         rater_a: e.classifier_label,
         rater_b: humanLabels[e.episode_id],
       }))
-      const r = await computeKappa(getToken, ratings)
+      const r = await computeKappa(ratings, getToken)
       setResult(r)
     } catch (e) {
       setError(String(e))

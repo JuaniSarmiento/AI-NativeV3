@@ -46,23 +46,23 @@ async function request<T>(
     const token = await getToken()
     if (token) headers.set("Authorization", `Bearer ${token}`)
   } else {
-    // Modo dev: inyectar headers X-* del admin de prueba
-    headers.set("X-User-Id", "10000000-0000-0000-0000-000000000001")
+    // Modo dev: inyectar headers X-* del admin de prueba.
+    // Deben coincidir con los que inyecta el proxy de Vite (vite.config.ts).
+    headers.set("X-User-Id", "33333333-3333-3333-3333-333333333333")
     headers.set("X-Tenant-Id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
     headers.set("X-User-Email", "admin@demo-uni.edu")
-    headers.set("X-User-Roles", "docente_admin")
+    headers.set("X-User-Roles", "docente_admin,superadmin")
   }
 
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers })
 
   if (!response.ok) {
-    let detail = ""
+    const raw = await response.text()
+    let detail = raw
     try {
-      const body = await response.json()
-      detail = body.detail ?? body.title ?? ""
-    } catch {
-      detail = await response.text()
-    }
+      const body = JSON.parse(raw)
+      detail = body.detail ?? body.title ?? raw
+    } catch { /* not JSON, use raw text */ }
     throw new HttpError(response.status, response.statusText, detail)
   }
 

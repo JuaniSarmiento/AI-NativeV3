@@ -19,6 +19,6 @@ def setup_observability(app: FastAPI) -> None:
         environment=getattr(settings, "environment", "development"),
         log_level=getattr(settings, "log_level", "info"),
         log_format=getattr(settings, "log_format", "json"),
-        otel_endpoint=getattr(settings, "otel_endpoint", "http://localhost:4317"),
+        otel_endpoint=getattr(settings, "otel_endpoint", "http://127.0.0.1:4317"),
         sentry_dsn=getattr(settings, "sentry_dsn", ""),
     )

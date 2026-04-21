@@ -28,7 +28,7 @@ target_metadata = Base.metadata
 def get_url() -> str:
     return os.environ.get(
         "CONTENT_DB_URL",
-        "postgresql+asyncpg://academic_user:academic_pass@localhost:5432/academic_main",
+        "postgresql+asyncpg://content_user:content_pass@localhost:5432/content_db",
     )
 
 

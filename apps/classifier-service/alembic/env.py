@@ -28,7 +28,7 @@ target_metadata = Base.metadata
 def get_url() -> str:
     return os.environ.get(
         "CLASSIFIER_DB_URL",
-        "postgresql+asyncpg://ctr_user:ctr_pass@localhost:5432/ctr_store",
+        "postgresql+asyncpg://classifier_user:classifier_pass@localhost:5432/classifier_db",
     )
 
 

@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     log_format: str = "json"
 
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
-    otel_endpoint: str = "http://localhost:4317"
+    otel_endpoint: str = "http://127.0.0.1:4317"
     sentry_dsn: str = ""
 
-    redis_url: str = "redis://localhost:6379/1"  # DB 1 separada del CTR
+    redis_url: str = "redis://127.0.0.1:6379/1"  # DB 1 separada del CTR
 
     # Budgets default por tenant/feature/mes (USD)
     default_monthly_budget_usd: float = 100.0

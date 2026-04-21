@@ -112,29 +112,10 @@ async def classify_episode(
     )
 
 
-@router.get("/classifications/{episode_id}", response_model=ClassificationOut)
-async def get_current_classification(
-    episode_id: UUID,
-    user: User = Depends(require_role(*READ_ROLES)),
-) -> ClassificationOut:
-    async with tenant_session(user.tenant_id) as session:
-        result = await session.execute(
-            select(Classification)
-            .where(
-                Classification.episode_id == episode_id,
-                Classification.is_current.is_(True),
-            )
-        )
-        c = result.scalar_one_or_none()
-    if c is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Sin clasificación actual para episodio {episode_id}",
-        )
-    return ClassificationOut.model_validate(c)
-
-
 # ── Agregación por comisión ───────────────────────────────────────────
+# IMPORTANTE: registrar /classifications/aggregated ANTES de
+# /classifications/{episode_id} para que FastAPI no matchee "aggregated"
+# como UUID path param.
 
 
 class AppropriationCountsOut(BaseModel):
@@ -203,3 +184,28 @@ async def get_aggregated_classifications(
             for d in stats.timeseries
         ],
     )
+
+
+# ── Clasificación individual (va DESPUÉS de /aggregated) ────────────
+
+
+@router.get("/classifications/{episode_id}", response_model=ClassificationOut)
+async def get_current_classification(
+    episode_id: UUID,
+    user: User = Depends(require_role(*READ_ROLES)),
+) -> ClassificationOut:
+    async with tenant_session(user.tenant_id) as session:
+        result = await session.execute(
+            select(Classification)
+            .where(
+                Classification.episode_id == episode_id,
+                Classification.is_current.is_(True),
+            )
+        )
+        c = result.scalar_one_or_none()
+    if c is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sin clasificación actual para episodio {episode_id}",
+        )
+    return ClassificationOut.model_validate(c)

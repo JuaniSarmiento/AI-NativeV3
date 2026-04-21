@@ -44,7 +44,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
       const tick = async () => {
         if (cancelled) return
         try {
-          const status = await getExportStatus(getToken, jobId)
+          const status = await getExportStatus(jobId, getToken)
           setJob(status)
           if (status.status === "succeeded" || status.status === "failed") {
             return  // stop polling
@@ -74,13 +74,16 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
     setError(null)
     setRequesting(true)
     try {
-      const r = await requestCohortExport(getToken, {
-        comision_id: comisionId,
-        period_days: periodDays,
-        include_prompts: includePrompts,
-        salt,
-        cohort_alias: cohortAlias || "COHORT",
-      })
+      const r = await requestCohortExport(
+        {
+          comision_id: comisionId,
+          period_days: periodDays,
+          include_prompts: includePrompts,
+          salt,
+          cohort_alias: cohortAlias || "COHORT",
+        },
+        getToken,
+      )
       setJob({
         job_id: r.job_id,
         status: "pending",
@@ -105,7 +108,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
   const handleDownload = async () => {
     if (!job) return
     try {
-      const payload = await downloadExport(getToken, job.job_id)
+      const payload = await downloadExport(job.job_id, getToken)
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       })

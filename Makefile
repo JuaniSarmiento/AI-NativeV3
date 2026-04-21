@@ -1,7 +1,7 @@
 .PHONY: help init install dev dev-bootstrap test test-fast test-rls test-adversarial \
-        lint lint-fix typecheck migrate migrate-new clean clean-all check-health check-rls \
-        generate-service seed-casbin eval-retrieval backup restore onboard-unsl \
-        kappa progression export-academic generate-protocol status build check-tools
+        lint lint-fix typecheck migrate migrate-new setup-dev-perms clean clean-all \
+        check-health check-rls generate-service seed-casbin eval-retrieval backup restore \
+        onboard-unsl kappa progression export-academic generate-protocol status build check-tools
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
@@ -43,6 +43,7 @@ init: check-tools ## [Primera vez] Bootstrap end-to-end: infra + deps + migrate 
 	@echo "Esperando Postgres listo..."
 	@until docker exec platform-postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@$(MAKE) migrate
+	@$(MAKE) setup-dev-perms
 	@$(MAKE) seed-casbin || true
 	@echo ""
 	@echo "==============================================="
@@ -130,12 +131,19 @@ typecheck: ## Typecheck Python + TS
 ## Base de datos
 
 migrate: ## Aplica migraciones pendientes en todas las bases
-	@./scripts/migrate-all.sh
+	@ACADEMIC_DB_URL="postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/academic_main" \
+	CTR_DB_URL="postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/ctr_store" \
+	CLASSIFIER_DB_URL="postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/classifier_db" \
+	CONTENT_DB_URL="postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/content_db" \
+	./scripts/migrate-all.sh
 
 migrate-new: ## Nueva migracion. Uso: make migrate-new SERVICE=academic-service NAME=descripcion
 	@test -n "$(SERVICE)" || (echo "Usar: make migrate-new SERVICE=<service> NAME=<descripcion>" && exit 1)
 	@test -n "$(NAME)"    || (echo "Usar: make migrate-new SERVICE=<service> NAME=<descripcion>" && exit 1)
 	cd apps/$(SERVICE) && $(UV) run alembic revision --autogenerate -m "$(NAME)"
+
+setup-dev-perms: ## Otorga permisos a usuarios de servicio y configura GUC app.current_tenant
+	@./scripts/setup-dev-permissions.sh
 
 seed-casbin: ## Carga la matriz Casbin en la DB
 	cd apps/academic-service && $(UV) run python -m academic_service.seeds.casbin_policies

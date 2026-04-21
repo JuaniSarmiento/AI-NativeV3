@@ -43,7 +43,7 @@ export function ProgressionView({ comisionId, getToken }: Props) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getCohortProgression(getToken, comisionId)
+    getCohortProgression(comisionId, getToken)
       .then(setData)
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))

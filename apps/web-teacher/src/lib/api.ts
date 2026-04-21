@@ -71,48 +71,58 @@ export interface ExportJobStatus {
 
 type TokenGetter = () => Promise<string | null>
 
-async function authHeaders(getToken: TokenGetter): Promise<Record<string, string>> {
-  const token = await getToken()
-  if (!token) throw new Error("No hay token — requiere autenticación")
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+async function authHeaders(getToken?: TokenGetter): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (getToken) {
+    const token = await getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
   }
+  return headers
+}
+
+async function throwIfNotOk(r: Response): Promise<void> {
+  if (r.ok) return
+  const raw = await r.text()
+  let detail = raw
+  try {
+    const body = JSON.parse(raw)
+    detail = body.detail ?? body.title ?? raw
+  } catch { /* not JSON, use raw text */ }
+  throw new Error(`${r.status}: ${detail}`)
 }
 
 // ── Progression ───────────────────────────────────────────────────────
 
 export async function getCohortProgression(
-  getToken: TokenGetter,
   comisionId: string,
+  getToken?: TokenGetter,
 ): Promise<CohortProgression> {
   const r = await fetch(
     `/api/v1/analytics/cohort/${comisionId}/progression`,
     { headers: await authHeaders(getToken) },
   )
-  if (!r.ok) throw new Error(`progression failed: ${r.status}`)
+  await throwIfNotOk(r)
   return r.json()
 }
 
 // ── Kappa ─────────────────────────────────────────────────────────────
 
 export async function computeKappa(
-  getToken: TokenGetter,
   ratings: KappaRating[],
+  getToken?: TokenGetter,
 ): Promise<KappaResult> {
   const r = await fetch("/api/v1/analytics/kappa", {
     method: "POST",
     headers: await authHeaders(getToken),
     body: JSON.stringify({ ratings }),
   })
-  if (!r.ok) throw new Error(`kappa failed: ${r.status}`)
+  await throwIfNotOk(r)
   return r.json()
 }
 
 // ── Export dataset ────────────────────────────────────────────────────
 
 export async function requestCohortExport(
-  getToken: TokenGetter,
   params: {
     comision_id: string
     period_days?: number
@@ -120,37 +130,38 @@ export async function requestCohortExport(
     salt: string
     cohort_alias?: string
   },
+  getToken?: TokenGetter,
 ): Promise<{ job_id: string; status: string }> {
   const r = await fetch("/api/v1/analytics/cohort/export", {
     method: "POST",
     headers: await authHeaders(getToken),
     body: JSON.stringify(params),
   })
-  if (!r.ok) throw new Error(`export request failed: ${r.status}`)
+  await throwIfNotOk(r)
   return r.json()
 }
 
 export async function getExportStatus(
-  getToken: TokenGetter,
   jobId: string,
+  getToken?: TokenGetter,
 ): Promise<ExportJobStatus> {
   const r = await fetch(
     `/api/v1/analytics/cohort/export/${jobId}/status`,
     { headers: await authHeaders(getToken) },
   )
-  if (!r.ok) throw new Error(`status failed: ${r.status}`)
+  await throwIfNotOk(r)
   return r.json()
 }
 
 export async function downloadExport(
-  getToken: TokenGetter,
   jobId: string,
+  getToken?: TokenGetter,
 ): Promise<unknown> {
   const r = await fetch(
     `/api/v1/analytics/cohort/export/${jobId}/download`,
     { headers: await authHeaders(getToken) },
   )
   if (r.status === 425) throw new Error("Job aún no terminado")
-  if (!r.ok) throw new Error(`download failed: ${r.status}`)
+  await throwIfNotOk(r)
   return r.json()
 }

@@ -65,7 +65,7 @@ class UniversidadService:
 
         # Audit log en la misma transacción
         audit = AuditLog(
-            tenant_id=id_,  # para universidades, tenant_id == universidad.id
+            tenant_id=user.tenant_id,
             user_id=user.id,
             action="universidad.update",
             resource_type="universidad",

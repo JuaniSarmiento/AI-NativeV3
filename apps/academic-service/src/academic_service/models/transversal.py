@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,7 +38,9 @@ class AuditLog(Base, TenantMixin):
     # estructura: {"before": {...}, "after": {...}} para diffs
     request_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
-    ts: Mapped[datetime] = mapped_column(default=utc_now, nullable=False, index=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False, index=True,
+    )
 
 
 class CasbinRule(Base):

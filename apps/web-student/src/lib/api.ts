@@ -35,18 +35,18 @@ export interface Classification {
 type TokenGetter = () => Promise<string | null>
 
 
-async function authHeaders(getToken: TokenGetter): Promise<Record<string, string>> {
-  const token = await getToken()
-  if (!token) throw new Error("No hay token — requiere autenticación")
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+async function authHeaders(getToken?: TokenGetter): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  if (getToken) {
+    const token = await getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
   }
+  return headers
 }
 
 
 export async function openEpisode(
-  getToken: TokenGetter, req: OpenEpisodeRequest,
+  req: OpenEpisodeRequest, getToken?: TokenGetter,
 ): Promise<OpenEpisodeResponse> {
   const r = await fetch("/api/v1/episodes", {
     method: "POST", headers: await authHeaders(getToken), body: JSON.stringify(req),
@@ -57,7 +57,7 @@ export async function openEpisode(
 
 
 export async function closeEpisode(
-  getToken: TokenGetter, episodeId: string, reason = "student_closed",
+  episodeId: string, reason = "student_closed", getToken?: TokenGetter,
 ): Promise<void> {
   const r = await fetch(`/api/v1/episodes/${episodeId}/close`, {
     method: "POST", headers: await authHeaders(getToken), body: JSON.stringify({ reason }),
@@ -67,7 +67,7 @@ export async function closeEpisode(
 
 
 export async function* sendMessage(
-  getToken: TokenGetter, episodeId: string, content: string,
+  episodeId: string, content: string, getToken?: TokenGetter,
 ): AsyncGenerator<
   | { type: "chunk"; content: string }
   | { type: "done"; chunks_used_hash: string; seqs: Record<string, number> }
@@ -100,7 +100,7 @@ export async function* sendMessage(
 
 
 export async function classifyEpisode(
-  getToken: TokenGetter, episodeId: string,
+  episodeId: string, getToken?: TokenGetter,
 ): Promise<Classification> {
   const r = await fetch(`/api/v1/classify_episode/${episodeId}`, {
     method: "POST", headers: await authHeaders(getToken),
@@ -111,7 +111,7 @@ export async function classifyEpisode(
 
 
 export async function getClassification(
-  getToken: TokenGetter, episodeId: string,
+  episodeId: string, getToken?: TokenGetter,
 ): Promise<Classification> {
   const r = await fetch(`/api/v1/classifications/${episodeId}`, {
     headers: await authHeaders(getToken),
@@ -125,9 +125,9 @@ export async function getClassification(
  * El tutor-service agrega seq + chain_hash + persiste el evento.
  */
 export async function emitCodeExecuted(
-  getToken: TokenGetter,
   episodeId: string,
   payload: { code: string; stdout: string; stderr: string; duration_ms: number },
+  getToken?: TokenGetter,
 ): Promise<void> {
   const r = await fetch(`/api/v1/episodes/${episodeId}/events/codigo_ejecutado`, {
     method: "POST", headers: await authHeaders(getToken), body: JSON.stringify(payload),

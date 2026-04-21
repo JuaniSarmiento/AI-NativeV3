@@ -28,7 +28,7 @@ export default defineConfig({
             proxyReq.setHeader("x-user-id", "33333333-3333-3333-3333-333333333333")
             proxyReq.setHeader("x-tenant-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
             proxyReq.setHeader("x-user-email", "admin@demo-uni.edu")
-            proxyReq.setHeader("x-user-roles", "superadmin")
+            proxyReq.setHeader("x-user-roles", "docente_admin,superadmin")
           })
         },
       },

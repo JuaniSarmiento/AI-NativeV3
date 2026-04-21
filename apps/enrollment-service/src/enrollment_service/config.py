@@ -25,11 +25,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
 
     # Observability
-    otel_endpoint: str = Field(default="http://localhost:4317")
+    otel_endpoint: str = Field(default="http://127.0.0.1:4317")
     sentry_dsn: str = Field(default="")
 
     # Keycloak (la mayoría de servicios valida JWT)
-    keycloak_url: str = Field(default="http://localhost:8180")
+    keycloak_url: str = Field(default="http://127.0.0.1:8180")
     keycloak_realm: str = Field(default="demo_uni")
 
 
