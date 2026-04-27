@@ -278,7 +278,13 @@ El classifier-service es la **operacionalización de los tres criterios de coher
 - **CCD (código-discurso)**: ¿las acciones del estudiante están acompañadas de verbalización reflexiva, o son "huérfanas"? Proxy: ventanas de correlación ±2min entre `codigo_ejecutado`/`prompt_enviado` y `anotacion_creada`/`prompt_enviado(prompt_kind=reflexion)`.
 - **CII (inter-iteración)**: ¿el estudiante profundiza en un tema o salta? ¿su pensamiento se elabora o se degrada? Proxy: overlap de tokens entre prompts consecutivos (stability) + longitud media a lo largo del episodio (evolution).
 
-**Discrepancia declarada**: la tesis en la Sección 15.3 menciona "similitud semántica mediante embeddings" como operacionalización futura de CII_stability. El classifier-service actual implementa **coincidencia léxica** (overlap de tokens) — es una operacionalización de primera generación declarada como `v1.0.0`. La migración a embeddings queda como HU futura. El `classifier_config_hash` es exactamente el mecanismo que permite, cuando se introduzca, distinguir clasificaciones v1.0.0 (léxicas) de v2.0.0 (semánticas) sin romper las viejas.
+**Discrepancias declaradas con la tesis (operacionalización v1.0.0)**:
+
+- **CCD vs Sección 15.3 de la tesis**: la tesis define CCD como "similitud semántica entre explicaciones en chat y contenido del código (mediante técnicas de embeddings)". El classifier-service v1.0.0 implementa **proximidad temporal** entre acciones y verbalizaciones (ventana ±2min). Es una operacionalización de primera generación más liviana y reproducible bit-a-bit. La migración a embeddings es agenda confirmatoria.
+
+- **CII vs Sección 15.4 de la tesis**: la tesis define CII como "estabilidad de patrones a través de problemas análogos" — observación **longitudinal inter-episodio**. El classifier-service v1.0.0 implementa `cii_stability` y `cii_evolution` como métricas **intra-episodio** (entre prompts consecutivos del mismo episodio, vía overlap léxico de tokens). El nombre técnico interno se podría refinar a `iis_*` (Iteration-Internal-Stability) para evitar ambigüedad. La CII longitudinal real es agenda confirmatoria.
+
+El `classifier_config_hash` es exactamente el mecanismo que permite, cuando las versiones semántica/longitudinal estén implementadas, distinguir clasificaciones v1.0.0 de las nuevas sin romper las viejas.
 
 El árbol N4 del Capítulo 6 de la tesis define las 3 categorías (`delegacion_pasiva`, `apropiacion_superficial`, `apropiacion_reflexiva`). El `tree.py` las implementa con lógica explicita y umbrales parametrizados — el experimento de A/B de profiles (HU-118) busca calibrar esos umbrales contra un gold standard etiquetado por docentes (κ ≥ 0.6, meta de la tesis).
 

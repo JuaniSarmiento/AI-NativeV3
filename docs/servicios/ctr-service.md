@@ -138,7 +138,7 @@ Base lógica: **`ctr_store`** (ADR-003), usuario `ctr_user`. Migraciones Alembic
   - Relación: `ForeignKey(episodes.id, ondelete="RESTRICT")` — no se puede borrar un episodio con eventos.
   - Hashes: `self_hash`, `chain_hash`, `prev_chain_hash` (64 chars hex).
   - Hashes de configuración replicados en cada evento (redundancia defensiva: si cambia el episodio, el evento sigue verificable contra la config que estaba vigente).
-  - `event_type` en snake_case en runtime: `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado`, `tests_ejecutados`, `episodio_abandonado`. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
+  - `event_type` en snake_case en runtime: `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado`, `episodio_abandonado`. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
 
 - **`dead_letters`** — eventos que fallaron 3 veces y fueron archivados.
   - Guarda `raw_payload` JSONB, `error_reason` text, `failed_attempts`, `first_seen_at`, `moved_to_dlq_at`.
@@ -284,7 +284,7 @@ La serialización canónica (`canonicalize()`) es la matemática que sostiene la
 
 **Por qué RESTRICT y no CASCADE en el FK `events.episode_id`**: un `ondelete=CASCADE` permitiría que un `DELETE FROM episodes WHERE id=...` borrara todos los eventos asociados. La tesis exige que **los eventos sean indelebles en operación normal** — el único camino legítimo para "anonimizar" un estudiante es `anonymize_student()` en `packages/platform-ops/privacy.py` que **rota el pseudónimo** pero deja los eventos intactos con el nuevo alias (incidente I06 del runbook). `RESTRICT` fuerza esa ruta.
 
-**Discrepancia sabida**: los contratos Pydantic en `packages/contracts/.../ctr/events.py` usan nombres PascalCase (`PromptEnviado`, `EpisodioAbierto`) con `event_type: Literal["PromptEnviado"]` como default del modelo; al persistir, el ctr-service guarda el campo `event_type` tal cual le llega por el wire. En la práctica los productores del repo (tutor-service) envían snake_case (`prompt_enviado`, `episodio_abierto`) y esos son los valores que terminan en `events.event_type`. Los MDs de `docs/servicios/` usan snake_case porque es lo que queda persistido y lo que la tesis cita en sus ejemplos de eventos. Unificar la nomenclatura entre contracts y runtime es deuda pendiente — cambiar uno rompe tests, cambiar ambos requiere migración de todos los eventos del piloto.
+**Histórico — discrepancia PascalCase / snake_case (resuelta en F1-F4, commit `b927dcc`)**: los contracts Pydantic originales declaraban `event_type: Literal["PromptEnviado"]` mientras el tutor-service emitía `"prompt_enviado"`. F1-F4 alineó los contracts al runtime (snake_case) y renombró las clases conflictivas (`RespuestaRecibida` → `TutorRespondio`, `NotaPersonal` → `AnotacionCreada`, `TestsEjecutados` → `CodigoEjecutado`). La regresión está bloqueada por `packages/contracts/tests/test_event_types_match_runtime.py`, que assertea que el conjunto de Literals del contract == strings emitidos por `tutor_core.py`.
 
 **Secuencia canónica de un episodio completo** (ver también la secuencia pedagógica en [tutor-service](./tutor-service.md) Sección 10):
 
@@ -320,7 +320,6 @@ Cubre: hashing determinista (RN-004, RN-007, RN-008), sharding estable (HU-036),
 **Known gaps**:
 - Tests RLS reales requieren `CTR_STORE_URL_FOR_RLS_TESTS` apuntando a usuario no-superuser; sin esa env var los 4 tests se skippean silenciosamente. Ver `make test-rls`.
 - Coverage objetivo tesis es ≥85% para el plano pedagógico (ver `BUGS-PILOTO.md` GAP-9); el real corriente se mide con `make test --cov`.
-- Inconsistencia `event_type` PascalCase (contracts) vs snake_case (runtime) — gap de nomenclatura no resuelto.
 - El `EventPublishRequest.event_type` es `str` libre (no `Literal`). Un productor puede enviar `"tipo_desconocido"` y el worker lo persiste igual. La validación tipada sólo ocurre si el productor usa los schemas de `packages/contracts`.
 
 **Fase de consolidación**:
