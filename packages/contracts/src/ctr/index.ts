@@ -3,6 +3,12 @@
  *
  * Los contratos deben mantenerse alineados con los de Python.
  * Cambios coordinados entre ambas fuentes.
+ *
+ * Convención de naming (F1, alineada con runtime):
+ * - Las constantes/types Zod conservan PascalCase (idioma TS).
+ * - El campo `event_type` viaja en snake_case porque es lo que ya emite
+ *   el tutor-service. Cambiar el string en runtime obliga a migrar
+ *   seeds, tests, dashboards y CTRs persistidos.
  */
 import { z } from "zod"
 
@@ -31,7 +37,7 @@ const CTRBase = z.object({
 })
 
 export const EpisodioAbierto = CTRBase.extend({
-  event_type: z.literal("EpisodioAbierto"),
+  event_type: z.literal("episodio_abierto"),
   payload: z.object({
     student_pseudonym: Uuid,
     problema_id: Uuid,
@@ -42,7 +48,7 @@ export const EpisodioAbierto = CTRBase.extend({
 export type EpisodioAbierto = z.infer<typeof EpisodioAbierto>
 
 export const EpisodioCerrado = CTRBase.extend({
-  event_type: z.literal("EpisodioCerrado"),
+  event_type: z.literal("episodio_cerrado"),
   payload: z.object({
     final_chain_hash: Sha256,
     total_events: z.number().int().positive(),
@@ -52,7 +58,7 @@ export const EpisodioCerrado = CTRBase.extend({
 export type EpisodioCerrado = z.infer<typeof EpisodioCerrado>
 
 export const PromptEnviado = CTRBase.extend({
-  event_type: z.literal("PromptEnviado"),
+  event_type: z.literal("prompt_enviado"),
   payload: z.object({
     content: z.string(),
     prompt_kind: PromptKind,
@@ -61,65 +67,84 @@ export const PromptEnviado = CTRBase.extend({
 })
 export type PromptEnviado = z.infer<typeof PromptEnviado>
 
-export const RespuestaRecibida = CTRBase.extend({
-  event_type: z.literal("RespuestaRecibida"),
+// F2 + F8: renombrado RespuestaRecibida -> TutorRespondio.
+// `socratic_compliance`/`violations` son opcionales hasta que se
+// implemente el postprocesamiento real.
+export const TutorRespondio = CTRBase.extend({
+  event_type: z.literal("tutor_respondio"),
   payload: z.object({
     content: z.string(),
     model_used: z.string(),
-    socratic_compliance: z.number().min(0).max(1),
-    violations: z.array(z.string()),
+    chunks_used_hash: Sha256.nullable().optional(),
+    socratic_compliance: z.number().min(0).max(1).nullable().optional(),
+    violations: z.array(z.string()).default([]),
   }),
 })
-export type RespuestaRecibida = z.infer<typeof RespuestaRecibida>
+export type TutorRespondio = z.infer<typeof TutorRespondio>
+
+// F6: campo `origin` opcional para distinguir tipeo / copia / paste.
+export const EdicionCodigoOrigin = z.enum([
+  "student_typed",
+  "copied_from_tutor",
+  "pasted_external",
+])
+export type EdicionCodigoOrigin = z.infer<typeof EdicionCodigoOrigin>
 
 export const EdicionCodigo = CTRBase.extend({
-  event_type: z.literal("EdicionCodigo"),
+  event_type: z.literal("edicion_codigo"),
   payload: z.object({
     snapshot: z.string(),
     diff_chars: z.number().int().nonnegative(),
     language: z.string(),
+    origin: EdicionCodigoOrigin.nullable().optional(),
   }),
 })
 export type EdicionCodigo = z.infer<typeof EdicionCodigo>
 
-export const TestsEjecutados = CTRBase.extend({
-  event_type: z.literal("TestsEjecutados"),
+// F4: renombrado TestsEjecutados -> CodigoEjecutado, payload flexible.
+export const CodigoEjecutado = CTRBase.extend({
+  event_type: z.literal("codigo_ejecutado"),
   payload: z.object({
-    passed: z.number().int().nonnegative(),
-    failed: z.number().int().nonnegative(),
-    total: z.number().int().nonnegative(),
-    stdout: z.string().nullable(),
-    failed_test_names: z.array(z.string()),
+    code: z.string(),
+    stdout: z.string().nullable().optional(),
+    stderr: z.string().nullable().optional(),
+    duration_ms: z.number().int().nonnegative(),
+    runtime: z.string(),
+    passed: z.number().int().nonnegative().nullable().optional(),
+    failed: z.number().int().nonnegative().nullable().optional(),
+    total: z.number().int().nonnegative().nullable().optional(),
+    failed_test_names: z.array(z.string()).default([]),
   }),
 })
-export type TestsEjecutados = z.infer<typeof TestsEjecutados>
+export type CodigoEjecutado = z.infer<typeof CodigoEjecutado>
 
 export const LecturaEnunciado = CTRBase.extend({
-  event_type: z.literal("LecturaEnunciado"),
+  event_type: z.literal("lectura_enunciado"),
   payload: z.object({
     duration_seconds: z.number().nonnegative(),
   }),
 })
 export type LecturaEnunciado = z.infer<typeof LecturaEnunciado>
 
-export const NotaPersonal = CTRBase.extend({
-  event_type: z.literal("NotaPersonal"),
+// F3: renombrado NotaPersonal -> AnotacionCreada (alinea con runtime).
+export const AnotacionCreada = CTRBase.extend({
+  event_type: z.literal("anotacion_creada"),
   payload: z.object({
     content: z.string(),
     words: z.number().int().nonnegative(),
   }),
 })
-export type NotaPersonal = z.infer<typeof NotaPersonal>
+export type AnotacionCreada = z.infer<typeof AnotacionCreada>
 
 // Union de todos los eventos CTR
 export const CTREvent = z.discriminatedUnion("event_type", [
   EpisodioAbierto,
   EpisodioCerrado,
   PromptEnviado,
-  RespuestaRecibida,
+  TutorRespondio,
   EdicionCodigo,
-  TestsEjecutados,
+  CodigoEjecutado,
   LecturaEnunciado,
-  NotaPersonal,
+  AnotacionCreada,
 ])
 export type CTREvent = z.infer<typeof CTREvent>

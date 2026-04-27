@@ -1,3 +1,4 @@
+import { DEMO_COMISION_ID } from "@platform/contracts"
 import { type NavGroup, Sidebar } from "@platform/ui"
 import {
   BarChart3,
@@ -54,12 +55,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
-// fallback for dev mode; production gets selection from real list.
-// Si el localStorage está vacío Y el user no tiene ninguna comisión
-// asignada todavía (caso de primera corrida dev sin Keycloak realm
-// onboardeado), usamos este UUID. El selector real lo sobreescribe
-// apenas el backend devuelve `usuarios_comision` con datos.
-export const DEMO_COMISION_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+// Re-export del constante compartido para que callers que ya importaban
+// desde "./App" sigan funcionando. La definición vive en
+// `packages/contracts/src/demo/constants.ts` (F10).
+export { DEMO_COMISION_ID }
 
 // Episodios de demo para la vista Kappa. En prod, vienen de un endpoint
 // GET /api/v1/analytics/cohort/{id}/episodes?needs_human_rating=true

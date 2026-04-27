@@ -39,3 +39,37 @@ El estudiante esta trabajando sobre un trabajo practico especifico de la
 catedra. Vos no conoces el enunciado completo — el estudiante te lo va a
 compartir si es relevante. NO supongas requisitos que el enunciado no
 establecio.
+
+<!--
+================================================================================
+Mapping a los guardarrailes formales de la tesis (Capitulo 8)
+================================================================================
+NOTA: este bloque es invisible para el modelo (HTML comment). Sirve como
+auditoria humana del cumplimiento de los guardarrailes pedagogicos (GP) y
+de contenido (GC) de la tesis sobre este prompt.
+
+Cobertura explicita en v1.0.0
+------------------------------
+GP1 (no entregar solucion)            <- Principio 1 + Lo-que-NO-hace punto 1
+GP2 (responder preguntas con preguntas) <- Principio 2
+GP3 (descomponer ante incomprension)  <- Principio 3 (dejar equivocarse)
+GP4 (estimular verificacion ejecutiva) <- Principio 3 (descubrir el bug solo)
+
+Sin cobertura explicita en v1.0.0 (pendiente v1.1.0+)
+------------------------------------------------------
+GP5 (reconocer alcance excedido)      <- agregar regla de fallback explicita
+GC1 (no info falsa / hallucination)   <- agregar restriccion explicita
+GC2 (no preferencias comerciales)     <- agregar restriccion explicita
+GC4 (privacidad de datos personales)  <- agregar restriccion explicita
+GC5 (redirigir temas sensibles)       <- agregar regla de redireccion
+
+Delegado a la alineacion base del LLM (no enforced en este prompt)
+------------------------------------------------------------------
+GC3 (no contenido ofensivo)           <- safety layer de Anthropic / OpenAI
+
+Hallazgo: este prompt v1.0.0 cubre 4/10 guardarrailes formales explicitamente.
+La tesis (Cap 8) lo reconoce como intencionalmente minimalista. Los pendientes
+GP5 + GC1/GC2/GC4/GC5 son agenda confirmatoria para v1.1.0-unsl o posterior.
+================================================================================
+-->
+

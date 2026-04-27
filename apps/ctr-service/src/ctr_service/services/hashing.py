@@ -39,9 +39,31 @@ def _json_default(o: Any) -> str:
 
 
 def compute_self_hash(event: dict[str, Any]) -> str:
-    """SHA-256 del evento serializado canónicamente, EXCLUYENDO los campos
-    self_hash, chain_hash y persisted_at (que se calculan después o son
-    metadata del persistidor).
+    """SHA-256 del evento serializado canónicamente.
+
+    Excluye los campos `self_hash`, `chain_hash`, `prev_chain_hash`,
+    `persisted_at` e `id` (metadata de cadena calculados después).
+
+    Relación con la Sección 7.3 de la tesis
+    ----------------------------------------
+    La tesis enuncia:
+        hash_evento_n = SHA-256(contenido_n || hash_evento_{n-1} || hash_prompt_sistema)
+
+    La implementación separa en dos pasos equivalentes en propiedad:
+        self_hash_n  = SHA-256(canonicalize(evento_n))
+        chain_hash_n = SHA-256(self_hash_n || chain_hash_{n-1})
+
+    El `prompt_system_hash` no se concatena como tercer bloque literal: entra como
+    campo del `evento_n` (ver Event.prompt_system_hash en models/event.py). Como
+    `canonicalize()` incluye todos los campos del evento salvo metadatos de cadena
+    (self_hash, chain_hash, prev_chain_hash, persisted_at, id), el hash del prompt
+    vigente queda incorporado a self_hash y por ende a chain_hash. La propiedad
+    auditada por la tesis — "si cambia el prompt entre dos eventos, se detecta en
+    la cadena" — se preserva bit a bit.
+
+    También se incluye `classifier_config_hash` en cada evento (no mencionado en
+    7.3 pero requerido por el principio de reproducibilidad 7.1.4: permite
+    reclasificar con otro profile y producir cadena distinguible).
     """
     clean = {
         k: v for k, v in event.items()

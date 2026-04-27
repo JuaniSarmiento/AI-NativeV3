@@ -4,10 +4,10 @@ Flujo de una interacción:
   1. Recibir query del estudiante
   2. Retrieval al content-service por comision_id → chunks + chunks_used_hash
   3. Armar messages con prompt sistema + contexto RAG + historia + query
-  4. Emitir evento `PromptEnviado` al CTR (con chunks_used_hash)
+  4. Emitir evento `prompt_enviado` al CTR (con chunks_used_hash)
   5. Invocar al ai-gateway con streaming
   6. Stream al cliente; acumular respuesta
-  7. Emitir evento `TutorRespondio` al CTR
+  7. Emitir evento `tutor_respondio` al CTR
   8. Actualizar session state
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
@@ -294,6 +295,9 @@ class TutorCore:
         diff_chars: int,
         language: str,
         user_id: UUID,
+        origin: (
+            Literal["student_typed", "copied_from_tutor", "pasted_external"] | None
+        ) = None,
     ) -> int:
         """Publica un evento edicion_codigo al CTR.
 
@@ -311,6 +315,11 @@ class TutorCore:
             diff_chars: cantidad de caracteres cambiados desde evento anterior
             language: lenguaje del código (default "python")
             user_id: UUID del estudiante autenticado (del JWT)
+            origin: F6 — procedencia del cambio. None = legacy/desconocido.
+                "student_typed" cuando el alumno tipeó directo en Monaco;
+                "pasted_external" cuando vino de paste del clipboard;
+                "copied_from_tutor" cuando el frontend insertó código
+                tomado del chat del tutor (botón "Insertar código").
 
         Returns:
             El seq asignado al evento (útil para debugging del cliente).
@@ -324,22 +333,26 @@ class TutorCore:
                 f"Episode {episode_id} no existe, está cerrado o expiró"
             )
 
+        payload: dict[str, str | int | None] = {
+            "snapshot": snapshot,
+            "diff_chars": diff_chars,
+            "language": language,
+        }
+        if origin is not None:
+            payload["origin"] = origin
+
         seq = await self.sessions.next_seq(state)
         event = self._build_event(
             state=state,
             seq=seq,
             event_type="edicion_codigo",
-            payload={
-                "snapshot": snapshot,
-                "diff_chars": diff_chars,
-                "language": language,
-            },
+            payload=payload,
         )
         # Publicar como el estudiante, no como el service account
         await self.ctr.publish_event(event, state.tenant_id, user_id)
         return seq
 
-    # ── Evento anotacion_creada (NotaPersonal — reflexión explícita) ────
+    # ── Evento anotacion_creada (AnotacionCreada — reflexión explícita) ──
 
     async def record_anotacion_creada(
         self,
@@ -347,7 +360,7 @@ class TutorCore:
         contenido: str,
         user_id: UUID,
     ) -> int:
-        """Publica una NotaPersonal (anotacion_creada) al CTR.
+        """Publica una anotacion_creada (AnotacionCreada) al CTR.
 
         Es la señal explícita de reflexión del estudiante — alimenta el
         cálculo de CCD orphan ratio. Sin esta señal, episodios reflexivos
@@ -385,6 +398,54 @@ class TutorCore:
             },
         )
         # Publicar como el estudiante (su reflexión, su autoría)
+        await self.ctr.publish_event(event, state.tenant_id, user_id)
+        return seq
+
+    # ── Evento lectura_enunciado (panel del enunciado de la TP) ──────────
+
+    async def record_lectura_enunciado(
+        self,
+        episode_id: UUID,
+        duration_seconds: float,
+        user_id: UUID,
+    ) -> int:
+        """Publica un evento lectura_enunciado al CTR.
+
+        Crítico para N1 (Comprensión): mide tiempo de permanencia en el
+        panel del enunciado de la TP. Sin esta señal, N1 queda casi sin
+        evidencia observable y el clasificador pierde dimensión.
+
+        El frontend acumula tiempo de visibilidad del panel (Intersection
+        + visibilitychange) y emite cada 30s O al cerrar el episodio.
+
+        El `user_id` es el del estudiante autenticado (no service account)
+        — la lectura es del estudiante, su acción.
+
+        Args:
+            episode_id: episodio vigente en el session manager.
+            duration_seconds: segundos acumulados de lectura visible
+                desde la última emisión (no acumulado total del episodio).
+            user_id: UUID del estudiante autenticado (del JWT).
+
+        Returns:
+            El seq asignado al evento.
+
+        Raises:
+            ValueError: si el episodio no existe o está cerrado/expirado.
+        """
+        state = await self.sessions.get(episode_id)
+        if state is None:
+            raise ValueError(
+                f"Episode {episode_id} no existe, está cerrado o expiró"
+            )
+
+        seq = await self.sessions.next_seq(state)
+        event = self._build_event(
+            state=state,
+            seq=seq,
+            event_type="lectura_enunciado",
+            payload={"duration_seconds": duration_seconds},
+        )
         await self.ctr.publish_event(event, state.tenant_id, user_id)
         return seq
 

@@ -125,7 +125,7 @@ services:
   # Observabilidad (ADR-013)
   # ──────────────────────────────────────────────────────────────
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.150.1
     container_name: platform-otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -163,7 +163,7 @@ services:
       - "9090:9090"
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.7.1
     container_name: platform-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml

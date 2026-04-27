@@ -198,13 +198,27 @@ export async function emitCodigoEjecutado(
   return (await r.json()) as EventEmitResponse
 }
 
+export type EdicionCodigoOrigin =
+  | "student_typed"
+  | "copied_from_tutor"
+  | "pasted_external"
+
 /** Emite un evento edicion_codigo al CTR. Disparado por el editor con
  * debouncing (1s) — el snapshot es el estado actual del buffer y diff_chars
  * el delta de caracteres respecto a la última emisión.
+ *
+ * F6: `origin` opcional indica de dónde vino el cambio (tipeo / copia /
+ * paste). Lo usa el clasificador para distinguir delegación pasiva de
+ * apropiación reflexiva sin depender solo de inferencia temporal.
  */
 export async function emitEdicionCodigo(
   episodeId: string,
-  payload: { snapshot: string; diff_chars: number; language: string },
+  payload: {
+    snapshot: string
+    diff_chars: number
+    language: string
+    origin?: EdicionCodigoOrigin | null
+  },
   getToken?: TokenGetter,
 ): Promise<EventEmitResponse> {
   const r = await fetch(`/api/v1/episodes/${episodeId}/events/edicion_codigo`, {
@@ -213,6 +227,27 @@ export async function emitEdicionCodigo(
     body: JSON.stringify(payload),
   })
   if (!r.ok) throw new Error(`emit edicion_codigo failed: ${r.status}`)
+  return (await r.json()) as EventEmitResponse
+}
+
+/** Emite un evento lectura_enunciado al CTR (F5).
+ *
+ * `duration_seconds` es el delta acumulado desde la última emisión
+ * (no el total del episodio). El frontend lo mide con IntersectionObserver
+ * + visibilitychange en el panel del enunciado y flushea cada ~30s o
+ * al cerrar el episodio.
+ */
+export async function emitLecturaEnunciado(
+  episodeId: string,
+  payload: { duration_seconds: number },
+  getToken?: TokenGetter,
+): Promise<EventEmitResponse> {
+  const r = await fetch(`/api/v1/episodes/${episodeId}/events/lectura_enunciado`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error(`emit lectura_enunciado failed: ${r.status}`)
   return (await r.json()) as EventEmitResponse
 }
 

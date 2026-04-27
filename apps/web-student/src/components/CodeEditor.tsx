@@ -43,11 +43,17 @@ export interface CodeEditorProps {
     durationMs: number
   }) => void
   /** Callback de edición con debouncing de 1s. Recibe el snapshot actual
-   * del buffer y `diffChars` = delta de caracteres respecto a la última
-   * emisión (positivo si agregó, negativo si borró). Pensado para alimentar
-   * el evento CTR `edicion_codigo` sin saturar al backend con cada tecla.
+   * del buffer, `diffChars` = delta de caracteres respecto a la última
+   * emisión (positivo si agregó, negativo si borró), y `origin` (F6) que
+   * indica si los cambios desde la última emisión vinieron de tipeo
+   * directo o de un paste del clipboard. Pensado para alimentar el evento
+   * CTR `edicion_codigo` sin saturar al backend con cada tecla.
    */
-  onEditDebounced?: (snapshot: string, diffChars: number) => void
+  onEditDebounced?: (
+    snapshot: string,
+    diffChars: number,
+    origin: "student_typed" | "pasted_external",
+  ) => void
   language?: "python" // en F6+ extendible a más lenguajes
 }
 
@@ -75,6 +81,10 @@ export function CodeEditor({
   // que el alumno tipeó después del template.
   const editTimeoutRef = useRef<number | null>(null)
   const lastFiredSnapshotRef = useRef<string>(initialCode)
+  // F6: si el usuario hizo paste antes del flush, marcamos el origin como
+  // "pasted_external"; sino default a "student_typed". Una vez emitido el
+  // evento, reseteamos para no contaminar la siguiente ventana.
+  const pasteSinceLastFlushRef = useRef<boolean>(false)
   const onEditDebouncedRef = useRef<typeof onEditDebounced>(onEditDebounced)
   useEffect(() => {
     onEditDebouncedRef.current = onEditDebounced
@@ -107,6 +117,12 @@ export function CodeEditor({
         insertSpaces: true,
       })
 
+      // F6: detectar paste del clipboard. Monaco dispara onDidPaste *antes*
+      // de onDidChangeModelContent, así marcamos el flag y lo lee el flush.
+      editor.onDidPaste(() => {
+        pasteSinceLastFlushRef.current = true
+      })
+
       editor.onDidChangeModelContent(() => {
         const value = editor.getValue()
         setCode(value)
@@ -127,7 +143,12 @@ export function CodeEditor({
           // tecla → undo dentro del debounce), no disparamos.
           if (snapshot === lastFiredSnapshotRef.current) return
           lastFiredSnapshotRef.current = snapshot
-          cb(snapshot, diffChars)
+          const origin: "pasted_external" | "student_typed" = pasteSinceLastFlushRef
+            .current
+            ? "pasted_external"
+            : "student_typed"
+          pasteSinceLastFlushRef.current = false
+          cb(snapshot, diffChars, origin)
         }, EDIT_DEBOUNCE_MS)
       })
 

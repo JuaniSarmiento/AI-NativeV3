@@ -1,3 +1,4 @@
+import { DEMO_COMISION_ID } from "@platform/contracts"
 import { HelpButton, MarkdownRenderer } from "@platform/ui"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CodeEditor } from "../components/CodeEditor"
@@ -9,6 +10,8 @@ import {
   EpisodeStateError,
   classifyEpisode,
   closeEpisode,
+  emitEdicionCodigo,
+  emitLecturaEnunciado,
   getEpisodeState,
   getTareaById,
   openEpisode,
@@ -30,11 +33,11 @@ interface Message {
 }
 
 /**
- * Comisión demo del piloto UNSL. fallback for dev mode; production gets
- * selection from real list. En F9 real, el listado del selector se
- * filtra por el claim `comisiones_activas` del JWT de Keycloak.
+ * Re-export del constante compartido (F10). La definición canónica vive
+ * en `packages/contracts/src/demo/constants.ts`. En F9 real, el listado
+ * del selector se filtra por el claim `comisiones_activas` del JWT.
  */
-export const DEMO_COMISION_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+export { DEMO_COMISION_ID }
 
 /** Página principal del estudiante: selector TP → editor + chat → panel N4. */
 export default function EpisodePage() {
@@ -308,13 +311,28 @@ export default function EpisodePage() {
         <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
           {/* Editor de código con Monaco + Pyodide */}
           <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <EnunciadoPanel tarea={selectedTarea} />
+            <EnunciadoPanel tarea={selectedTarea} episodeId={episodeId} />
             <CodeEditor
               initialCode={code}
               onCodeExecuted={(result) => {
                 setCode(result.code)
                 // TODO F6: emitir evento CTR codigo_ejecutado con result.output + result.error
                 console.debug("code executed:", result)
+              }}
+              onEditDebounced={(snapshot, diffChars, origin) => {
+                if (!episodeId) return
+                // F6: emitimos edicion_codigo con `origin` para que el
+                // clasificador distinga tipeo vs paste sin depender solo de
+                // inferencia temporal. Best-effort — un error no bloquea la
+                // UI ni invalida la sesión.
+                void emitEdicionCodigo(episodeId, {
+                  snapshot,
+                  diff_chars: Math.abs(diffChars),
+                  language: "python",
+                  origin,
+                }).catch((e) => {
+                  console.warn("emit edicion_codigo failed:", e)
+                })
               }}
             />
             <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 flex gap-2">
@@ -391,12 +409,116 @@ export default function EpisodePage() {
 }
 
 /**
+ * Hook que mide tiempo de visibilidad de un elemento + tab focus, y
+ * emite el delta acumulado al backend cada `flushMs` o al unmount.
+ *
+ * Es la señal observable canónica de N1 (Comprensión) — sin esto el
+ * clasificador queda casi sin evidencia para esa coherencia.
+ *
+ * Reglas:
+ *  - Sólo cuenta tiempo cuando el elemento está visible (IntersectionObserver
+ *    >= 25% threshold) Y la pestaña está visible (document.visibilityState).
+ *  - Flushea cada flushMs si hay >= 1s acumulado.
+ *  - On unmount, flushea el remanente.
+ *  - Si el episodio aún no abrió (episodeId == null), acumula igual y se
+ *    flushea en el siguiente flush con episode válido (mejor evidencia
+ *    cuando la TP demoró en abrir).
+ */
+function useReadingTimeReporter(
+  episodeId: string | null,
+  enabled: boolean,
+  flushMs = 30_000,
+) {
+  const elementRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    const target = elementRef.current
+    if (!target) return
+
+    let visibleInDom = false
+    let tabVisible =
+      typeof document !== "undefined" ? document.visibilityState === "visible" : true
+    let accumMs = 0
+    let lastTickAt: number | null = null
+
+    function isCounting() {
+      return visibleInDom && tabVisible
+    }
+    function tick() {
+      if (lastTickAt != null) accumMs += Date.now() - lastTickAt
+      lastTickAt = isCounting() ? Date.now() : null
+    }
+
+    async function flush() {
+      tick()
+      if (accumMs < 1000 || !episodeId) return
+      const seconds = accumMs / 1000
+      accumMs = 0
+      try {
+        await emitLecturaEnunciado(episodeId, { duration_seconds: seconds })
+      } catch (e) {
+        // Re-acumulamos para no perder señal — el siguiente flush lo
+        // reintenta. No bloquea la UI.
+        accumMs += seconds * 1000
+        console.warn("emit lectura_enunciado failed:", e)
+      }
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          tick()
+          visibleInDom = entry.isIntersecting && entry.intersectionRatio >= 0.25
+          if (isCounting() && lastTickAt == null) lastTickAt = Date.now()
+        }
+      },
+      { threshold: [0, 0.25, 0.5, 1] },
+    )
+    io.observe(target)
+
+    function onVisibility() {
+      tick()
+      tabVisible = document.visibilityState === "visible"
+      if (isCounting() && lastTickAt == null) lastTickAt = Date.now()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+
+    if (isCounting()) lastTickAt = Date.now()
+    const flushTimer = window.setInterval(() => {
+      void flush()
+    }, flushMs)
+
+    return () => {
+      io.disconnect()
+      document.removeEventListener("visibilitychange", onVisibility)
+      window.clearInterval(flushTimer)
+      void flush()
+    }
+  }, [episodeId, enabled, flushMs])
+
+  return elementRef
+}
+
+/**
  * Panel del enunciado de la TP, colapsable. Renderiza markdown con
  * `react-markdown` + `remark-gfm` para que listas, headings, código inline
  * y tablas se vean bien.
+ *
+ * F5: emite eventos `lectura_enunciado` al CTR mientras el panel está
+ * visible (cada 30s acumulados o al cerrar el episodio/unmount).
  */
-function EnunciadoPanel({ tarea }: { tarea: AvailableTarea }) {
+function EnunciadoPanel({
+  tarea,
+  episodeId,
+}: {
+  tarea: AvailableTarea
+  episodeId: string | null
+}) {
   const [open, setOpen] = useState(true)
+  // Sólo cuenta tiempo cuando el panel está expandido y hay episodio activo.
+  const enunciadoRef = useReadingTimeReporter(episodeId, open && episodeId !== null)
+
   return (
     <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
       <button
@@ -410,7 +532,10 @@ function EnunciadoPanel({ tarea }: { tarea: AvailableTarea }) {
         <span className="text-xs text-slate-500">{open ? "Ocultar" : "Mostrar"}</span>
       </button>
       {open && (
-        <div className="px-4 py-3 max-h-48 overflow-y-auto text-slate-700 dark:text-slate-300">
+        <div
+          ref={enunciadoRef}
+          className="px-4 py-3 max-h-48 overflow-y-auto text-slate-700 dark:text-slate-300"
+        >
           <MarkdownRenderer content={tarea.enunciado} />
         </div>
       )}

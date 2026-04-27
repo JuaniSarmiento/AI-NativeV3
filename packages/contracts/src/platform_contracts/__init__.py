@@ -4,16 +4,16 @@ Los contratos viven acá para que emisores y consumidores usen la misma
 definición. Cambios de schema siguen versionado semántico.
 """
 from platform_contracts.ctr.events import (
+    AnotacionCreada,
+    CodigoEjecutado,
     CTRBaseEvent,
     EdicionCodigo,
     EpisodioAbandonado,
     EpisodioAbierto,
     EpisodioCerrado,
     LecturaEnunciado,
-    NotaPersonal,
     PromptEnviado,
-    RespuestaRecibida,
-    TestsEjecutados,
+    TutorRespondio,
 )
 from platform_contracts.academic.events import (
     CarreraCreada,
@@ -32,11 +32,11 @@ __all__ = [
     "EpisodioCerrado",
     "EpisodioAbandonado",
     "PromptEnviado",
-    "RespuestaRecibida",
+    "TutorRespondio",
     "EdicionCodigo",
-    "TestsEjecutados",
+    "CodigoEjecutado",
     "LecturaEnunciado",
-    "NotaPersonal",
+    "AnotacionCreada",
     # Academic
     "UniversidadCreada",
     "CarreraCreada",

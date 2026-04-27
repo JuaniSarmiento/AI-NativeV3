@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import redis.asyncio as redis
@@ -370,6 +370,11 @@ class EdicionCodigoRequest(BaseModel):
     Crítico para CCD: distingue "tipeando/pensando" de "idle". Sin este
     evento, los gaps temporales entre prompts y ejecuciones no son
     interpretables por el clasificador.
+
+    F6: el campo opcional `origin` permite distinguir tipeo directo
+    ("student_typed"), copia desde el chat del tutor ("copied_from_tutor")
+    o paste externo ("pasted_external"). Es evidencia directa de
+    delegación/apropiación que no depende solo de inferencia temporal.
     """
 
     snapshot: str = Field(
@@ -381,6 +386,15 @@ class EdicionCodigoRequest(BaseModel):
         ..., ge=0, description="Cantidad de caracteres cambiados desde evento anterior"
     )
     language: str = Field(default="python", min_length=1, max_length=32)
+    origin: (
+        Literal["student_typed", "copied_from_tutor", "pasted_external"] | None
+    ) = Field(
+        default=None,
+        description=(
+            "Procedencia del cambio. None = legacy/desconocido. "
+            "F6 — alimenta clasificador para distinguir delegación/apropiación."
+        ),
+    )
 
 
 @router.post(
@@ -416,10 +430,64 @@ async def emit_edicion_codigo(
             diff_chars=req.diff_chars,
             language=req.language,
             user_id=user.id,
+            origin=req.origin,
         )
     except ValueError as e:
         # Sesión inexistente o eliminada (cierre/expiración) → episodio
         # ya no acepta eventos.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    return {"status": "accepted", "seq": str(seq)}
+
+
+class LecturaEnunciadoRequest(BaseModel):
+    """Evento emitido por el frontend al acumular tiempo de lectura del panel.
+
+    El frontend mide visibilidad del panel del enunciado con
+    IntersectionObserver + visibilitychange y emite cada ~30s acumulados
+    O al cerrar el episodio. Es la señal observable canónica de N1
+    (Comprensión).
+    """
+
+    duration_seconds: float = Field(
+        ...,
+        ge=0,
+        le=86400,  # un día — sanity cap, episodios reales <2h
+        description="Segundos acumulados de lectura visible desde la última emisión",
+    )
+
+
+@router.post(
+    "/{episode_id}/events/lectura_enunciado",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def emit_lectura_enunciado(
+    episode_id: UUID,
+    req: LecturaEnunciadoRequest,
+    user: User = Depends(require_role("estudiante", "docente", "docente_admin", "superadmin")),
+) -> dict[str, str]:
+    """Emite evento lectura_enunciado (LecturaEnunciado) al CTR.
+
+    Estados:
+      - 202: evento aceptado, devuelve `seq` asignado.
+      - 409: episodio cerrado, expirado o inexistente.
+      - 422: validación de payload falló (duration_seconds negativo o >86400).
+
+    El `user_id` autoritativo es el del estudiante (header X-User-Id) —
+    la lectura es del estudiante, su acción directa.
+
+    Idempotencia: el cliente NO debe reintentar este POST en error de red
+    — generaría doble contabilización. Si el cliente pierde respuesta,
+    asume que el delta NO se acumuló y vuelve a contar desde 0.
+    """
+    tutor = _get_tutor()
+    try:
+        seq = await tutor.record_lectura_enunciado(
+            episode_id=episode_id,
+            duration_seconds=req.duration_seconds,
+            user_id=user.id,
+        )
+    except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
     return {"status": "accepted", "seq": str(seq)}
@@ -450,7 +518,7 @@ async def emit_anotacion_creada(
     req: AnotacionCreadaRequest,
     user: User = Depends(require_role("estudiante", "docente", "docente_admin", "superadmin")),
 ) -> dict[str, str]:
-    """Emite evento anotacion_creada (NotaPersonal) al CTR.
+    """Emite evento anotacion_creada (AnotacionCreada) al CTR.
 
     Estados:
       - 202: evento aceptado, devuelve `seq` asignado.

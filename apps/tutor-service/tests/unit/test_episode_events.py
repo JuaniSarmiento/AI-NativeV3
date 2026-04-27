@@ -355,6 +355,96 @@ async def test_edicion_codigo_diff_chars_negativo_422(http_client) -> None:
     assert response.status_code == 422
 
 
+async def test_edicion_codigo_origin_se_propaga_al_payload(
+    tutor: TutorCore, fake_ctr: FakeCTRClient
+) -> None:
+    """F6: si se pasa origin, llega al payload del evento; si es None se omite."""
+    episode_id = await tutor.open_episode(
+        tenant_id=uuid4(),
+        comision_id=uuid4(),
+        student_pseudonym=uuid4(),
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+
+    await tutor.record_edicion_codigo(
+        episode_id=episode_id,
+        snapshot="x = 1",
+        diff_chars=5,
+        language="python",
+        user_id=uuid4(),
+        origin="pasted_external",
+    )
+    pasted = next(
+        e for e in fake_ctr.published_events
+        if e["event_type"] == "edicion_codigo" and e["payload"].get("origin") == "pasted_external"
+    )
+    assert pasted["payload"]["origin"] == "pasted_external"
+
+    await tutor.record_edicion_codigo(
+        episode_id=episode_id,
+        snapshot="y = 2",
+        diff_chars=5,
+        language="python",
+        user_id=uuid4(),
+        # origin omitido (default None) — no debe aparecer en el payload
+    )
+    no_origin_events = [
+        e for e in fake_ctr.published_events
+        if e["event_type"] == "edicion_codigo" and "origin" not in e["payload"]
+    ]
+    assert len(no_origin_events) >= 1
+
+
+async def test_edicion_codigo_origin_via_http_endpoint(
+    http_client, fake_ctr: FakeCTRClient
+) -> None:
+    """F6: el endpoint acepta `origin` y lo propaga; rechaza valores inválidos."""
+    client, tutor = http_client
+    tenant_id = uuid4()
+    student_id = uuid4()
+    episode_id = await tutor.open_episode(
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=student_id,
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+
+    # Happy path: origin válido se acepta y propaga
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/edicion_codigo",
+        json={
+            "snapshot": "x = 1",
+            "diff_chars": 5,
+            "language": "python",
+            "origin": "student_typed",
+        },
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 202
+    typed = next(
+        e for e in fake_ctr.published_events
+        if e["event_type"] == "edicion_codigo" and e["payload"].get("origin") == "student_typed"
+    )
+    assert typed["payload"]["origin"] == "student_typed"
+
+    # Origin inválido → 422
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/edicion_codigo",
+        json={
+            "snapshot": "z = 3",
+            "diff_chars": 5,
+            "language": "python",
+            "origin": "from_alien_planet",
+        },
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 422
+
+
 async def test_edicion_codigo_language_default_python(
     http_client, fake_ctr: FakeCTRClient
 ) -> None:
@@ -381,7 +471,7 @@ async def test_edicion_codigo_language_default_python(
     assert edicion[0]["payload"]["language"] == "python"
 
 
-# ── Tests del endpoint POST /events/anotacion_creada (NotaPersonal) ───
+# ── Tests del endpoint POST /events/anotacion_creada (AnotacionCreada) ─
 #
 # Crítico para CCD orphan ratio: sin la señal explícita de reflexión, los
 # episodios reflexivos quedan marcados como huérfanos de evidencia.
@@ -600,3 +690,117 @@ async def test_anotacion_words_count_es_correcto(
     )
     assert nota["payload"]["words"] == 5
     assert nota["payload"]["content"] == contenido
+
+
+# ── Tests del endpoint POST /events/lectura_enunciado (F5) ─────────────
+#
+# Crítico para N1 (Comprensión): mide tiempo de permanencia en el panel
+# del enunciado. Sin esta señal, N1 queda casi sin evidencia observable.
+
+
+async def test_lectura_enunciado_happy_path(
+    http_client, fake_ctr: FakeCTRClient
+) -> None:
+    """POST /events/lectura_enunciado devuelve 202 con seq, publica al CTR
+    con event_type=lectura_enunciado y user_id del estudiante."""
+    client, tutor = http_client
+    tenant_id = uuid4()
+    student_id = uuid4()
+    episode_id = await tutor.open_episode(
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=student_id,
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/lectura_enunciado",
+        json={"duration_seconds": 42.5},
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["seq"] == "1"
+
+    lecturas = [
+        e for e in fake_ctr.published_events
+        if e["event_type"] == "lectura_enunciado"
+    ]
+    assert len(lecturas) == 1
+    assert lecturas[0]["payload"]["duration_seconds"] == 42.5
+    # Caller debe ser el estudiante, no el service account del tutor
+    idx = fake_ctr.published_events.index(lecturas[0])
+    assert fake_ctr.captured_callers[idx] == student_id
+    assert fake_ctr.captured_callers[idx] != TUTOR_SERVICE_USER_ID
+
+
+async def test_lectura_enunciado_episodio_cerrado_409(http_client) -> None:
+    """POST después de cerrar el episodio devuelve 409."""
+    client, tutor = http_client
+    tenant_id = uuid4()
+    student_id = uuid4()
+    episode_id = await tutor.open_episode(
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=student_id,
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+    await tutor.close_episode(episode_id)
+
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/lectura_enunciado",
+        json={"duration_seconds": 10},
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 409
+
+
+async def test_lectura_enunciado_duration_negativa_422(http_client) -> None:
+    """duration_seconds negativo debe rechazarse con 422."""
+    client, tutor = http_client
+    tenant_id = uuid4()
+    student_id = uuid4()
+    episode_id = await tutor.open_episode(
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=student_id,
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/lectura_enunciado",
+        json={"duration_seconds": -5},
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 422
+
+
+async def test_lectura_enunciado_duration_demasiado_grande_422(
+    http_client,
+) -> None:
+    """duration_seconds >86400 (un día) debe rechazarse — sanity cap."""
+    client, tutor = http_client
+    tenant_id = uuid4()
+    student_id = uuid4()
+    episode_id = await tutor.open_episode(
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=student_id,
+        problema_id=uuid4(),
+        curso_config_hash="c" * 64,
+        classifier_config_hash="b" * 64,
+    )
+
+    response = client.post(
+        f"/api/v1/episodes/{episode_id}/events/lectura_enunciado",
+        json={"duration_seconds": 100_000},
+        headers=_student_headers(student_id, tenant_id),
+    )
+    assert response.status_code == 422

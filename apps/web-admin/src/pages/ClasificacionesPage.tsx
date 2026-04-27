@@ -4,6 +4,7 @@
  * Consume GET /api/v1/classifications/aggregated del classifier-service.
  * Muestra distribución, evolución temporal y promedios de las 3 coherencias.
  */
+import { DEMO_COMISION_ID } from "@platform/contracts"
 import { PageContainer } from "@platform/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { helpContent } from "../utils/helpContent"
@@ -26,7 +27,7 @@ interface AggregatedStats {
 // TODO(F9): reemplazar por un ComisionSelector real (como el que tiene web-teacher)
 // cuando el JWT de Keycloak traiga `comisiones_activas` como claim. Hoy es dev-only
 // y matchea el UUID de scripts/seed-demo-data.py (COMISION_ID).
-const DEMO_COMISION_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+// El constante vive en `packages/contracts/src/demo/constants.ts` (F10).
 
 /** Headers dev con identidad mock. En F5 se reemplaza por JWT. */
 function devHeaders(): Record<string, string> {

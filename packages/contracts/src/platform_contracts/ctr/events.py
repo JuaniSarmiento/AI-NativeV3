@@ -2,6 +2,13 @@
 
 Cada evento del episodio es registrado con cadena SHA-256 encadenada.
 Ver docs/plan-detallado-fases.md → F3.1 para detalles de implementación.
+
+Convención de naming (F1, alineada con runtime):
+- Las clases Pydantic conservan PascalCase (idioma Python).
+- El campo `event_type` es el string que viaja en el bus y se persiste:
+  va en snake_case porque es lo que ya emite el tutor-service en producción.
+  Cambiar el string en runtime obliga a migrar seeds, tests, dashboards y
+  CTRs ya persistidos — por eso alineamos los contracts al código vigente.
 """
 from __future__ import annotations
 
@@ -43,7 +50,7 @@ class EpisodioAbiertoPayload(BaseModel):
 
 
 class EpisodioAbierto(CTRBaseEvent):
-    event_type: Literal["EpisodioAbierto"] = "EpisodioAbierto"
+    event_type: Literal["episodio_abierto"] = "episodio_abierto"
     payload: EpisodioAbiertoPayload
 
 
@@ -54,7 +61,7 @@ class EpisodioCerradoPayload(BaseModel):
 
 
 class EpisodioCerrado(CTRBaseEvent):
-    event_type: Literal["EpisodioCerrado"] = "EpisodioCerrado"
+    event_type: Literal["episodio_cerrado"] = "episodio_cerrado"
     payload: EpisodioCerradoPayload
 
 
@@ -64,7 +71,7 @@ class EpisodioAbandonadoPayload(BaseModel):
 
 
 class EpisodioAbandonado(CTRBaseEvent):
-    event_type: Literal["EpisodioAbandonado"] = "EpisodioAbandonado"
+    event_type: Literal["episodio_abandonado"] = "episodio_abandonado"
     payload: EpisodioAbandonadoPayload
 
 
@@ -84,20 +91,25 @@ class PromptEnviadoPayload(BaseModel):
 
 
 class PromptEnviado(CTRBaseEvent):
-    event_type: Literal["PromptEnviado"] = "PromptEnviado"
+    event_type: Literal["prompt_enviado"] = "prompt_enviado"
     payload: PromptEnviadoPayload
 
 
-class RespuestaRecibidaPayload(BaseModel):
+# F2 + F8: renombrado RespuestaRecibida → TutorRespondio (alinea con runtime)
+# y `socratic_compliance`/`violations` pasan a ser opcionales hasta que el
+# postprocesamiento real (detección de jailbreak, cálculo de compliance)
+# se implemente. Ver 02-cambios-codigo-grandes.md → G3.
+class TutorRespondioPayload(BaseModel):
     content: str
     model_used: str  # ej. "claude-sonnet-4-6"
-    socratic_compliance: float = Field(ge=0.0, le=1.0)
+    chunks_used_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    socratic_compliance: float | None = Field(default=None, ge=0.0, le=1.0)
     violations: list[str] = Field(default_factory=list)
 
 
-class RespuestaRecibida(CTRBaseEvent):
-    event_type: Literal["RespuestaRecibida"] = "RespuestaRecibida"
-    payload: RespuestaRecibidaPayload
+class TutorRespondio(CTRBaseEvent):
+    event_type: Literal["tutor_respondio"] = "tutor_respondio"
+    payload: TutorRespondioPayload
 
 
 # ── Actividad del estudiante ──────────────────────────────────────────
@@ -108,39 +120,57 @@ class LecturaEnunciadoPayload(BaseModel):
 
 
 class LecturaEnunciado(CTRBaseEvent):
-    event_type: Literal["LecturaEnunciado"] = "LecturaEnunciado"
+    event_type: Literal["lectura_enunciado"] = "lectura_enunciado"
     payload: LecturaEnunciadoPayload
 
 
-class NotaPersonalPayload(BaseModel):
+# F3: renombrado NotaPersonal → AnotacionCreada (alinea con runtime).
+# "Anotación" es más neutra que "Nota" y transmite mejor la idea de marca
+# reflexiva. La tesis sigue hablando de "Nota personal" en la teoría.
+class AnotacionCreadaPayload(BaseModel):
     content: str
     words: int = Field(ge=0)
 
 
-class NotaPersonal(CTRBaseEvent):
-    event_type: Literal["NotaPersonal"] = "NotaPersonal"
-    payload: NotaPersonalPayload
+class AnotacionCreada(CTRBaseEvent):
+    event_type: Literal["anotacion_creada"] = "anotacion_creada"
+    payload: AnotacionCreadaPayload
 
 
+# F6: campo `origin` opcional para distinguir "el estudiante tipeó" de
+# "copió del tutor" o "pasteó externo". Permite evidencia directa de
+# delegación/apropiación sin depender solo de inferencia temporal (CCD).
 class EdicionCodigoPayload(BaseModel):
     snapshot: str  # código completo en el momento del evento
     diff_chars: int  # cantidad de caracteres cambiados desde evento anterior
     language: str
+    origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = (
+        Field(default=None, description="Procedencia del cambio. None = legacy/desconocido.")
+    )
 
 
 class EdicionCodigo(CTRBaseEvent):
-    event_type: Literal["EdicionCodigo"] = "EdicionCodigo"
+    event_type: Literal["edicion_codigo"] = "edicion_codigo"
     payload: EdicionCodigoPayload
 
 
-class TestsEjecutadosPayload(BaseModel):
-    passed: int = Field(ge=0)
-    failed: int = Field(ge=0)
-    total: int = Field(ge=0)
+# F4: renombrado TestsEjecutados → CodigoEjecutado (alinea con runtime).
+# El payload se ampliá: passed/failed/total son opcionales (ejecución
+# genérica de Pyodide puede no llevar tests). Se agregan campos de
+# ejecución que el frontend ya manda (code/stdout/stderr/duration_ms/runtime).
+class CodigoEjecutadoPayload(BaseModel):
+    code: str
     stdout: str | None = None
+    stderr: str | None = None
+    duration_ms: int = Field(ge=0)
+    runtime: str  # "pyodide", "python", etc.
+    # Opcionales: solo presentes si se ejecutaron tests
+    passed: int | None = Field(default=None, ge=0)
+    failed: int | None = Field(default=None, ge=0)
+    total: int | None = Field(default=None, ge=0)
     failed_test_names: list[str] = Field(default_factory=list)
 
 
-class TestsEjecutados(CTRBaseEvent):
-    event_type: Literal["TestsEjecutados"] = "TestsEjecutados"
-    payload: TestsEjecutadosPayload
+class CodigoEjecutado(CTRBaseEvent):
+    event_type: Literal["codigo_ejecutado"] = "codigo_ejecutado"
+    payload: CodigoEjecutadoPayload

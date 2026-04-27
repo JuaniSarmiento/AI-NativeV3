@@ -1,15 +1,15 @@
 """Eventos del CTR."""
 from platform_contracts.ctr.events import (
+    AnotacionCreada,
+    CodigoEjecutado,
     CTRBaseEvent,
     EdicionCodigo,
     EpisodioAbandonado,
     EpisodioAbierto,
     EpisodioCerrado,
     LecturaEnunciado,
-    NotaPersonal,
     PromptEnviado,
-    RespuestaRecibida,
-    TestsEjecutados,
+    TutorRespondio,
 )
 from platform_contracts.ctr.hashing import (
     GENESIS_HASH,
@@ -24,11 +24,11 @@ __all__ = [
     "EpisodioCerrado",
     "EpisodioAbandonado",
     "PromptEnviado",
-    "RespuestaRecibida",
+    "TutorRespondio",
     "LecturaEnunciado",
-    "NotaPersonal",
+    "AnotacionCreada",
     "EdicionCodigo",
-    "TestsEjecutados",
+    "CodigoEjecutado",
     "compute_self_hash",
     "compute_chain_hash",
     "verify_chain_integrity",
