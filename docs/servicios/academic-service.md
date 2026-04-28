@@ -134,7 +134,7 @@ Tres afirmaciones de la tesis que este servicio sostiene operativamente:
 
 ## 11. Estado de madurez
 
-**Tests** (14 archivos — el servicio más testeado del monorepo):
+**Tests** (13 archivos — el servicio más testeado del monorepo: 1 unit + 11 integration + health):
 - `tests/unit/test_schemas.py` — 10 tests de validación Pydantic (RN-030).
 - `tests/integration/test_casbin_matrix.py` — **matriz completa** de permisos sobre los 4 roles × catálogo de recursos.
 - `tests/integration/test_rls_isolation.py` — aislamiento multi-tenant contra Postgres real (requiere `ACADEMIC_DB_URL_FOR_RLS_TESTS`).

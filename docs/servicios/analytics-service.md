@@ -16,6 +16,7 @@ Es el único servicio del repo que lee **cross-base** (`ctr_store` + `classifier
 - Exponer `POST /api/v1/analytics/ab-test-profiles` que recibe un gold standard de episodios con `human_label` + 2+ profiles candidatos, clasifica cada episodio contra cada profile **in-process** (importando `classifier_service.services.pipeline`), calcula κ por profile y devuelve el `winner_by_kappa` (HU-118).
 - Exponer `GET /api/v1/analytics/cohort/{comision_id}/progression` que construye trayectorias por estudiante (primer/último clasificación, `max_appropriation_reached`, `progression_label ∈ {mejorando, estable, empeorando, insuficiente}`), agrega por cohorte y devuelve `net_progression_ratio`.
 - Exponer `POST /api/v1/analytics/cohort/export` que encola un job asíncrono de export académico anonimizado; `GET /status/{job_id}` + `GET /download/{job_id}` cierran el flujo.
+- Exponer las vistas de drill-down del MVP G7 ([ADR-022](../adr/022-tanstack-router-migration.md), RN-131) consumidas por `web-teacher`: `GET /episode/{id}/n-level-distribution` (etiquetador N1-N4 derivado, [ADR-020](../adr/020-event-labeler-n-level.md)), `GET /student/{id}/cii-evolution-longitudinal` (slope longitudinal por `template_id`, [ADR-018](../adr/018-cii-evolution-longitudinal.md)), `GET /student/{id}/episodes` (lista de episodios + clasificaciones del estudiante), `GET /cohort/{id}/cii-quartiles` (estadística de cohorte con privacy gate N≥5), `GET /student/{id}/alerts` (3 alertas predictivas estadística clásica), `GET /cohort/{id}/adversarial-events` (eventos `intento_adverso_detectado` agregados, [ADR-019](../adr/019-guardrails-fase-a.md)).
 - Correr un `ExportWorker` en el `lifespan` de FastAPI (RN-109) que consume el `ExportJobStore` global y procesa los jobs en background.
 - Aplicar las reglas de anonimización: `salt` mínimo 16 chars obligatorio (validado por Pydantic), `include_prompts=False` por default, `cohort_alias` para identificar la cohorte en el dataset publicable.
 - Seleccionar la fuente de datos: `RealCohortDataSource` + `RealLongitudinalDataSource` si `CTR_STORE_URL` y `CLASSIFIER_DB_URL` están configuradas, o `_StubDataSource` (data vacía) en su ausencia — permite arrancar en dev sin DB real sin que el servicio crashee.
@@ -38,8 +39,14 @@ Es el único servicio del repo que lee **cross-base** (`ctr_store` + `classifier
 | `POST` | `/api/v1/analytics/ab-test-profiles` | Compara ≥2 profiles contra gold standard humano. | Mismos headers. 503 si no puede importar `classifier_service`. |
 | `GET` | `/api/v1/analytics/cohort/{comision_id}/progression` | Trayectorias por estudiante + agregado de cohorte. | `X-Tenant-Id`. |
 | `POST` | `/api/v1/analytics/cohort/export` | Encola job async de export anonimizado. 202 con `job_id`. | `X-Tenant-Id`, `X-User-Id`. |
-| `GET` | `/api/v1/analytics/cohort/export/{job_id}/status` | Estado del job (`pending|running|succeeded|failed`). | — |
+| `GET` | `/api/v1/analytics/cohort/export/{job_id}/status` | Estado del job (`pending\|running\|succeeded\|failed`). | — |
 | `GET` | `/api/v1/analytics/cohort/export/{job_id}/download` | Payload inline si succeeded. 425 si aún running, 500 si failed. | — |
+| `GET` | `/api/v1/analytics/episode/{episode_id}/n-level-distribution` | Distribución de tiempo por nivel N1–N4 derivada en lectura ([ADR-020](../adr/020-event-labeler-n-level.md)). Consumido por `EpisodeNLevelView` del web-teacher. | `X-Tenant-Id`. |
+| `GET` | `/api/v1/analytics/student/{student_pseudonym}/cii-evolution-longitudinal` | Slope ordinal por `template_id` ([ADR-018](../adr/018-cii-evolution-longitudinal.md), RN-130). Mínimo 3 episodios por template; `insufficient_data: true` si N<3. | `X-Tenant-Id`. |
+| `GET` | `/api/v1/analytics/student/{student_pseudonym}/episodes` | Lista de episodios del estudiante + última clasificación de cada uno (drill-down navegacional desde el cohort progression). | `X-Tenant-Id`. |
+| `GET` | `/api/v1/analytics/cohort/{comision_id}/cii-quartiles` | Estadística de cohorte (cuartiles + media) sobre `cii_evolution_longitudinal` per-template. **Privacy gate**: con N<5 → `insufficient_data: true` SIN cuartiles ([ADR-022](../adr/022-tanstack-router-migration.md), RN-131). | `X-Tenant-Id`. |
+| `GET` | `/api/v1/analytics/student/{student_pseudonym}/alerts` | 3 alertas predictivas (`regresion_vs_cohorte`, `bottom_quartile`, `slope_negativo_significativo`) computadas con z-score vs cohorte (NO ML). Degrada graciosamente si cohorte<5. | `X-Tenant-Id`. |
+| `GET` | `/api/v1/analytics/cohort/{comision_id}/adversarial-events` | Eventos `intento_adverso_detectado` agregados por estudiante + categoría ([ADR-019](../adr/019-guardrails-fase-a.md), Sección 17.8). Consumido por `CohortAdversarialView`. | `X-Tenant-Id`. |
 | `GET` | `/health` | Stub. | — |
 
 ## 6. Dependencias
@@ -69,7 +76,7 @@ Estado en memoria del proceso:
 
 ## 8. Archivos clave para entender el servicio
 
-- `apps/analytics-service/src/analytics_service/routes/analytics.py` — los 6 endpoints (504 líneas). La densidad es deliberada: cada endpoint hace su propio setup del data source según feature flag.
+- `apps/analytics-service/src/analytics_service/routes/analytics.py` — los 12 endpoints HTTP (los 6 originales F7 + los 6 nuevos del MVP G7 / ADR-022). La densidad es deliberada: cada endpoint hace su propio setup del data source según feature flag.
 - `apps/analytics-service/src/analytics_service/services/export.py` — singleton del `ExportJobStore` + `get_worker_salt()` + `_real_data_source_enabled()` + `start_worker()`/`stop_worker()` integrados al lifespan.
 - `apps/analytics-service/src/analytics_service/main.py` — lifespan que arranca el export worker (RN-109).
 - `apps/analytics-service/src/analytics_service/config.py` — declaración de `ctr_store_url` + `classifier_db_url` en el model `Settings` (**crítico**: sin esto, aunque el `.env` las tenga, `pydantic_settings` las ignora y el servicio cae a `_StubDataSource` — ver Gotchas).
@@ -78,7 +85,7 @@ Estado en memoria del proceso:
 - `packages/platform-ops/src/platform_ops/ab_testing.py` — `compare_profiles()`, `EpisodeForComparison`.
 - `packages/platform-ops/src/platform_ops/real_datasources.py` — `RealCohortDataSource`, `RealLongitudinalDataSource` con sesiones separadas + RLS.
 - `packages/platform-ops/src/platform_ops/export_worker.py` — `ExportWorker`, `ExportJob`, `JobStatus`.
-- `apps/analytics-service/tests/unit/test_analytics_endpoints.py` + `test_f7_endpoints.py` + `test_export_endpoints.py` — cubren los 6 endpoints con data source stub.
+- `apps/analytics-service/tests/unit/test_analytics_endpoints.py` + `test_f7_endpoints.py` + `test_export_endpoints.py` — cubren los endpoints con data source stub. Las suites de los nuevos endpoints del MVP G7 (alertas, cuartiles, longitudinal, drill-downs) están bajo el mismo árbol; ver `apps/analytics-service/tests/`.
 
 ## 9. Configuración y gotchas
 

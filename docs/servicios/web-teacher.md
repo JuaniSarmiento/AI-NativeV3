@@ -8,20 +8,21 @@ Es el panel del docente y del investigador: combina autoría de trabajos prácti
 
 Pertenece a los **frontends**. Materializa la interfaz del componente "Panel del docente y del investigador" descrito en el Capítulo 6 de la tesis (arquitectura C4 del sistema AI-Native), cuyas responsabilidades nominales son: dar al docente la autoría curricular (TPs, materiales) y al investigador las herramientas de análisis empírico que sostienen el capítulo de validación de la tesis (κ, progresión, export).
 
-Es el frontend más cargado en cantidad de vistas: 6 views por >3.700 líneas (las dos de TP/Templates pesan ~1.000 cada una por el versionado inmutable + drift detection + modales de create/edit/publish).
+Es el frontend más cargado en cantidad de vistas: 9 vistas (las 6 de F6-F9 + 3 nuevas del MVP G7 / ADR-022) cubriendo >4.500 líneas (TP/Templates pesan ~1.000 cada una por el versionado inmutable + drift detection + modales de create/edit/publish).
 
 ## 3. Responsabilidades
 
-- Renderizar 6 vistas agrupadas en 3 bloques navegacionales ("Trabajo del docente", "Análisis", "Operacional"):
-  - **Trabajo del docente**: `TemplatesView` (plantillas canónicas ADR-016 por Materia+Periodo), `TareasPracticasView` (instancias por comisión), `MaterialesView` (upload + listado por comisión).
-  - **Análisis**: `ProgressionView` (trayectoria longitudinal con SVG nativo), `KappaRatingView` (rating intercoder episodio por episodio, computa κ en vivo).
+- Renderizar 9 vistas agrupadas navegacionalmente ([ADR-022](../adr/022-tanstack-router-migration.md) migró a **TanStack Router file-based**):
+  - **Trabajo del docente**: `TemplatesView` (plantillas canónicas [ADR-016](../adr/016-tp-template-instance.md) por Materia+Periodo), `TareasPracticasView` (instancias por comisión), `MaterialesView` (upload + listado por comisión).
+  - **Análisis (F7)**: `ProgressionView` (trayectoria longitudinal con SVG nativo), `KappaRatingView` (rating intercoder episodio por episodio, computa κ en vivo).
   - **Operacional**: `ExportView` (enqueue job de export anonimizado + polling de status + download).
+  - **Drill-downs MVP G7 (ADR-022)**: `EpisodeNLevelView` (distribución N1-N4 derivada por episodio), `StudentLongitudinalView` (slope per-template + sparkline + panel de alertas + posición en cuartiles), `CohortAdversarialView` (intentos adversos agregados por estudiante + categoría).
 - Exponer el selector de comisión (`ComisionSelector`) y el selector cascada Universidad → Facultad → Carrera → Plan → Materia → Período (`AcademicContextSelector`) para filtrar las vistas por ámbito académico.
 - Gestionar el ciclo de vida de TPs y templates: draft → published (inmutable) → new-version (clona con `parent_id`) → archived.
 - Implementar el rating intercoder del workflow de κ (`KappaRatingView`): el docente revisa N episodios con su `classifier_label` ya asignado y marca su propia etiqueta (`rater_a` vs `rater_b`), luego el frontend pega a `POST /api/v1/analytics/kappa` con el batch.
 - Renderizar visualizaciones empíricas: distribución N4 por comisión, trayectorias estudiantiles con color por `appropriation`, timeseries de progresión.
 - Enqueue jobs de export + polling de status + download del payload JSON con el dataset anonymizado.
-- Soportar el sistema de ayuda in-app con 5 entries en `helpContent.tsx` (una por vista, Export consolida con KappaRating).
+- Soportar el sistema de ayuda in-app con entries en `helpContent.tsx` (una por vista; Export consolida con KappaRating; las 3 vistas nuevas del MVP G7 tienen su propia entrada).
 - En dev mode, inyectar headers como docente (`x-user-id: 11111111-...`, role `docente`).
 
 ## 4. Qué NO hace (anti-responsabilidades)
@@ -35,16 +36,20 @@ Es el frontend más cargado en cantidad de vistas: 6 views por >3.700 líneas (l
 
 ## 5. Rutas principales
 
-Routing "basado en useState" (`App.tsx` hace state-based switching, no TanStack Router todavía — mismo patrón que web-admin):
+Routing **TanStack Router file-based** ([ADR-022](../adr/022-tanstack-router-migration.md), 2026-04-27). Las rutas viven en `apps/web-teacher/src/routes/{__root,index,templates,kappa,progression,tareas-practicas,materiales,export,episode-n-level,student-longitudinal,cohort-adversarial}.tsx`. El árbol se genera por el plugin `TanStackRouterVite` en `vite.config.ts` (registrado **ANTES** del plugin `react()`). El estado del sidebar (`comisionId`) es un query param compartido.
 
-| `View` id | Componente | Consume |
+| Ruta | Componente | Consume |
 |---|---|---|
-| `progression` | `ProgressionView.tsx` | `GET /api/v1/analytics/cohort/{id}/progression` |
-| `kappa` | `KappaRatingView.tsx` | `POST /api/v1/analytics/kappa` con batch de ratings |
-| `tareas-practicas` | `TareasPracticasView.tsx` | CRUD `/api/v1/tareas-practicas` + publish/archive/new-version |
-| `templates` | `TemplatesView.tsx` | CRUD `/api/v1/tareas-practicas-templates` + instances + drift detection |
-| `materiales` | `MaterialesView.tsx` | `POST/GET/DELETE /api/v1/materiales` — upload a content-service |
-| `export` | `ExportView.tsx` | Enqueue + polling + download de `/api/v1/analytics/cohort/export` |
+| `/` (index) | `index.tsx` | Landing del dashboard. |
+| `/progression` | `ProgressionView.tsx` | `GET /api/v1/analytics/cohort/{id}/progression`. Drill-down navegacional: la fila de cada estudiante es clickable → `/student-longitudinal`. |
+| `/kappa` | `KappaRatingView.tsx` | `POST /api/v1/analytics/kappa` con batch de ratings. |
+| `/tareas-practicas` | `TareasPracticasView.tsx` | CRUD `/api/v1/tareas-practicas` + publish/archive/new-version. |
+| `/templates` | `TemplatesView.tsx` | CRUD `/api/v1/tareas-practicas-templates` + instances + drift detection. |
+| `/materiales` | `MaterialesView.tsx` | `POST/GET/DELETE /api/v1/materiales` — upload a content-service. |
+| `/export` | `ExportView.tsx` | Enqueue + polling + download de `/api/v1/analytics/cohort/export`. |
+| `/episode-n-level` | `EpisodeNLevelView.tsx` | `GET /api/v1/analytics/episode/{id}/n-level-distribution` (etiquetador N1-N4 derivado [ADR-020](../adr/020-event-labeler-n-level.md)). |
+| `/student-longitudinal` | `StudentLongitudinalView.tsx` | `GET /student/{id}/cii-evolution-longitudinal` + `/episodes` + `/alerts` + `/cohort/{id}/cii-quartiles` ([ADR-018](../adr/018-cii-evolution-longitudinal.md), [ADR-022](../adr/022-tanstack-router-migration.md)). |
+| `/cohort-adversarial` | `CohortAdversarialView.tsx` | `GET /api/v1/analytics/cohort/{id}/adversarial-events` ([ADR-019](../adr/019-guardrails-fase-a.md)). |
 
 ## 6. Dependencias
 
@@ -64,7 +69,9 @@ Frontend — sin persistencia propia. State local con `useState` + `useEffect` (
 
 ## 8. Archivos clave para entender el servicio
 
-- `apps/web-teacher/src/App.tsx` — routing state-based, `NAV_GROUPS` agrupado en 3 bloques, `DEMO_COMISION_ID` + `DEMO_EPISODES` de fallback.
+- `apps/web-teacher/src/main.tsx` — entry point + `RouterProvider` de TanStack Router.
+- `apps/web-teacher/src/routes/__root.tsx` — layout raíz con `Sidebar`, `ComisionSelectorRouted` (lee `comisionId` del query param compartido vía `useRouterState`) y `<Outlet />`.
+- `apps/web-teacher/src/routes/{index,templates,tareas-practicas,materiales,kappa,progression,export,episode-n-level,student-longitudinal,cohort-adversarial}.tsx` — 10 rutas file-based. `routeTree.gen.ts` lo regenera el plugin `TanStackRouterVite`.
 - `apps/web-teacher/src/views/TareasPracticasView.tsx` — 1018 líneas. Ciclo completo de TP instance con versionado inmutable, publish/archive, new-version. El ejemplo canónico del patrón CRUD + modales + discriminated union para ModalState.
 - `apps/web-teacher/src/views/TemplatesView.tsx` — 1036 líneas. ADR-016: vista cascada Universidad→Facultad→Carrera→Plan→Materia→Período, create template → auto-fan-out a instancias, drift badge, re-instance non-drifted.
 - `apps/web-teacher/src/views/ProgressionView.tsx` — **SVG nativo** (no Recharts — decisión de simplicidad). Colores por `appropriation` y `progression_label`. Trayectoria por estudiante + resumen de cohorte.
@@ -108,13 +115,12 @@ Las vistas de `TareasPracticasView` y `TemplatesView` materializan [ADR-016](../
 
 ## 11. Estado de madurez
 
-**Tests**: sin suite activa de componentes. Los tests de la foundation viven en `packages/ui/`.
+**Tests**: 11 tests E2E (vitest + RTL + jsdom) en `apps/web-teacher/tests/{EpisodeNLevelView,CohortAdversarialView,StudentLongitudinalView}.test.tsx` cubriendo las 3 vistas del MVP G7 (ADR-022). Helper `setupFetchMock(handlers)` en `tests/_mocks.ts` mockea fetch por path-prefix con default benigno `{data:[],meta:{cursor_next:null}}` para los componentes que firen fetch al mount. Los tests del resto de las vistas viven en la foundation `packages/ui/`.
 
 **Known gaps**:
 - A/B testing de profiles (HU-118) sin UI — API-only, el investigador arma el JSON con curl. Drag-and-drop deferida F8+.
 - `MarkdownRenderer` duplicado entre web-teacher y web-student — overhead aceptado.
-- Sin tests e2e de los flujos completos (rating κ, export job con polling).
-- Routing state-based — migración a TanStack Router prevista F2-F3.
+- ML predictivo verdadero (>1σ del propio trayecto, no de cohorte) deferido a piloto-2 — el MVP estadístico (z-score vs cohorte + cuartiles + drill-down + 3 vistas) ya está hecho pre-defensa con [ADR-022](../adr/022-tanstack-router-migration.md) / RN-131.
 - Rubrica de TPs renderizada como JSON crudo (no markdown wrapper) — documentado como gap estético.
 - `ProgressionView` con SVG nativo — interactividad limitada (no tooltips on hover, no zoom).
 
@@ -122,4 +128,5 @@ Las vistas de `TareasPracticasView` y `TemplatesView` materializan [ADR-016](../
 - F6 — κ workflow + rating UI básico (`docs/F6-STATE.md`).
 - F7 — progresión + export con polling (`docs/F7-STATE.md`).
 - F8 — adaptadores DB reales + TareasPracticasView con versionado.
-- F9 — Templates (ADR-016) + auto-fan-out UI.
+- F9 — Templates ([ADR-016](../adr/016-tp-template-instance.md)) + auto-fan-out UI.
+- 2026-04-27 — MVP G7 ([ADR-022](../adr/022-tanstack-router-migration.md)): migración a TanStack Router file-based + 3 vistas nuevas (`EpisodeNLevelView`, `StudentLongitudinalView`, `CohortAdversarialView`) + drill-down navegacional desde `ProgressionView` + 11 tests E2E + alertas predictivas estadística clásica (NO ML) + cuartiles privacy-safe N≥5.

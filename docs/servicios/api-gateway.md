@@ -52,7 +52,9 @@ Las rutas ruteadas (map interno en `routes/proxy.py`):
 | `/api/v1/classify_episode`, `/classifications` | [classifier-service](./classifier-service.md) |
 | `/api/v1/analytics` | [analytics-service](./analytics-service.md) |
 
-**Prefijos no ruteados hoy** (no aparecen en `ROUTE_MAP`): `/api/v1/tareas-practicas-templates` (academic-service), endpoints de [governance-service](./governance-service.md), [ai-gateway](./ai-gateway.md), [identity-service](./identity-service.md), [evaluation-service](./evaluation-service.md). Si se consumen desde el frontend, **no pasan por api-gateway** — o el frontend pega directo al servicio interno (no soportado en prod) o el mapa se amplía.
+**Prefijos no ruteados hoy** (no aparecen en `ROUTE_MAP` y `resolve_target()` retorna `None`): endpoints de [governance-service](./governance-service.md), [ai-gateway](./ai-gateway.md), [identity-service](./identity-service.md), [evaluation-service](./evaluation-service.md), `/api/v1/ctr/*` (write/read/verify directo del [ctr-service](./ctr-service.md)) y `/api/v1/integrity-attestation/*` (servicio externo institucional). Si se consumen desde el frontend, **no pasan por api-gateway** — o el frontend pega directo al servicio interno (no soportado en prod) o el mapa se amplía.
+
+**Match implícito por `startswith`**: `resolve_target()` matchea con `path.startswith(prefix)`, así que `/api/v1/tareas-practicas-templates` queda routeado a academic-service vía el prefix `/api/v1/tareas-practicas` (sin necesidad de entrada propia). Lo mismo pasa con sub-paths: `/api/v1/episodes/{id}/events/codigo_ejecutado` resuelve por `/api/v1/episodes` → tutor-service. Cuando agregues una entidad nueva, verificá si su prefijo no colisiona con uno existente.
 
 ## 6. Dependencias
 
