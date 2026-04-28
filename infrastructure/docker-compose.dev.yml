@@ -103,7 +103,7 @@ services:
   # MinIO (S3-compatible) para materiales y archive del CTR
   # ──────────────────────────────────────────────────────────────
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: platform-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -140,7 +140,7 @@ services:
       - loki
 
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:1.62.0
     container_name: platform-jaeger
     restart: unless-stopped
     environment:
@@ -150,7 +150,7 @@ services:
       - "14268:14268"  # Jaeger thrift HTTP
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.55.0
     container_name: platform-prometheus
     restart: unless-stopped
     command:
@@ -171,7 +171,7 @@ services:
       - "3100:3100"
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.3.0
     container_name: platform-grafana
     restart: unless-stopped
     environment:

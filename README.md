@@ -154,9 +154,8 @@ uv run uvicorn classifier_service.main:app --port 8008 --reload
 uv run uvicorn content_service.main:app --port 8009 --reload
 
 # governance-service (ver "Prompts del tutor" abajo)
-# Nota: la env var correcta es PROMPTS_REPO_PATH (el .env.example dice GOVERNANCE_REPO_PATH
-# por deuda del template — el código no la lee). El repo incluye ai-native-prompts/ con el
-# prompt N4 minimo sembrado; en Windows usar ruta absoluta:
+# El repo incluye ai-native-prompts/ con el prompt N4 minimo sembrado;
+# en Windows usar ruta absoluta:
 PROMPTS_REPO_PATH="$(pwd)/ai-native-prompts" uv run uvicorn governance_service.main:app --port 8010 --reload
 
 # ai-gateway
@@ -171,8 +170,6 @@ Para el flujo minimo (estudiante abre TP y chatea con el tutor) necesitas al men
 El governance-service sirve prompts versionados desde un repo en filesystem (ADR-009). **El repo ya incluye `ai-native-prompts/prompts/tutor/v1.0.0/system.md`** con un prompt N4 mínimo sembrado en sesión 2026-04-23. **No hace falta crearlo** — sólo asegurate de arrancar el governance-service con la env var correcta (ver Paso 4).
 
 Si querés personalizar el prompt, editá `ai-native-prompts/prompts/tutor/v1.0.0/system.md` y reiniciá el governance-service. El hash se recomputa automáticamente y viaja en cada evento CTR como `prompt_system_hash`.
-
-> **Gotcha conocido**: el `.env.example` declara `GOVERNANCE_REPO_PATH` pero el código lee `PROMPTS_REPO_PATH` — **son nombres distintos**. Hay que pasar la var correcta en el CLI del governance-service (no alcanza el `.env`). Ver `CLAUDE.md` sección "Gotchas de entorno" para el contexto completo.
 
 ### Paso 6 — Datos demo (opcional, recomendado)
 

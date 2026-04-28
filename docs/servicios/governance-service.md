@@ -207,7 +207,7 @@ def load(self, name: str, version: str) -> PromptConfig:
 
 **Gotchas específicos** (documentados en CLAUDE.md "Gotchas de entorno"):
 
-- **Deuda del `.env.example`**: declara `GOVERNANCE_REPO_PATH` pero el código lee `PROMPTS_REPO_PATH`. Son nombres distintos y el código no lee el primero. Tener la variable "correcta" en `.env` no alcanza — hay que pasarla explícita al arrancar el servicio:
+- **Setear `PROMPTS_REPO_PATH` en dev**: el default `/var/lib/platform/prompts` no existe en Windows. El `.env.example` ya declara la variable correcta (F14 cerró la deuda histórica del template, ver "Histórico" abajo). En dev local:
 
   ```bash
   PROMPTS_REPO_PATH="$(pwd)/ai-native-prompts" \
@@ -226,7 +226,7 @@ def load(self, name: str, version: str) -> PromptConfig:
       prompt = await self.governance.get_prompt(...)
   ```
 
-  Tres condiciones deben cumplirse simultáneamente para que arranque: env var correcta, directorio físico (`{PROMPTS_REPO_PATH}/prompts/tutor/v1.0.0/system.md`), prompt sembrado. `make init` **no** auto-crea el directorio.
+  Dos condiciones deben cumplirse simultáneamente para que arranque: env var seteada, y directorio físico con prompt sembrado (`{PROMPTS_REPO_PATH}/prompts/tutor/v1.0.0/system.md`). `make init` **no** auto-crea el directorio.
 
 - **Parseo YAML minimal**: no usa PyYAML. El parser (`_declared_hash()`) lee línea por línea buscando bloques `files:` y pares `filename: hash`. Limitaciones:
   - No soporta anchors ni aliases YAML (`&foo`, `*foo`).
@@ -288,3 +288,7 @@ La redundancia no es accidental — RN-040 de `reglas.md` la exige explícitamen
 2. Antes de activar una versión, correr `POST /prompts/{name}/{version}/verify` para confirmar que el manifest interno matchea el contenido.
 3. Los episodios **ya abiertos** siguen con la versión que estaba vigente al momento de `open_episode` — `SessionState.prompt_system_version` se congela en memoria, y el hash correspondiente va en todos los eventos. Cambiar el activo mientras un episodio está abierto no afecta a ese episodio.
 4. Al rotar a una versión nueva, actualizar `default_prompt_version` en el `Settings` de [tutor-service](./tutor-service.md) (o el `active_configs` por tenant) y reiniciar el tutor — el governance no notifica.
+
+## 12. Histórico
+
+- **F14 (2026-04-28) — typo `GOVERNANCE_REPO_PATH` en `.env.example`**: el template declaraba `GOVERNANCE_REPO_PATH=./ai-native-prompts` pero el código siempre leyó `PROMPTS_REPO_PATH`. La consecuencia operativa era que un `.env` copiado del template no levantaba el servicio en dev (caía al default `/var/lib/platform/prompts`, inexistente en Windows). F14 cerró la deuda: `.env.example:57` ahora declara `PROMPTS_REPO_PATH`. Quien tenga un `.env` viejo debe re-cherry-pickearlo. El parity test `tests/test_config.py::test_env_example_var_matches_settings_field` bloquea regresión.
