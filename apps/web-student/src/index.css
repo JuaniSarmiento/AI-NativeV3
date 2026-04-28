@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "@platform/ui/tokens/theme.css";
+
+/* Tailwind v4 excluye node_modules por default; los componentes de @platform/ui
+   viven ahi (pnpm workspace symlink) y sus clases no se generan sin este @source. */
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
