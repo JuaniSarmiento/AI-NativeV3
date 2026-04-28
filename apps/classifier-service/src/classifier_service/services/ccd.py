@@ -11,6 +11,31 @@ Definición operacional:
 
 Valores cercanos a 0 en ccd_orphan_ratio = buena coherencia.
 Valores cercanos a 1 = muchas acciones "huérfanas" = baja apropiación.
+
+NOTA DE IMPLEMENTACIÓN v1.0.0
+-----------------------------
+Este módulo trata como verbalización reflexiva a:
+  (a) `anotacion_creada` (siempre), y
+  (b) `prompt_enviado` con `payload.prompt_kind == "reflexion"`.
+
+Sin embargo, "reflexion" NO es uno de los valores admitidos por
+`PromptKind` en los contratos vigentes (ver
+`packages/contracts/src/platform_contracts/ctr/events.py` clase
+`PromptEnviadoPayload` — solo admite `solicitud_directa | comparativa |
+epistemologica | validacion | aclaracion_enunciado`). El tutor-service
+(`apps/tutor-service/src/tutor_service/services/tutor_core.py`) emite
+siempre `prompt_kind="solicitud_directa"` en v1.0.0. Por tanto la
+rama (b) **nunca se activa con datos reales del piloto** y CCD subestima
+la reflexividad de prompts cuyo contenido es reflexivo pero quedan
+etiquetados como "solicitud_directa".
+
+Esta es una limitación conocida del v1.0.0, alineada con la Sección 15.6
+de la tesis ("operacionalización temporal liviana, determinista,
+reproducible bit-a-bit; captura una señal importante pero no su
+contenido"). El fix completo —clasificación automática de `prompt_kind`
+a partir del contenido— es scope del Eje B (clasificador semántico) y
+se aborda en el cambio grande G9. Hoy, la única fuente activa de
+verbalización reflexiva es `anotacion_creada`.
 """
 from __future__ import annotations
 

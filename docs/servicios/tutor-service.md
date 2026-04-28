@@ -300,7 +300,7 @@ seq  event_type           emisor              ¿por qué este evento?
 
 Sobre esta secuencia **el classifier extrae las 5 coherencias**:
 - **CT** (temporal): ventanas de trabajo separadas por pausas ≥5min — se infiere de los `ts` de todos los eventos.
-- **CCD_mean** y **CCD_orphan_ratio** (código-discurso): correlación entre acciones (`codigo_ejecutado`, `prompt_enviado`) y verbalizaciones (`anotacion_creada`, `prompt_enviado` con `prompt_kind="epistemologica"` u otra reflexión).
+- **CCD_mean** y **CCD_orphan_ratio** (código-discurso): correlación entre acciones (`codigo_ejecutado`, `prompt_enviado`) y verbalizaciones (`anotacion_creada`, `prompt_enviado` con `prompt_kind` reflexivo). Nota v1.0.0: `tutor_core.py:201` emite SIEMPRE `prompt_kind="solicitud_directa"` — la clasificación automática de intencionalidad del prompt es agenda confirmatoria (Eje B, G9). Hoy la única fuente activa de verbalización reflexiva en CCD es `anotacion_creada`. El docstring de `apps/classifier-service/src/classifier_service/services/ccd.py` documenta el sesgo.
 - **CII_stability** y **CII_evolution** (inter-iteración): overlap léxico entre `prompt_enviado` consecutivos + longitud media a lo largo del episodio.
 
 Sin la distinción `user_id = tutor vs user_id = estudiante`, el cálculo de CCD colapsa — el classifier no podría separar "acción del estudiante + verbalización del estudiante" de "respuesta del tutor que viene con verbalización incluida". Esa distinción está en el wire porque la pone este servicio.

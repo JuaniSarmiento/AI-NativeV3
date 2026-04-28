@@ -73,6 +73,48 @@ def test_anotacion_creada_es_n2_fijo_en_v1() -> None:
     assert label_event("anotacion_creada", {"content": "ejecute y dio error"}) == "N2"
 
 
+def test_anotacion_creada_n2_es_decision_de_implementacion_no_tabla_4_1() -> None:
+    """Decision de implementacion documentada (F18 / ADR-020): la Tabla 4.1
+    de la tesis asigna las anotaciones a N1 (notas durante lectura) o N4
+    (apropiacion tras respuesta del tutor) segun contenido. v1.0.0 las fija
+    a N2 para no requerir clasificacion semantica del contenido.
+
+    Si esta asignacion cambia (por agregar override de contenido en el Eje B):
+      1. Bumpear LABELER_VERSION (ADR-020).
+      2. Actualizar Seccion 19.5 de la tesis sobre el sesgo sistematico que se cierra.
+      3. Actualizar este test con los nuevos casos esperados.
+
+    El test ancla TODOS los casos al N2 fijo — cualquier divergencia de
+    contenido devolviendo otro nivel rompe aqui antes de propagarse.
+    """
+    casos_que_la_tabla_4_1_pondria_en_n1 = [
+        {"content": "no entiendo bien el enunciado, dice 'lista enlazada'"},
+        {"content": "voy a leer otra vez el problema"},
+    ]
+    casos_que_la_tabla_4_1_pondria_en_n4 = [
+        {"content": "ya vi por que falla — el indice arranca en 0"},
+        {"content": "el tutor explico que era O(n^2), reescribi con dict"},
+    ]
+    for payload in casos_que_la_tabla_4_1_pondria_en_n1:
+        assert label_event("anotacion_creada", payload) == "N2", (
+            f"v1.0.0: anotacion_creada SIEMPRE N2 (decision de implementacion), "
+            f"NO override por contenido. payload={payload}"
+        )
+    for payload in casos_que_la_tabla_4_1_pondria_en_n4:
+        assert label_event("anotacion_creada", payload) == "N2", (
+            f"v1.0.0: anotacion_creada SIEMPRE N2 (decision de implementacion), "
+            f"NO override por contenido. payload={payload}"
+        )
+    # Sanity: el LABELER_VERSION sigue siendo 1.x — un bump mayor implica
+    # que la decision cambio y este test debe ser revisado.
+    major = int(LABELER_VERSION.split(".")[0])
+    assert major == 1, (
+        f"LABELER_VERSION saltó a {LABELER_VERSION}: revisar si la asignación "
+        "fija de anotacion_creada a N2 sigue siendo válida o ya se introdujo "
+        "override por contenido."
+    )
+
+
 def test_codigo_ejecutado_es_n3() -> None:
     assert label_event("codigo_ejecutado") == "N3"
 

@@ -17,9 +17,19 @@ Override condicional para `edicion_codigo`: el payload trae `origin` con valores
 edicion copiada del tutor o pegada desde afuera se etiqueta N4 (la accion
 proviene de una interaccion IA/externa, no es elaboracion propia del estudiante).
 
-`anotacion_creada` se etiqueta N2 fijo en v1.0.0. La Tabla 4.1 de la tesis sugiere
-que puede ser N1/N2/N4 segun contenido; el override (manual del estudiante o por
-NLP) queda como agenda futura para no introducir embeddings antes de tiempo.
+`anotacion_creada` se etiqueta N2 fijo en v1.0.0. La Tabla 4.1 de la tesis
+asigna las anotaciones a N1 ("notas tomadas; reformulacion verbal en el
+asistente") cuando ocurren durante la lectura del enunciado, y a N4
+("apropiacion de argumento: reproduccion razonada de una explicacion del
+asistente en produccion posterior propia") cuando ocurren tras una respuesta
+del tutor. La asignacion N2 fija de v1.0.0 NO surge de la Tabla 4.1 sino que
+es una decision de implementacion del labeler para no requerir clasificacion
+semantica del contenido en esta version. El sesgo sistematico que esto introduce
+(sub-reporta N1 y N4, sobre-reporta N2) esta documentado en el reporte
+empirico (Seccion 17.3) y la migracion a override por contenido es agenda
+del Eje B (clasificacion semantica) post-defensa. Cualquier cambio de la
+asignacion fija obliga a bumpear LABELER_VERSION (ADR-020) y a actualizar
+Seccion 19.5 de la tesis sobre el sesgo que se cierra.
 """
 from __future__ import annotations
 

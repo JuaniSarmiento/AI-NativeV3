@@ -138,7 +138,7 @@ Base lógica: **`ctr_store`** (ADR-003), usuario `ctr_user`. Migraciones Alembic
   - Relación: `ForeignKey(episodes.id, ondelete="RESTRICT")` — no se puede borrar un episodio con eventos.
   - Hashes: `self_hash`, `chain_hash`, `prev_chain_hash` (64 chars hex).
   - Hashes de configuración replicados en cada evento (redundancia defensiva: si cambia el episodio, el evento sigue verificable contra la config que estaba vigente).
-  - `event_type` en snake_case en runtime: `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado`, `episodio_abandonado`. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
+  - `event_type` en snake_case en runtime (9 tipos efectivamente emitidos en v1.0.0): `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado` (instrumentado desde el frontend), `intento_adverso_detectado` ([ADR-019](../adr/019-guardrails-fase-a.md), side-channel del tutor-service para análisis empírico Sección 17.8). `EpisodioAbandonado` está declarado en los contratos Pydantic y TS pero ningún servicio lo emite todavía — la decisión de cerrarlo es scope de G10. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
 
 - **`dead_letters`** — eventos que fallaron 3 veces y fueron archivados.
   - Guarda `raw_payload` JSONB, `error_reason` text, `failed_attempts`, `first_seen_at`, `moved_to_dlq_at`.
