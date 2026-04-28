@@ -25,6 +25,7 @@ from platform_contracts.ctr.events import (
     EpisodioAbandonado,
     EpisodioAbierto,
     EpisodioCerrado,
+    IntentoAdversoDetectado,
     LecturaEnunciado,
     PromptEnviado,
     TutorRespondio,
@@ -55,6 +56,7 @@ def _contract_event_types() -> set[str]:
         AnotacionCreada,
         EdicionCodigo,
         CodigoEjecutado,
+        IntentoAdversoDetectado,
     )
     return {cls.model_fields["event_type"].default for cls in classes}
 
@@ -101,6 +103,7 @@ def test_contract_event_types_are_snake_case() -> None:
                 "codigo_ejecutado",
                 "edicion_codigo",
                 "anotacion_creada",
+                "intento_adverso_detectado",
             },
         ),
     ],

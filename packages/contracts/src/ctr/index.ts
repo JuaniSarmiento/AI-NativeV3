@@ -57,6 +57,18 @@ export const EpisodioCerrado = CTRBase.extend({
 })
 export type EpisodioCerrado = z.infer<typeof EpisodioCerrado>
 
+// Declarado en el contract Pydantic desde la primera iteración de fixes
+// pero ningún servicio lo emite todavía en runtime — la decisión de
+// dispararlo al expirar el SessionState del tutor (TTL 6h) es scope de G10.
+export const EpisodioAbandonado = CTRBase.extend({
+  event_type: z.literal("episodio_abandonado"),
+  payload: z.object({
+    reason: z.string(), // "timeout" | "beforeunload" | "explicit" en runtime
+    last_activity_seconds_ago: z.number().nonnegative(),
+  }),
+})
+export type EpisodioAbandonado = z.infer<typeof EpisodioAbandonado>
+
 export const PromptEnviado = CTRBase.extend({
   event_type: z.literal("prompt_enviado"),
   payload: z.object({
@@ -82,7 +94,42 @@ export const TutorRespondio = CTRBase.extend({
 })
 export type TutorRespondio = z.infer<typeof TutorRespondio>
 
+// ADR-019 (G3 Fase A): el tutor emite este side-channel POR CADA match del
+// corpus regex de guardrails, ANTES de pegarle al LLM. NO bloquea el flow.
+// `guardrails_corpus_hash` permite reproducibilidad bit-a-bit cuando el
+// corpus de patrones evolucione.
+export const IntentoAdversoCategory = z.enum([
+  "jailbreak_indirect",
+  "jailbreak_substitution",
+  "jailbreak_fiction",
+  "persuasion_urgency",
+  "prompt_injection",
+])
+export type IntentoAdversoCategory = z.infer<typeof IntentoAdversoCategory>
+
+export const IntentoAdversoDetectado = CTRBase.extend({
+  event_type: z.literal("intento_adverso_detectado"),
+  payload: z.object({
+    pattern_id: z.string(),
+    category: IntentoAdversoCategory,
+    severity: z.number().int().min(1).max(5),
+    matched_text: z.string(),
+    guardrails_corpus_hash: Sha256,
+  }),
+})
+export type IntentoAdversoDetectado = z.infer<typeof IntentoAdversoDetectado>
+
 // F6: campo `origin` opcional para distinguir tipeo / copia / paste.
+//
+// Estado de cobertura v1.0.0 (F22):
+//   - `student_typed`     → emitido por web-student (tipeo normal en el editor).
+//   - `pasted_external`   → emitido por web-student (paste detectado).
+//   - `copied_from_tutor` → DECLARADO en el contract pero NO emitido todavía:
+//       requiere una afordancia de UI ("Insertar código del tutor") que no está
+//       en `apps/web-student/src/components/CodeEditor.tsx`. Tracked como G11.
+//
+// El event_labeler (ADR-020) reconoce los tres valores y aplica override a N4
+// para los dos no-typed.
 export const EdicionCodigoOrigin = z.enum([
   "student_typed",
   "copied_from_tutor",
@@ -140,8 +187,10 @@ export type AnotacionCreada = z.infer<typeof AnotacionCreada>
 export const CTREvent = z.discriminatedUnion("event_type", [
   EpisodioAbierto,
   EpisodioCerrado,
+  EpisodioAbandonado,
   PromptEnviado,
   TutorRespondio,
+  IntentoAdversoDetectado,
   EdicionCodigo,
   CodigoEjecutado,
   LecturaEnunciado,
