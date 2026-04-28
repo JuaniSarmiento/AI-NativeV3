@@ -1,296 +1,481 @@
-# Fixes chiquitos al código
+# Fixes chicos al código — segunda iteración
 
-Cambios de bajo riesgo, mayormente cosméticos o de consistencia, que alinean el código con la tesis sin tocar la semántica ni romper reproducibilidad. Ninguno requiere migración de datos ni rompe tests existentes (salvo renombrar strings literales, que es find-and-replace trivial).
+Cambios de bajo riesgo, mayormente cosméticos o de consistencia, que alinean el código con la tesis vigente (v3.4) sin tocar la semántica del sistema, sin migrar datos persistidos y sin coordinar con el piloto en curso. Cada fix es ≤100 LOC.
 
-Contexto: **modelo híbrido**. La tesis se mantiene con las definiciones aspiracionales; el código se mantiene en su operacionalización v1 declarada; los gaps conceptuales grandes quedan registrados como agenda confirmatoria. Este documento solo toca los detalles chicos.
+Esta iteración continúa la numeración de la primera ronda. Asumo aplicados F1–F10 y F13; F11 y F12 quedaron pendientes y se retoman acá. La numeración nueva empieza en F14.
+
+Línea editorial: **modelo híbrido**. La tesis preserva sus definiciones aspiracionales (4.3, 7.2, 8.3–8.4, 15.2–15.4) y declara honestamente la cobertura v1.0.0 (4.3.1, 8.4.1, 15.6, 19.5, 20.5.1). Estos fixes cierran inconsistencias menores entre lo declarado y lo efectivamente implementado, varias de las cuales fueron introducidas por la implementación de G3-mínimo, G4 y G5 documentada en `docs/RESUMEN-EJECUTIVO-2026-04-27.md`.
 
 ---
 
-## F1 — Alinear nombres de `event_type` entre código y tesis
+## F14 — Reparar el typo `GOVERNANCE_REPO_PATH` → `PROMPTS_REPO_PATH` en `.env.example`
 
-**Problema:** los contracts Pydantic en `packages/contracts/src/platform_contracts/ctr/events.py` declaran event_types en PascalCase (`"EpisodioAbierto"`, `"PromptEnviado"`...) pero el tutor-service emite strings en snake_case (`"episodio_abierto"`, `"prompt_enviado"`...). Los contracts son "schemas fantasma" — nada los valida en runtime. Si alguien intentara validar un evento real contra el contract, fallaría el `Literal`.
+**Estado en iter 1:** identificado pero no aplicado. El typo sigue en `.env.example:57` y se documenta como gotcha permanente en cuatro archivos: `README.md:171`, `CLAUDE.md` (sección Dev mode), `docs/SESSION-LOG.md` y `docs/servicios/governance-service.md`.
 
-**Fix:** elegir UNO de los dos formatos y alinear. Recomendación: **snake_case en todos lados**, porque es lo que ya corre en producción del piloto y cambiar strings en runtime obliga a migrar seeds, tests, dashboards, y potencialmente CTRs ya persistidos.
+**Por qué retomarlo ahora:** el gap es de 1 LOC y la documentación del workaround creció en lugar de cerrarse. Mantener un workaround documentado en cuatro lugares cuando el fix es trivial es deuda técnica que se compone.
 
-**Archivo afectado:** `packages/contracts/src/platform_contracts/ctr/events.py`
+**Problema:** `.env.example:57` declara `GOVERNANCE_REPO_PATH=./ai-native-prompts` pero el código (`apps/governance-service/src/governance_service/config.py:23`) lee `prompts_repo_path: str = "/var/lib/platform/prompts"` desde la env var `PROMPTS_REPO_PATH`. Consecuencia: `make init` limpio en cualquier OS deja el governance-service apuntando al default que no existe en dev; tutor-service no puede abrir episodios; web-student falla con un 500 silencioso.
 
-**Cambios:**
-```python
-# ANTES
-class EpisodioAbierto(CTRBaseEvent):
-    event_type: Literal["EpisodioAbierto"] = "EpisodioAbierto"
+**Fix:**
 
-# DESPUÉS
-class EpisodioAbierto(CTRBaseEvent):
-    event_type: Literal["episodio_abierto"] = "episodio_abierto"
+```diff
+  # Repo Git con prompt versionado (ADR-009)
+- GOVERNANCE_REPO_PATH=./ai-native-prompts
++ PROMPTS_REPO_PATH=./ai-native-prompts
+  GOVERNANCE_REPO_URL=git@github.com:your-org/ai-native-prompts.git
 ```
 
-Aplicar a los 9 tipos del archivo: `EpisodioAbierto, EpisodioCerrado, EpisodioAbandonado, PromptEnviado, RespuestaRecibida, LecturaEnunciado, NotaPersonal, EdicionCodigo, TestsEjecutados`.
+Acompañar con la limpieza documental: quitar el bloque "Gotcha conocido" de `README.md`, el bullet correspondiente en `CLAUDE.md` y `docs/SESSION-LOG.md`, y mover la nota del MD `docs/servicios/governance-service.md` a una sección "Histórico" análoga a la que aplicó iter 1 con la deuda PascalCase.
 
-**Impacto:** ninguno en runtime (los contracts no se usan para validar hoy). Pero a futuro permite enchufar la validación Pydantic en el ctr-service antes del persist sin trabajo adicional.
+**Tamaño:** 1 LOC en `.env.example` + ~15 LOC borradas en docs.
 
-**Test:** agregar `tests/unit/test_event_contracts_match_runtime.py` con un assert simple: la lista de `Literal` values en los contracts == la lista de strings literales en `tutor_core.py::_build_event(event_type=...)`. Un test de ~15 líneas bloquea regresiones futuras.
+**Riesgo:** Nulo. El default del código sigue siendo `/var/lib/platform/prompts`, que no se usa en dev. Quien tenía un `.env` con la var vieja debe re-cherry-pickearla; lo declara el changelog del fix.
 
----
-
-## F2 — Unificar nombres `RespuestaRecibida` ↔ `tutor_respondio`
-
-**Problema:** la tesis (Tabla 7.1) y el contract Pydantic llaman `RespuestaRecibida`; el código real emite `tutor_respondio`. Son el mismo evento, nombres distintos.
-
-**Fix:** elegir uno. Recomendación **`tutor_respondio`** (consistente con F1) — semánticamente más preciso además: "quién emitió" es más informativo que "dirección del flujo".
-
-**Archivos afectados:**
-- `packages/contracts/src/platform_contracts/ctr/events.py`:
-  - Renombrar clase `RespuestaRecibida` → `TutorRespondio`.
-  - Renombrar `RespuestaRecibidaPayload` → `TutorRespondioPayload`.
-  - `event_type: Literal["tutor_respondio"] = "tutor_respondio"`.
-- `packages/contracts/src/ctr/index.ts`: idem en TypeScript.
-
-**Acción paralela en la tesis:** ver `03-cambios-tesis.md` → T2 (renombrar en Tabla 7.1 y en el cuerpo del texto).
+**Test:** `apps/governance-service/tests/test_config.py::test_env_example_var_matches_settings_field` — parsea `.env.example` y assertea que existe `PROMPTS_REPO_PATH=` y que `Settings()` lo lee correctamente sin caer al default. ~15 LOC.
 
 ---
 
-## F3 — Unificar nombres `NotaPersonal` ↔ `anotacion_creada`
+## F15 — Completar el pinning de imágenes Docker en `infrastructure/docker-compose.dev.yml`
 
-**Problema:** idéntico a F2. La tesis dice `NotaPersonal`; el código emite `anotacion_creada`. El contract Pydantic tiene `NotaPersonal`.
+**Estado en iter 1:** F12 quedó parcial. Verificación con `grep -E "image:" infrastructure/docker-compose.dev.yml`:
 
-**Fix:** recomendación **`anotacion_creada`** en código y contracts; mantener "Anotación personal" como denominación de la tesis (la palabra "anotación" es más neutra que "nota" y transmite mejor la idea de marca reflexiva). En el contract:
+- Pineadas: `pgvector/pgvector:pg16`, `postgres:16-alpine`, `quay.io/keycloak/keycloak:25.0`, `redis:7-alpine`, `otel/opentelemetry-collector-contrib:0.150.1`, `grafana/loki:3.7.1`.
+- Flotantes (siguen en `:latest`): `minio/minio:latest`, `jaegertracing/all-in-one:latest`, `prom/prometheus:latest`, `grafana/grafana:latest`.
 
-```python
-class AnotacionCreadaPayload(BaseModel):
-    content: str
-    words: int = Field(ge=0)
+**Problema:** un breaking change upstream en cualquiera de las cuatro imágenes flotantes rompe `make dev-bootstrap`. El piloto depende de Grafana (dashboards), Prometheus (métricas técnicas de tesis 16.1), Jaeger (traces) y MinIO (objetos). El riesgo es bajo en el día a día pero no nulo a través de meses de pilotaje.
 
-class AnotacionCreada(CTRBaseEvent):
-    event_type: Literal["anotacion_creada"] = "anotacion_creada"
-    payload: AnotacionCreadaPayload
+**Fix:**
+
+```diff
+-     image: minio/minio:latest
++     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+-     image: jaegertracing/all-in-one:latest
++     image: jaegertracing/all-in-one:1.62
+-     image: prom/prometheus:latest
++     image: prom/prometheus:v2.55.0
+-     image: grafana/grafana:latest
++     image: grafana/grafana:11.3.0
 ```
 
-**Acción paralela en la tesis:** ver `03-cambios-tesis.md` → T3.
+Las versiones específicas son las **vigentes en la fecha de bootstrapping del piloto**; verificar antes de mergear que coinciden con lo que tienen los tags actuales del entorno UNSL. El criterio es congelar las que ya están corriendo, no actualizar.
+
+**Tamaño:** 4 LOC.
+
+**Riesgo:** Nulo. Pinning a la versión que efectivamente está desplegada no cambia comportamiento.
+
+**Test:** ninguno necesario; el smoke `scripts/check-health.sh` ya cubre el up del stack.
 
 ---
 
-## F4 — Unificar `TestsEjecutados` ↔ `codigo_ejecutado`
+## F16 — Exportar `IntentoAdversoDetectado` desde `__init__.py` de contracts y agregarlo al test parity
 
-**Problema:** la tesis llama `TestsEjecutados` al evento de ejecución; el tutor real emite `codigo_ejecutado`. No son sinónimos: `TestsEjecutados` sugiere específicamente la ejecución de tests unitarios (con `passed/failed/total`); `codigo_ejecutado` es más amplio (ejecución genérica de Pyodide, con o sin tests). El `TestsEjecutadosPayload` del contract Pydantic nunca se emite.
+**Origen:** **nuevo**. Hallazgo derivado de la implementación de G3 fase A.
 
-**Fix recomendado:** el código es correcto — `codigo_ejecutado` captura mejor lo que efectivamente sucede en el IDE (el estudiante puede correr código suelto sin tests). Alinear la tesis al código, no al revés.
+**Problema:** la primera iteración cerró G3 mínimo agregando la clase `IntentoAdversoDetectado` en `packages/contracts/src/platform_contracts/ctr/events.py:115-141` y emitiéndola desde `apps/tutor-service/src/tutor_service/services/tutor_core.py:209-245`. Sin embargo, dejó dos puntas sueltas:
 
-**Archivos afectados (código):**
-- `packages/contracts/src/platform_contracts/ctr/events.py`:
-  - Renombrar `TestsEjecutados` → `CodigoEjecutado`.
-  - Renombrar `TestsEjecutadosPayload` → `CodigoEjecutadoPayload`.
-  - Ampliar el payload para que `passed/failed/total` sean opcionales (pueden no aplicar si no hay tests):
-    ```python
-    class CodigoEjecutadoPayload(BaseModel):
-        code: str
-        stdout: str | None = None
-        stderr: str | None = None
-        duration_ms: int = Field(ge=0)
-        runtime: str  # "pyodide", "python", etc.
-        # Opcionales: solo presentes si se ejecutaron tests
-        passed: int | None = Field(default=None, ge=0)
-        failed: int | None = Field(default=None, ge=0)
-        total: int | None = Field(default=None, ge=0)
-        failed_test_names: list[str] = Field(default_factory=list)
-    ```
+1. **No se exporta desde `packages/contracts/src/platform_contracts/ctr/__init__.py`** (verificado: la lista `__all__` no la incluye y los `from … import` tampoco). Cualquier consumidor que haga `from platform_contracts.ctr import …` no la ve y debe importarla por path completo (`from platform_contracts.ctr.events import IntentoAdversoDetectado`), que es asimétrico respecto a las otras 9 clases.
 
-**Acción paralela en la tesis:** ver `03-cambios-tesis.md` → T4.
+2. **El test parity `packages/contracts/tests/test_event_types_match_runtime.py` está desincronizado.** El set `_contract_event_types()` se construye sobre las 9 clases listadas explícitamente (sin `IntentoAdversoDetectado`); el set `_runtime_event_types()` lee `tutor_core.py` con regex y ahora encuentra `intento_adverso_detectado`. El assert `extras = runtime - contract` produce el set `{"intento_adverso_detectado"}` y el test debería estar fallando en cada corrida.
+
+   El RESUMEN-EJECUTIVO afirma "274 tests automatizados pasan" y "cero regresiones"; o bien este test no se está ejecutando en CI (verificar `Makefile` y `pyproject.toml`), o bien el test pasa por algún path no obvio. Sea como fuere, el test es semánticamente incorrecto post-G3.
+
+**Fix:**
+
+1. En `packages/contracts/src/platform_contracts/ctr/__init__.py`, agregar la clase a los imports y a `__all__`:
+
+```diff
+  from platform_contracts.ctr.events import (
+      AnotacionCreada,
+      CodigoEjecutado,
+      CTRBaseEvent,
+      EdicionCodigo,
+      EpisodioAbandonado,
+      EpisodioAbierto,
+      EpisodioCerrado,
++     IntentoAdversoDetectado,
+      LecturaEnunciado,
+      PromptEnviado,
+      TutorRespondio,
+  )
+  ...
+  __all__ = [
+      "CTRBaseEvent",
+      "EpisodioAbierto",
+      "EpisodioCerrado",
+      "EpisodioAbandonado",
++     "IntentoAdversoDetectado",
+      "PromptEnviado",
+      ...
+  ]
+```
+
+2. En `packages/contracts/tests/test_event_types_match_runtime.py`, agregar la clase al import y al tuple del helper `_contract_event_types`, y extender el subset esperado en el test parametrizado para que `intento_adverso_detectado` sí cuente como evento del subset emitido por el tutor-service:
+
+```diff
+  from platform_contracts.ctr.events import (
+      AnotacionCreada,
+      CodigoEjecutado,
+      EdicionCodigo,
+      EpisodioAbandonado,
+      EpisodioAbierto,
+      EpisodioCerrado,
++     IntentoAdversoDetectado,
+      LecturaEnunciado,
+      PromptEnviado,
+      TutorRespondio,
+  )
+  ...
+  def _contract_event_types() -> set[str]:
+      classes = (
+          EpisodioAbierto,
+          EpisodioCerrado,
+          EpisodioAbandonado,
+          PromptEnviado,
+          TutorRespondio,
+          LecturaEnunciado,
+          AnotacionCreada,
+          EdicionCodigo,
+          CodigoEjecutado,
++         IntentoAdversoDetectado,
+      )
+      return {cls.model_fields["event_type"].default for cls in classes}
+  ...
+  # En el subset emitido por tutor_core directamente:
+  (
+      "tutor_core_emitted",
+      {
+          "episodio_abierto",
+          "prompt_enviado",
+          "tutor_respondio",
+          "episodio_cerrado",
+          "codigo_ejecutado",
+          "edicion_codigo",
+          "anotacion_creada",
++         "intento_adverso_detectado",
+      },
+  ),
+```
+
+`lectura_enunciado` se mantiene fuera del subset emitido directamente por tutor_core (el comment del test ya lo aclara: se emite desde el frontend vía endpoint dedicado).
+
+**Tamaño:** ~12 LOC sumadas entre los dos archivos.
+
+**Riesgo:** Nulo (export) / Bajo (el test). El cambio del test cierra un gap; si por alguna razón el test ya estaba pasando, ahora valida lo que declara querer validar.
+
+**Acción paralela:** ver F17 (agregar también el TS).
 
 ---
 
-## F5 — Agregar evento `lectura_enunciado` al frontend web-student
+## F17 — Agregar `IntentoAdversoDetectado` y `EpisodioAbandonado` al contract TS
 
-**Problema:** la tesis declara `LecturaEnunciado` como observable canónico de N1 (Sección 4.3, Tabla 4.1: "Tiempo de permanencia en la pestaña del enunciado"). El contract Pydantic lo declara. Pero **nadie lo emite**. Sin este evento, N1 Comprensión queda casi sin señal observable en el CTR.
+**Origen:** **nuevo** para `IntentoAdversoDetectado`; **residual de iter 1** para `EpisodioAbandonado` (declarado en Pydantic pero el TS nunca lo tuvo).
 
-**Fix:** instrumentar el panel de enunciado en `apps/web-student/src/pages/EpisodePage.tsx`. Agregar:
-1. Un `useEffect` que mida tiempo de visibilidad del panel del enunciado usando `IntersectionObserver` + `visibilitychange` (tab focus).
-2. Emitir `lectura_enunciado` con `{duration_seconds: <acumulado>}` cada 30s de tiempo real de lectura, O al cerrar el panel/episodio.
-3. Un endpoint en `tutor-service` análogo a `record_anotacion_creada` — bautizarlo `record_lectura_enunciado` — que publique el evento como el estudiante autenticado (no como service account).
+**Problema:** la unión `CTREvent` en `packages/contracts/src/ctr/index.ts:142-150` incluye 8 eventos: `EpisodioAbierto`, `EpisodioCerrado`, `PromptEnviado`, `TutorRespondio`, `EdicionCodigo`, `CodigoEjecutado`, `LecturaEnunciado`, `AnotacionCreada`. El Pydantic declara 11 (los 8 + `EpisodioAbandonado` desde iter 1 + `IntentoAdversoDetectado` desde G3 fase A). Cualquier consumer TS que valide eventos contra `CTREvent.parse(event)` rompería ante un evento real `intento_adverso_detectado` o `episodio_abandonado`.
 
-**Chico en tamaño:** ~40 líneas frontend + ~25 líneas backend + 3-4 tests. No toca hashing, no toca clasificador (por ahora — el CCD/CT no consumen `lectura_enunciado` todavía, pero ya queda registrado en el CTR para análisis posterior).
+Hoy esto no rompe nada porque ningún frontend hace validación end-to-end del payload contra `CTREvent`. Pero el contract TS es el punto donde se va a apoyar la primera vista que necesite enumerar eventos del CTR (la `CohortAdversarialView` actual usa un type local en `lib/api.ts` que duplica la información) y la asimetría se va a notar entonces.
 
-**No requiere migración:** es un evento append-only nuevo, no modifica eventos existentes.
+**Fix:**
+
+```ts
+// packages/contracts/src/ctr/index.ts
+
+// Después de EpisodioCerrado, agregar:
+export const EpisodioAbandonado = CTRBase.extend({
+  event_type: z.literal("episodio_abandonado"),
+  payload: z.object({
+    reason: z.string(),  // "timeout" | "beforeunload" | "explicit" en runtime
+    last_activity_seconds_ago: z.number().nonnegative(),
+  }),
+})
+export type EpisodioAbandonado = z.infer<typeof EpisodioAbandonado>
+
+// Después de TutorRespondio, agregar:
+export const IntentoAdversoCategory = z.enum([
+  "jailbreak_indirect",
+  "jailbreak_substitution",
+  "jailbreak_fiction",
+  "persuasion_urgency",
+  "prompt_injection",
+])
+export type IntentoAdversoCategory = z.infer<typeof IntentoAdversoCategory>
+
+export const IntentoAdversoDetectado = CTRBase.extend({
+  event_type: z.literal("intento_adverso_detectado"),
+  payload: z.object({
+    pattern_id: z.string(),
+    category: IntentoAdversoCategory,
+    severity: z.number().int().min(1).max(5),
+    matched_text: z.string(),
+    guardrails_corpus_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+})
+export type IntentoAdversoDetectado = z.infer<typeof IntentoAdversoDetectado>
+
+// Y agregar a la union:
+export const CTREvent = z.discriminatedUnion("event_type", [
+  EpisodioAbierto,
+  EpisodioCerrado,
+  EpisodioAbandonado,           // ← nuevo (residual iter 1)
+  PromptEnviado,
+  TutorRespondio,
+  IntentoAdversoDetectado,      // ← nuevo (G3 fase A)
+  EdicionCodigo,
+  CodigoEjecutado,
+  LecturaEnunciado,
+  AnotacionCreada,
+])
+```
+
+**Tamaño:** ~30 LOC.
+
+**Riesgo:** Bajo. Schema nuevo; los consumers que importen schemas individuales no se ven afectados. Para los que importen `CTREvent.parse(event)`, la unión sigue aceptando los 8 anteriores y ahora también acepta los dos nuevos cuando aparezcan.
+
+**Test:** agregar `packages/contracts/tests/test_ts_python_parity.py` que importa el `index.ts` (vía `tsx` o equivalente) y compara los `event_type` literales del Pydantic con los de la unión Zod TS. Si la diferencia es no vacía, falla el test. ~30 LOC.
+
+**Acción paralela en tesis:** ver `03-cambios-tesis.md` → T13 (mencionar `intento_adverso_detectado` como evento adicional del v1.0.0 en 7.2 + 4.3.1).
 
 ---
 
-## F6 — Agregar evento `codigo_ejecutado` con flag `origen`
+## F18 — Aclarar en `event_labeler.py` el override de `anotacion_creada` y la divergencia con la Tabla 4.1
 
-**Problema:** la tesis en la Tabla 7.1 declara un tipo `CodigoAceptado` con payload `{fragmento_aceptado, origen (tutor/propio)}`. Este evento es **central para el clasificador**: permite distinguir "copiaste del tutor" de "escribiste vos". Sin él, la distinción delegación/apropiación depende enteramente de inferencia temporal (CCD), que es frágil.
+**Origen:** **nuevo**, derivado de la implementación de G4.
 
-**Fix mínimo:** agregar un campo opcional `origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = None` al payload de `edicion_codigo`. En el frontend, `CodeEditor.tsx` ya sabe si el cambio vino de:
-- Typing directo en Monaco (`student_typed`).
-- Click en un botón "Insertar código" si se agrega al chat del tutor (`copied_from_tutor`).
-- Paste desde clipboard (`pasted_external`, detectable via event handler).
+**Problema:** `apps/classifier-service/src/classifier_service/services/event_labeler.py:41` hardcodea `"anotacion_creada": "N2"` en el dict `EVENT_N_LEVEL_BASE`. La docstring del módulo (líneas 21-23) ya reconoce el gap:
 
-**Archivos afectados:**
-- `packages/contracts/src/platform_contracts/ctr/events.py` → ampliar `EdicionCodigoPayload` con `origin`.
-- `apps/web-student/src/components/CodeEditor.tsx` → agregar tracking del origen del cambio.
-- `apps/tutor-service/src/tutor_service/services/tutor_core.py::record_edicion_codigo` → aceptar el parámetro `origin`.
+> `anotacion_creada` se etiqueta N2 fijo en v1.0.0. La Tabla 4.1 de la tesis sugiere que puede ser N1/N2/N4 según contenido; el override (manual del estudiante o por NLP) queda como agenda futura para no introducir embeddings antes de tiempo.
 
-**No rompe nada existente:** campo opcional, eventos viejos quedan con `origin=None`.
+Sin embargo, la Tabla 4.1 de la tesis vigente lista "Anotación creada" bajo **N1** ("notas tomadas; reformulación verbal en el asistente") y bajo N4 ("apropiación de argumento: reproducción razonada de una explicación del asistente en producción posterior propia") según el contenido. La asignación N2 fija no aparece en la Tabla 4.1 — es una decisión del implementador, no de la tesis.
 
-**Diferencia con `CodigoAceptado` de la tesis:** la tesis usa un evento separado; acá lo unificamos como metadato de `edicion_codigo`. Evita duplicar lógica de snapshot. Si querés preservar el nombre, ver T5 en los cambios de tesis.
+Esto significa dos cosas:
 
----
+1. **Toda métrica que dependa de `time_in_level` está corriendo con un sesgo sistemático**: las anotaciones del estudiante, que en el modelo conceptual son evidencia de N1 (lectura/reformulación) o N4 (apropiación), están alimentando N2 (estrategia). El sesgo sub-reporta N1 y N4 y sobre-reporta N2.
 
-## F7 — Documentar en `hashing.py` que `prompt_system_hash` entra vía payload
+2. **La 15.6 de la tesis dice explícitamente que la operacionalización de CT v1.0.0 "no implementa en esta versión la proporción de tiempo por nivel N1–N4… por dependencia de la instrumentación completa de eventos"**. El `event_labeler` cierra esa dependencia, así que ahora la "proporción de tiempo por nivel" sí está calculada. Pero la asignación que se está usando contradice la Tabla 4.1.
 
-**Problema:** la Sección 7.3 de la tesis escribe literalmente `hash_evento_n = SHA-256(contenido_evento_n || hash_evento_n-1 || hash_prompt_sistema)`, sugiriendo una concatenación explícita de tres bloques. El código hace dos pasos: `self_hash = SHA-256(canonicalize(evento))` + `chain_hash = SHA-256(self_hash || prev_chain_hash)`. El `prompt_system_hash` entra como **campo del evento**, no como tercer bloque concatenado.
+**Fix de bajo riesgo (esta iteración):** dos cambios documentales que explicitan el sesgo sin moverlo:
 
-La propiedad criptográfica que la tesis quiere (si cambia el prompt, se detecta en la cadena) **sí se cumple**, pero la fórmula de la tesis no describe lo implementado.
-
-**Fix de código:** agregar un docstring largo en `apps/ctr-service/src/ctr_service/services/hashing.py` explicando el mapping entre la fórmula de la tesis y la implementación real. Algo así:
+1. En `event_labeler.py:21-23`, ampliar el docstring para citar la Tabla 4.1 con su asignación textual y declarar la elección N2 como decisión de implementación:
 
 ```python
-def compute_self_hash(event: dict[str, Any]) -> str:
-    """SHA-256 del evento serializado canónicamente.
+"""...
 
-    Relación con la Sección 7.3 de la tesis
-    ----------------------------------------
-    La tesis enuncia:
-        hash_evento_n = SHA-256(contenido_n || hash_evento_{n-1} || hash_prompt_sistema)
+Override condicional para `edicion_codigo`: ...
 
-    La implementación separa en dos pasos equivalentes en propiedad:
-        self_hash_n  = SHA-256(canonicalize(evento_n))
-        chain_hash_n = SHA-256(self_hash_n || chain_hash_{n-1})
+`anotacion_creada` se etiqueta N2 fijo en v1.0.0. La Tabla 4.1 de la tesis
+asigna las anotaciones a N1 ("notas tomadas; reformulación verbal en el
+asistente") cuando ocurren durante la lectura del enunciado y a N4
+("apropiación de argumento: reproducción razonada de una explicación del
+asistente en producción posterior propia") cuando ocurren tras una respuesta
+del tutor. La asignación N2 fija de v1.0.0 NO surge de la Tabla 4.1 sino que
+es una decisión de implementación del labeler para no requerir clasificación
+semántica del contenido en esta versión. El sesgo sistemático que esto introduce
+(sub-reporta N1 y N4, sobre-reporta N2) está documentado en el reporte
+empírico (Sección 17.3) y la migración a override por contenido es agenda
+del Eje B (clasificación semántica) post-defensa.
+"""
+```
 
-    El `prompt_system_hash` no se concatena como tercer bloque literal: entra como
-    campo del `evento_n` (ver Event.prompt_system_hash en models/event.py).
-    Como canonicalize() incluye todos los campos del evento salvo metadatos de cadena
-    (self_hash, chain_hash, prev_chain_hash, persisted_at, id), el hash del prompt vigente
-    queda incorporado a self_hash y por ende a chain_hash. La propiedad auditada por la
-    tesis — "si cambia el prompt entre dos eventos, se detecta en la cadena" — se
-    preserva bit a bit.
+2. Agregar test de regresión que documenta la elección y bloquea cambios accidentales:
 
-    También se incluye `classifier_config_hash` en cada evento (no mencionado en 7.3 pero
-    requerido por el principio de reproducibilidad 7.1.4: permite reclasificar con otro
-    profile y producir cadena distinguible).
+```python
+# apps/classifier-service/tests/unit/test_event_labeler.py
 
-    Excluye los campos self_hash, chain_hash, prev_chain_hash, persisted_at e id.
+def test_anotacion_creada_etiquetada_n2_en_v1_0_0() -> None:
+    """Decisión de implementación documentada: la Tabla 4.1 de la tesis
+    asigna las anotaciones a N1 o N4 según contenido. v1.0.0 las fija
+    a N2 para no requerir clasificación semántica.
+
+    Si esto cambia, hay que bumpear LABELER_VERSION (ADR-020) y actualizar
+    19.5 de la tesis sobre el sesgo sistemático que se cierra.
     """
+    assert label_event("anotacion_creada", payload={"content": "no entiendo"}) == "N2"
+    assert label_event("anotacion_creada", payload={"content": "ya vi por qué falla"}) == "N2"
 ```
 
-**Acción paralela en la tesis:** ver `03-cambios-tesis.md` → T7 (reformular Sección 7.3 con la fórmula exacta implementada, o agregar nota al pie que remita a este docstring).
+**Tamaño:** ~25 LOC docstring + ~15 LOC test.
 
-**Chico:** ~30 líneas de documentación, cero cambio semántico, sirve como pointer bidireccional entre tesis y código.
+**Riesgo:** Nulo. No cambia comportamiento del labeler.
+
+**Acción paralela en tesis:** ver `03-cambios-tesis.md` → T14 (precisar en 4.3.1 / 15.6 que la operacionalización de "tiempo por nivel" v1.0.0 usa una asignación simplificada de `anotacion_creada` a N2).
+
+**Acción paralela como cambio grande:** ver `02-cambios-codigo-grandes.md` → G8 (clasificador semántico de anotaciones para override por contenido).
 
 ---
 
-## F8 — Sacar del contract `socratic_compliance` y `violations` (o implementarlos)
+## F19 — Documentar gap `prompt_kind="reflexion"` en CCD
 
-**Problema:** el `RespuestaRecibidaPayload` del contract Pydantic declara:
+**Estado en iter 1:** identificado; no resuelto.
+
+**Problema (mismo que en la auditoría del repo anterior, persistente):** `apps/classifier-service/src/classifier_service/services/ccd.py:52,62` busca `prompt_kind == "reflexion"` para identificar verbalización reflexiva por prompt. Pero:
+
+- El contract Pydantic (`packages/contracts/src/platform_contracts/ctr/events.py`, clase `PromptEnviadoPayload`) admite solo cinco valores: `solicitud_directa | comparativa | epistemologica | validacion | aclaracion_enunciado`. **`"reflexion"` no es admitido.**
+- El runtime (`apps/tutor-service/src/tutor_service/services/tutor_core.py:176`) emite siempre `"prompt_kind": "solicitud_directa"`.
+- Resultado: la rama "verbalización reflexiva por prompt" en CCD nunca se activa con datos reales del piloto. La única fuente activa de verbalización en runtime es `anotacion_creada`.
+
+La 15.6 de la tesis menciona "prompt con intencionalidad reflexiva" como una de las dos fuentes de verbalización contempladas por CCD v1.0.0. Sin esta precisión, un lector que coteje 15.6 con el código encontrará una discrepancia no declarada.
+
+**Fix de bajo riesgo (esta iteración):** dos cambios documentales:
+
+1. En `apps/classifier-service/src/classifier_service/services/ccd.py:1-14`, ampliar el docstring de cabecera para documentar el gap explícitamente:
 
 ```python
-socratic_compliance: float = Field(ge=0.0, le=1.0)
-violations: list[str] = Field(default_factory=list)
+"""Coherencia Código-Discurso (CCD).
+
+...
+
+NOTA DE IMPLEMENTACIÓN v1.0.0
+-----------------------------
+Este módulo trata como verbalización reflexiva a:
+  (a) `anotacion_creada` (siempre), y
+  (b) `prompt_enviado` con `payload.prompt_kind == "reflexion"`.
+
+Sin embargo, "reflexion" NO es uno de los valores admitidos por
+`PromptKind` en los contracts vigentes (ver
+`packages/contracts/src/platform_contracts/ctr/events.py` clase
+PromptEnviadoPayload). El tutor-service emite siempre
+`prompt_kind="solicitud_directa"` en v1.0.0. Por tanto la rama (b)
+nunca se activa con datos reales y CCD subestima la reflexividad de
+prompts cuyo contenido es reflexivo pero quedan etiquetados como
+"solicitud_directa".
+
+Esta es una limitación conocida del v1.0.0, alineada con la Sección 15.6
+de la tesis ("operacionalización temporal liviana, determinista, reproducible
+bit-a-bit; captura una señal importante pero no su contenido"). El fix
+completo —clasificación automática de prompt_kind— es scope del Eje B y se
+aborda en G9.
+"""
 ```
 
-Pero **nadie los calcula ni los emite**. Son aspiraciones que nunca se cablearon. Si alguien validara un evento real contra el schema, fallaría porque el campo es obligatorio (sin `default`) y el tutor nunca lo pone.
+2. Agregar `apps/classifier-service/tests/unit/test_ccd_documenta_gap_reflexion.py` con un test que toma un prompt de contenido reflexivo emitido con `prompt_kind="solicitud_directa"` (que es lo que pasa en runtime) y verifica que CCD lo cuenta como acción huérfana, no como reflexión. Bloquea regresiones del tipo "alguien cierra el gap parcialmente sin migrar el contract".
 
-**Fix minimo:** volverlos opcionales hasta que se implemente el postprocesamiento real:
-```python
-class TutorRespondioPayload(BaseModel):  # renombrado per F2
-    content: str
-    model_used: str
-    chunks_used_hash: str | None = None
-    # TODO: implementar en F8/piloto. Por ahora, siempre None.
-    socratic_compliance: float | None = Field(default=None, ge=0.0, le=1.0)
-    violations: list[str] = Field(default_factory=list)
+**Tamaño:** ~25 LOC docstring + ~30 LOC test.
+
+**Riesgo:** Nulo.
+
+**Acción paralela en tesis:** ver `03-cambios-tesis.md` → T15 (precisar en 15.6 que la rama "prompt con intencionalidad reflexiva" no se materializa en v1.0.0).
+
+**Acción paralela como cambio grande:** ver `02-cambios-codigo-grandes.md` → G9 (clasificador heurístico/ML de `prompt_kind`).
+
+---
+
+## F20 — Sincronizar `docs/servicios/ctr-service.md` con la realidad post-G3
+
+**Origen:** **nuevo**.
+
+**Problema:** verificación con `grep -nE "event_type|intento_adverso|episodio_abandonado" docs/servicios/ctr-service.md`. Si el MD del servicio sigue listando los 8 event_type "pre-G3" sin mencionar `intento_adverso_detectado`, está desincronizado del runtime que ahora emite 9 (descontando `episodio_abandonado` que sigue declarado pero no emitido).
+
+**Fix:** ajustar la sección que enumera los event_types en runtime para incluir `intento_adverso_detectado` (con nota a pie hacia ADR-019) y aclarar el estado de `episodio_abandonado` (declarado en contracts, no emitido en runtime, pendiente de G10):
+
+```diff
+- `event_type` en snake_case en runtime: `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado`, `episodio_abandonado`. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
++ `event_type` en snake_case en runtime (9 tipos efectivamente emitidos en v1.0.0): `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado` (instrumentado desde el frontend), `intento_adverso_detectado` (ADR-019, side-channel del tutor-service para análisis empírico Sección 17.8). `EpisodioAbandonado` está declarado en los contratos Pydantic pero ningún servicio lo emite todavía — la decisión de cerrarlo es scope de G10. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
 ```
 
-**Acción paralela:** el postprocesamiento real (detección de jailbreak, cálculo de compliance) es un cambio grande — ver `02-cambios-codigo-grandes.md` → G3.
+**Tamaño:** ~3 LOC.
+
+**Riesgo:** Nulo, solo documentación.
 
 ---
 
-## F9 — Documentar en el prompt v1.0.0 el mapping a GP1–GP5
+## F21 — Sincronizar `docs/servicios/tutor-service.md` con `prompt_kind` realmente emitido
 
-**Problema:** la tesis formaliza 5 guardarraíles pedagógicos (GP1–GP5) + 5 de contenido (GC1–GC5) en el Capítulo 8. El prompt real en `ai-native-prompts/prompts/tutor/v1.0.0/system.md` tiene 5 principios numerados + una sección "Lo que NO hace el tutor" con 4 puntos. **No hay mapping explícito entre ambos conjuntos**. Un lector que venga de la tesis al prompt no puede verificar cuál principio implementa GP1.
+**Origen:** **nuevo**.
 
-**Fix:** agregar al final del `system.md` una sección invisible al modelo pero auditable por humanos — sea como bloque de comentario Markdown (`<!-- ... -->`) o en un archivo separado `v1.0.0/mapping-gp-gc.md`. Formato:
+**Problema:** el MD `docs/servicios/tutor-service.md` afirma que el tutor enriquece los prompts con su `prompt_kind` (uno de los cinco valores), sugiriendo clasificación de intencionalidad por el lado del emisor. La realidad: tutor_core.py:176 emite siempre `"solicitud_directa"`. El MD está desalineado del runtime real.
 
-```markdown
-<!--
-Mapping a los guardarraíles formales de la tesis (Capítulo 8):
+**Fix:** una nota corta en el bullet correspondiente al evento `prompt_enviado`:
 
-GP1 (no entregar solución) ← Principio 1 + Lo-que-NO-hace punto 1
-GP2 (preguntas con preguntas) ← Principio 2
-GP3 (descomponer ante incomprensión) ← Principio 3 (dejar equivocarse)
-GP4 (estimular verificación ejecutiva) ← Principio 3 (guialo a descubrir el bug)
-GP5 (reconocer alcance excedido) ← SIN COBERTURA EXPLÍCITA EN v1.0.0 — agregar en v1.1.0
-
-GC1 (no info falsa) ← SIN COBERTURA EXPLÍCITA — agregar
-GC2 (no preferencias comerciales) ← SIN COBERTURA EXPLÍCITA — agregar
-GC3 (no contenido ofensivo) ← delegado a la alineación base del LLM
-GC4 (privacidad) ← SIN COBERTURA EXPLÍCITA — agregar
-GC5 (redirigir temas sensibles) ← SIN COBERTURA EXPLÍCITA — agregar
--->
+```diff
+- - **CCD_mean** y **CCD_orphan_ratio** (código-discurso): correlación entre acciones (`codigo_ejecutado`, `prompt_enviado`) y verbalizaciones (`anotacion_creada`, `prompt_enviado` con `prompt_kind="epistemologica"` u otra reflexión).
++ - **CCD_mean** y **CCD_orphan_ratio** (código-discurso): correlación entre acciones (`codigo_ejecutado`, `prompt_enviado`) y verbalizaciones (`anotacion_creada`, `prompt_enviado` con `prompt_kind` reflexivo). Nota v1.0.0: el tutor-service emite siempre `prompt_kind="solicitud_directa"`; la clasificación automática de intencionalidad del prompt es agenda confirmatoria (Eje B, G9). Hoy la única fuente activa de verbalización reflexiva es `anotacion_creada`.
 ```
-
-**Chico:** ~25 líneas de comentario. **Hallazgo honesto:** el prompt actual solo cubre 4 de los 10 guardarraíles formales de la tesis. Esto NO es necesariamente un bug si la tesis lo reconoce (el "Cap 8 es aspiracional, v1.0.0 es intencionalmente minimalista"), pero es un fact que merece estar documentado en ambos lados.
-
-**Acción paralela en la tesis:** ver `03-cambios-tesis.md` → T8 (agregar a la Sección 8.2 que v1.0.0 cubre explícitamente solo GP1–GP4; los demás están en v1.1.0 pendiente, o delegados a alineación base del LLM).
-
----
-
-## F10 — Fijar el string literal de comisión demo en un solo lugar
-
-**Problema:** `DEMO_COMISION_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"` está hardcoded en `apps/web-student/src/pages/EpisodePage.tsx` línea 37. Otros lugares (seeds, tests) también lo usan. Un cambio de UUID demo obliga a tocar N archivos.
-
-**Fix:** mover a `packages/contracts/src/demo/constants.ts` (y variante Python en `packages/contracts/src/platform_contracts/demo/constants.py`). Importar desde ahí.
-
-**Tamaño:** ~10 LOC, un `git grep` + replace.
-
----
-
-## F11 — Reparar el typo en `.env.example`: `GOVERNANCE_REPO_PATH` → `PROMPTS_REPO_PATH`
-
-**Problema:** documentado en `CLAUDE.md` líneas 169–175 y líneas 239–243 como "deuda del template". El `.env.example` declara `GOVERNANCE_REPO_PATH` pero el código lee `PROMPTS_REPO_PATH`. Consecuencia: `make init` limpio en Windows/Linux deja el governance-service sin saber dónde buscar prompts, el tutor-service no puede abrir episodios, web-student falla con un 500 silencioso.
-
-**Fix:** corregir el `.env.example`. Una línea.
-
-**Tamaño:** 1 LOC.
-
----
-
-## F12 — Pinear versiones de imágenes Docker en `docker-compose.dev.yml`
-
-**Problema:** documentado en `CLAUDE.md` línea 181 como gap conocido. `otel/opentelemetry-collector-contrib` y `grafana/loki` están en `:latest`. Un breaking change upstream rompe `make dev-bootstrap`.
-
-**Fix:** pinearlas en las versiones verificadas (`0.150.1` / `3.7.1` según el propio CLAUDE.md).
 
 **Tamaño:** 2 LOC.
 
----
-
-## F13 — `MarkdownRenderer.tsx` duplicado entre `web-teacher` y `web-student`
-
-**Problema:** documentado en `CLAUDE.md` línea 192. El componente está copipasteado en dos apps en lugar de vivir en `packages/ui`.
-
-**Fix:** mover a `packages/ui/src/components/MarkdownRenderer.tsx` (ya es el home natural de componentes React compartidos). Borrar los duplicados, actualizar imports.
-
-**Tamaño:** ~100 LOC movidos, sin cambio semántico. Cuidado: verificar que los dos duplicados tengan exactamente el mismo contenido antes de unificar (si hay divergencia, la diferencia se va a perder si se elige uno).
+**Riesgo:** Nulo.
 
 ---
 
-## Resumen
+## F22 — Documentar en `EdicionCodigoPayload` que `copied_from_tutor` solo se emite parcialmente
 
-| ID | Descripción | Tamaño | Riesgo | Precondición |
-|---|---|---|---|---|
-| F1 | Unificar PascalCase vs snake_case en contracts | ~20 LOC | Bajo | — |
-| F2 | `RespuestaRecibida` → `TutorRespondio` | ~15 LOC | Bajo | F1 |
-| F3 | `NotaPersonal` → `AnotacionCreada` | ~15 LOC | Bajo | F1 |
-| F4 | `TestsEjecutados` → `CodigoEjecutado` + payload flexible | ~25 LOC | Bajo | F1 |
-| F5 | Emitir `lectura_enunciado` desde web-student | ~65 LOC + tests | Bajo | — |
-| F6 | Agregar `origin` opcional a `edicion_codigo` | ~40 LOC | Bajo | — |
-| F7 | Docstring en `hashing.py` explicando mapping a tesis 7.3 | ~30 LOC | Nulo | — |
-| F8 | Hacer opcionales `socratic_compliance`/`violations` en contract | ~5 LOC | Nulo | — |
-| F9 | Comentario de mapping GP/GC en `system.md` | ~25 LOC | Nulo | — |
-| F10 | Mover `DEMO_COMISION_ID` a contracts | ~10 LOC | Nulo | — |
-| F11 | Corregir typo `GOVERNANCE_REPO_PATH` en `.env.example` | 1 LOC | Nulo | — |
-| F12 | Pinear imágenes Docker en dev compose | 2 LOC | Nulo | — |
-| F13 | Des-duplicar `MarkdownRenderer.tsx` | ~100 LOC movidos | Nulo | — |
+**Origen:** **nuevo**, residual ampliable de iter 1.
 
-**Orden sugerido de ejecución:** F11 → F12 (unblockers de onboarding) → F1 → F2 → F3 → F4 → F8 (armonización de contracts, todos juntos en un PR) → F7 → F9 → F10 (doc y dedup) → F5 → F6 → F13 (features chicas).
+**Problema:** F6 (iter 1) agregó al payload de `edicion_codigo` el campo `origin: Literal["student_typed", "copied_from_tutor", "pasted_external"]`. El backend lo recibe correctamente. El frontend (`apps/web-student/src/components/CodeEditor.tsx`) emite `student_typed | pasted_external` pero **no `copied_from_tutor`**: ese valor requiere un botón "Insertar código del tutor" que no está en la UI. Verificación: `grep -rn "copied_from_tutor" apps/web-student` → solo aparece en el type literal de TypeScript, no como string emitido.
 
-Todos se pueden hacer en un único sprint de una semana sin coordinación con nadie. Ninguno rompe reproducibilidad bit-a-bit de CTRs existentes (F1–F4 tocan nombres de clases y payloads nuevos, no valores persistidos). F5 y F6 agregan eventos nuevos, son backward-compatible.
+Esta es la pieza que el `event_labeler` (G4) lee para hacer el override `edicion_codigo → N4` cuando origin ∈ {`copied_from_tutor`, `pasted_external`}. Hoy el override se activa solo por `pasted_external`; el caso `copied_from_tutor` está latente esperando UI.
+
+**Fix:** ampliar el `description` del campo `origin` en el contract Pydantic y en el TS:
+
+```python
+# packages/contracts/src/platform_contracts/ctr/events.py:175
+origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = (
+    Field(
+        default=None,
+        description=(
+            "Procedencia del cambio en el editor. None = legacy/desconocido. "
+            "v1.0.0 emite student_typed y pasted_external desde web-student; "
+            "copied_from_tutor está declarado en el contract pero requiere "
+            "una afordancia de UI (botón 'Insertar código del tutor') "
+            "aún no incorporada al editor del estudiante. El event_labeler "
+            "(ADR-020) reconoce los tres valores y aplica override a N4 "
+            "para los dos no-typed."
+        ),
+    )
+)
+```
+
+Mismo en TS, como JSDoc.
+
+**Tamaño:** ~12 LOC entre los dos archivos.
+
+**Riesgo:** Nulo.
+
+**Acción paralela como cambio grande:** ver `02-cambios-codigo-grandes.md` → G11 (botón "Insertar código del tutor" en web-student).
+
+**Acción paralela en tesis:** ver `03-cambios-tesis.md` → T16 (precisar en 19.5 que `copied_from_tutor` está parcialmente operacional).
+
+---
+
+## F23 — Corregir HTML comment del prompt: GP3 sin cobertura literal
+
+**Origen:** **nuevo** (residual de iter 1 no detectado en F9).
+
+**Problema:** el HTML comment al pie de `ai-native-prompts/prompts/tutor/v1.0.0/system.md` (agregado por F9 iter 1) mapea:
+
+```
+GP3 (descomponer ante incomprension)  <- Principio 3 (dejar equivocarse)
+GP4 (estimular verificacion ejecutiva) <- Principio 3 (descubrir el bug solo)
+```
+
+El Principio 3 textual del prompt ("Dejar que se equivoque. Si propone algo con un bug, NO lo corregís de inmediato — guialo a que descubra el bug por sí mismo") cubre semánticamente GP4 (estimulación de la verificación ejecutiva), no GP3 (descomponer ante incomprensión manifestada). El comment asigna el mismo Principio 3 a dos guardarraíles distintos, inflando la cuenta a 4/10. La cuenta correcta es **3/10** (GP1, GP2, GP4).
+
+**Riesgo: ALTO — este fix NO es chico.** Verificación: `apps/governance-service/src/governance_service/services/prompt_loader.py:38-40` calcula `compute_content_hash` con `hashlib.sha256(content.encode("utf-8")).hexdigest()` sobre el contenido **completo del archivo**, incluyendo el HTML comment. Cualquier edición del comment cambia el `prompt_system_hash` y rompe la verificación contra `manifest.yaml`.
+
+**Reagendado:** este fix se reclasifica a `02-cambios-codigo-grandes.md` como **G12**. La forma correcta es: bump `v1.0.0` → `v1.0.1` (PATCH según tesis 7.4: "corrección de redacción, refinamiento de instrucciones sin cambio sustantivo"); generar nuevo `manifest.yaml` con el hash recomputado; firmar el commit con GPG (ADR-009); no aplicar mid-cohort. F23 queda **anulado** en este documento — ver G12.
+
+---
+
+## Tabla resumen + orden sugerido
+
+| ID | Título corto | LOC | Riesgo | Origen | Acopla con |
+|----|--------------|-----|--------|--------|------------|
+| F14 | Typo `GOVERNANCE_REPO_PATH` → `PROMPTS_REPO_PATH` | 1 + ~15 doc | Nulo | residual iter 1 | — |
+| F15 | Pinear las 4 imágenes Docker flotantes | 4 | Nulo | residual iter 1 (F12 parcial) | — |
+| F16 | Exportar `IntentoAdversoDetectado` + arreglar test parity | ~12 | Nulo / Bajo | nuevo | F17 |
+| F17 | Agregar `IntentoAdversoDetectado` y `EpisodioAbandonado` al TS | ~30 + ~30 test | Bajo | nuevo + residual | F16 |
+| F18 | Aclarar override de `anotacion_creada` en `event_labeler.py` | ~40 | Nulo | nuevo | G8 |
+| F19 | Documentar gap `prompt_kind="reflexion"` en CCD | ~55 | Nulo | residual iter 1 | G9 |
+| F20 | Sincronizar `docs/servicios/ctr-service.md` con runtime post-G3 | 3 | Nulo | nuevo | — |
+| F21 | Sincronizar `docs/servicios/tutor-service.md` con `prompt_kind` real | 2 | Nulo | nuevo | — |
+| F22 | Documentar que `copied_from_tutor` no se emite | ~12 | Nulo | nuevo | G11 |
+| ~~F23~~ | ~~Corregir HTML comment del prompt~~ | — | — | reclasificado | Movido a G12 (cambia el hash) |
+
+**Orden sugerido de ejecución (un commit por bloque):**
+
+1. **Bloque A — typos bloqueantes y ops (riesgo cero, sin acoplamiento):** F14 + F15. Commit "fix(env,docker): cerrar typo PROMPTS_REPO_PATH y pinear las 4 imágenes flotantes (cierra deuda iter 1)".
+
+2. **Bloque B — contract parity post-G3:** F16 + F17 en el mismo commit. Commit "feat(contracts): exportar IntentoAdversoDetectado, agregar EpisodioAbandonado al TS, arreglar test parity runtime↔contracts (post G3 fase A)".
+
+3. **Bloque C — alineación documental (sin riesgo):** F18 + F19 + F20 + F21 + F22 en un commit. Commit "docs: explicitar limitaciones v1.0.0 en event_labeler, CCD, MDs de servicios y origin (alinea con tesis §15.6 / §19.5)".
+
+Aplicación total: ~210 LOC, 3 commits ortogonales. Ningún bloque rompe la suite del piloto. F23 se reagenda como G12 por su impacto sobre el hash del prompt.
