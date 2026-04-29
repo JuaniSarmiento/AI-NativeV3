@@ -11,6 +11,7 @@ Verificado antes de la migración: no hay filas con `facultad_id IS NULL` en
 `academic_main.carreras`, por lo que el `ALTER COLUMN ... SET NOT NULL` corre
 sin backfill.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

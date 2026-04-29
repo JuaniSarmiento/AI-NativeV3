@@ -9,6 +9,7 @@ Cubren:
 6. Truncado de matched_text en prompts gigantes.
 7. Funcion pura: misma input → misma output.
 """
+
 from __future__ import annotations
 
 from tutor_service.services.guardrails import (
@@ -18,7 +19,6 @@ from tutor_service.services.guardrails import (
     compute_guardrails_corpus_hash,
     detect,
 )
-
 
 # ---------------------------------------------------------------------------
 # Hash del corpus
@@ -35,7 +35,7 @@ def test_guardrails_corpus_hash_es_golden() -> None:
     GUARDRAILS_CORPUS_VERSION + documenta en SESSION-LOG.
     """
     expected = "b6984c118d68d703da4de7aada8865c395f87baf8e84c5f9a2e8cbc1a48cf67a"
-    assert GUARDRAILS_CORPUS_HASH == expected
+    assert expected == GUARDRAILS_CORPUS_HASH
     assert compute_guardrails_corpus_hash() == expected
 
 

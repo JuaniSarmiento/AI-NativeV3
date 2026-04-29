@@ -19,6 +19,7 @@ drifteada, la instancia queda apuntando al template viejo y NO se
 re-instancia al versionar el template. `new_version` hereda tanto el
 `template_id` como el `has_drift` del parent para no "lavar" drift.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -45,15 +46,17 @@ from academic_service.schemas.tarea_practica import (
 # `TareaPracticaTemplateService.create`). Cualquier otro campo (estado,
 # version, parent_tarea_id, etc.) NO dispara drift porque no forma parte
 # de la "fuente canónica" del template.
-DRIFT_TRIGGERING_FIELDS: frozenset[str] = frozenset({
-    "titulo",
-    "enunciado",
-    "inicial_codigo",
-    "rubrica",
-    "peso",
-    "fecha_inicio",
-    "fecha_fin",
-})
+DRIFT_TRIGGERING_FIELDS: frozenset[str] = frozenset(
+    {
+        "titulo",
+        "enunciado",
+        "inicial_codigo",
+        "rubrica",
+        "peso",
+        "fecha_inicio",
+        "fecha_fin",
+    }
+)
 
 
 class TareaPracticaService:
@@ -62,30 +65,30 @@ class TareaPracticaService:
         self.repo = TareaPracticaRepository(session)
         self.comisiones = ComisionRepository(session)
 
-    async def create(
-        self, data: TareaPracticaCreate, user: User
-    ) -> TareaPractica:
+    async def create(self, data: TareaPracticaCreate, user: User) -> TareaPractica:
         # Validar que la comisión existe (RLS la filtra por tenant)
         comision = await self.comisiones.get_or_404(data.comision_id)
 
         new_id = uuid4()
-        tarea = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "comision_id": comision.id,
-            "codigo": data.codigo,
-            "titulo": data.titulo,
-            "enunciado": data.enunciado,
-            "inicial_codigo": data.inicial_codigo,
-            "fecha_inicio": data.fecha_inicio,
-            "fecha_fin": data.fecha_fin,
-            "peso": data.peso,
-            "rubrica": data.rubrica,
-            "estado": "draft",
-            "version": 1,
-            "parent_tarea_id": None,
-            "created_by": user.id,
-        })
+        tarea = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "comision_id": comision.id,
+                "codigo": data.codigo,
+                "titulo": data.titulo,
+                "enunciado": data.enunciado,
+                "inicial_codigo": data.inicial_codigo,
+                "fecha_inicio": data.fecha_inicio,
+                "fecha_fin": data.fecha_fin,
+                "peso": data.peso,
+                "rubrica": data.rubrica,
+                "estado": "draft",
+                "version": 1,
+                "parent_tarea_id": None,
+                "created_by": user.id,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -99,9 +102,7 @@ class TareaPracticaService:
         await self.session.flush()
         return tarea
 
-    async def update(
-        self, id_: UUID, data: TareaPracticaUpdate, user: User
-    ) -> TareaPractica:
+    async def update(self, id_: UUID, data: TareaPracticaUpdate, user: User) -> TareaPractica:
         obj = await self.repo.get_or_404(id_)
         if obj.estado != "draft":
             raise HTTPException(
@@ -237,25 +238,27 @@ class TareaPracticaService:
         # No "lavamos" drift creando una versión: si la v-N estaba drifteada,
         # la v-N+1 también lo está. Si el docente quiere "volver al template",
         # usa el endpoint dedicado de resync (scope futuro).
-        new_tarea = await self.repo.create({
-            "id": new_id,
-            "tenant_id": parent.tenant_id,
-            "comision_id": parent.comision_id,
-            "codigo": parent.codigo,
-            "titulo": overrides.get("titulo", parent.titulo),
-            "enunciado": overrides.get("enunciado", parent.enunciado),
-            "inicial_codigo": overrides.get("inicial_codigo", parent.inicial_codigo),
-            "fecha_inicio": overrides.get("fecha_inicio", parent.fecha_inicio),
-            "fecha_fin": overrides.get("fecha_fin", parent.fecha_fin),
-            "peso": overrides.get("peso", parent.peso),
-            "rubrica": overrides.get("rubrica", parent.rubrica),
-            "estado": "draft",
-            "version": parent.version + 1,
-            "parent_tarea_id": parent.id,
-            "template_id": parent.template_id,
-            "has_drift": parent.has_drift,
-            "created_by": user.id,
-        })
+        new_tarea = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": parent.tenant_id,
+                "comision_id": parent.comision_id,
+                "codigo": parent.codigo,
+                "titulo": overrides.get("titulo", parent.titulo),
+                "enunciado": overrides.get("enunciado", parent.enunciado),
+                "inicial_codigo": overrides.get("inicial_codigo", parent.inicial_codigo),
+                "fecha_inicio": overrides.get("fecha_inicio", parent.fecha_inicio),
+                "fecha_fin": overrides.get("fecha_fin", parent.fecha_fin),
+                "peso": overrides.get("peso", parent.peso),
+                "rubrica": overrides.get("rubrica", parent.rubrica),
+                "estado": "draft",
+                "version": parent.version + 1,
+                "parent_tarea_id": parent.id,
+                "template_id": parent.template_id,
+                "has_drift": parent.has_drift,
+                "created_by": user.id,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=parent.tenant_id,

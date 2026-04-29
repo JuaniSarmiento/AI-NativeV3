@@ -1,10 +1,10 @@
 """Tests del endpoint de salud."""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
 from ctr_service.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture

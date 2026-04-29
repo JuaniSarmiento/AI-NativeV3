@@ -1,4 +1,5 @@
 """Fixtures reutilizables para tests de integración."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator

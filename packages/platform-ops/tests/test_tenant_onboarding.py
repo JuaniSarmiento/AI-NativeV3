@@ -7,6 +7,7 @@ Usa respx para interceptar llamadas a Keycloak. Verifica:
   - Password temporal con requiredActions=UPDATE_PASSWORD
   - Roles del realm se crean completos
 """
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -14,14 +15,12 @@ from uuid import UUID
 import pytest
 import respx
 from httpx import Response
-
 from platform_ops.tenant_onboarding import (
     KeycloakClient,
     KeycloakConfig,
     TenantOnboarder,
     TenantSpec,
 )
-
 
 KC_BASE = "http://kc.test"
 ADMIN_TOKEN = "fake-admin-token"
@@ -41,11 +40,13 @@ def tenant_spec() -> TenantSpec:
 
 @pytest.fixture
 def kc_client() -> KeycloakClient:
-    return KeycloakClient(KeycloakConfig(
-        base_url=KC_BASE,
-        admin_user="admin",
-        admin_password="secret",
-    ))
+    return KeycloakClient(
+        KeycloakConfig(
+            base_url=KC_BASE,
+            admin_user="admin",
+            admin_password="secret",
+        )
+    )
 
 
 def _mock_admin_login(router: respx.MockRouter) -> None:
@@ -85,7 +86,9 @@ async def test_onboarding_de_tenant_nuevo(kc_client, tenant_spec) -> None:
         )
 
         # Mapper: ninguno existe
-        mappers_url = f"{KC_BASE}/admin/realms/unsl/clients/internal-client-id/protocol-mappers/models"
+        mappers_url = (
+            f"{KC_BASE}/admin/realms/unsl/clients/internal-client-id/protocol-mappers/models"
+        )
         router.get(mappers_url).mock(return_value=Response(200, json=[]))
         mapper_create = router.post(mappers_url).mock(return_value=Response(201))
 
@@ -150,7 +153,9 @@ async def test_mapper_injecta_tenant_id_correcto(kc_client, tenant_spec) -> None
 
         router.get(f"{KC_BASE}/admin/realms/unsl").mock(return_value=Response(200))
         router.get(f"{KC_BASE}/admin/realms/unsl/clients").mock(
-            return_value=Response(200, json=[{"id": "internal-id", "clientId": "platform-backend"}]),
+            return_value=Response(
+                200, json=[{"id": "internal-id", "clientId": "platform-backend"}]
+            ),
         )
 
         mappers_url = f"{KC_BASE}/admin/realms/unsl/clients/internal-id/protocol-mappers/models"
@@ -187,7 +192,9 @@ async def test_onboarding_idempotente_no_recrea_realm(kc_client, tenant_spec) ->
 
         # Clients: existe platform-backend
         router.get(f"{KC_BASE}/admin/realms/unsl/clients").mock(
-            return_value=Response(200, json=[{"id": "existing-id", "clientId": "platform-backend"}]),
+            return_value=Response(
+                200, json=[{"id": "existing-id", "clientId": "platform-backend"}]
+            ),
         )
         client_create = router.post(f"{KC_BASE}/admin/realms/unsl/clients").mock(
             return_value=Response(201),
@@ -210,7 +217,10 @@ async def test_onboarding_idempotente_no_recrea_realm(kc_client, tenant_spec) ->
         )
 
         # User ya existe
-        router.get(f"{KC_BASE}/admin/realms/unsl/users", params={"email": tenant_spec.admin_email, "exact": "true"}).mock(
+        router.get(
+            f"{KC_BASE}/admin/realms/unsl/users",
+            params={"email": tenant_spec.admin_email, "exact": "true"},
+        ).mock(
             return_value=Response(200, json=[{"id": "existing-user-id"}]),
         )
         user_create = router.post(f"{KC_BASE}/admin/realms/unsl/users").mock(
@@ -240,12 +250,17 @@ async def test_admin_user_se_crea_con_password_temporal(kc_client, tenant_spec) 
     async with respx.mock(base_url=KC_BASE, assert_all_called=False) as router:
         _mock_admin_login(router)
 
-        router.get(f"{KC_BASE}/admin/realms/unsl/users", params={"email": tenant_spec.admin_email, "exact": "true"}).mock(
+        router.get(
+            f"{KC_BASE}/admin/realms/unsl/users",
+            params={"email": tenant_spec.admin_email, "exact": "true"},
+        ).mock(
             return_value=Response(200, json=[]),
         )
 
         user_create = router.post(f"{KC_BASE}/admin/realms/unsl/users").mock(
-            return_value=Response(201, headers={"location": f"{KC_BASE}/admin/realms/unsl/users/uid-xyz"}),
+            return_value=Response(
+                201, headers={"location": f"{KC_BASE}/admin/realms/unsl/users/uid-xyz"}
+            ),
         )
         router.get(f"{KC_BASE}/admin/realms/unsl/roles/docente_admin").mock(
             return_value=Response(200, json={"id": "r1", "name": "docente_admin"}),
@@ -260,6 +275,7 @@ async def test_admin_user_se_crea_con_password_temporal(kc_client, tenant_spec) 
     assert user_create.called
     body = user_create.calls[0].request.read().decode()
     import json
+
     parsed = json.loads(body)
     assert parsed["email"] == tenant_spec.admin_email
     # Credenciales: password temporal que FORZA cambio

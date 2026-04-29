@@ -1,4 +1,5 @@
 """Tests de aggregate_adversarial_events (función pura, sin DB)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -80,10 +81,7 @@ def test_top_students_ordenado_desc() -> None:
 
 def test_top_students_limitado_a_10() -> None:
     """Si hay más de 10 estudiantes con eventos, solo los top 10 aparecen."""
-    events = [
-        _ev(student=f"stud-{i:02d}")
-        for i in range(15)
-    ]
+    events = [_ev(student=f"stud-{i:02d}") for i in range(15)]
     result = aggregate_adversarial_events(events)
     assert len(result["top_students_by_n_events"]) == 10
 

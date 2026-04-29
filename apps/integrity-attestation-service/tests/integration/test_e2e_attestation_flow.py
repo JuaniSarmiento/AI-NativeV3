@@ -10,15 +10,16 @@ Valida que:
 
 Requiere Docker. Skip automatico si no esta disponible.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 import redis.asyncio as redis_async
-
 from integrity_attestation_service.config import settings
 from integrity_attestation_service.services.signing import (
     compute_canonical_buffer,
@@ -48,10 +49,8 @@ def redis_url() -> Iterator[str]:
 async def redis_client(redis_url: str) -> redis_async.Redis:
     client = redis_async.from_url(redis_url, decode_responses=False)
     # Limpiar streams entre tests para aislar
-    try:
+    with contextlib.suppress(Exception):
         await client.delete(INPUT_STREAM, "attestation.dead")
-    except Exception:
-        pass
     yield client
     await client.aclose()
 
@@ -153,9 +152,7 @@ async def test_e2e_dos_requests_distintos_producen_dos_lineas(
 
     files = list(tmp_path.glob("attestations-*.jsonl"))
     assert len(files) == 1
-    lines = [
-        line for line in files[0].read_text(encoding="utf-8").splitlines() if line.strip()
-    ]
+    lines = [line for line in files[0].read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 3
     # Cada linea tiene un episode_id distinto
     episode_ids = {json.loads(line)["episode_id"] for line in lines}

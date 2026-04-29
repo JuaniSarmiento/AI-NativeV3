@@ -7,14 +7,13 @@ Prueba propiedades del sliding window:
   - Paths con límites distintos se rigen por distintos presupuestos
   - Retry-After refleja el TTL remanente
 """
+
 from __future__ import annotations
 
 import fakeredis.aioredis
 import pytest
-
 from api_gateway.services.rate_limit import (
     DEFAULT_LIMIT,
-    PATH_LIMITS,
     RateLimitConfig,
     RateLimiter,
     config_for_path,

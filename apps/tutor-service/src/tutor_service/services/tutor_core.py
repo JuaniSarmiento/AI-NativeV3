@@ -10,6 +10,7 @@ Flujo de una interacción:
   7. Emitir evento `tutor_respondio` al CTR
   8. Actualizar session state
 """
+
 from __future__ import annotations
 
 import logging
@@ -165,9 +166,7 @@ class TutorCore:
 
     # ── Interacción (streaming) ────────────────────────────────────────
 
-    async def interact(
-        self, episode_id: UUID, user_message: str
-    ) -> AsyncIterator[dict]:
+    async def interact(self, episode_id: UUID, user_message: str) -> AsyncIterator[dict]:
         """Procesa una interacción en streaming.
 
         Yieldea eventos del formato:
@@ -202,9 +201,7 @@ class TutorCore:
                 "chunks_used_hash": retrieval.chunks_used_hash,
             },
         )
-        await self.ctr.publish_event(
-            prompt_event, state.tenant_id, TUTOR_SERVICE_USER_ID
-        )
+        await self.ctr.publish_event(prompt_event, state.tenant_id, TUTOR_SERVICE_USER_ID)
 
         # 3.bis (ADR-019, G3 Fase A): deteccion preprocesamiento de intentos
         # adversos. Por cada match del corpus regex, emitir evento CTR
@@ -232,38 +229,38 @@ class TutorCore:
                 },
             )
             try:
-                await self.ctr.publish_event(
-                    adv_event, state.tenant_id, TUTOR_SERVICE_USER_ID
-                )
+                await self.ctr.publish_event(adv_event, state.tenant_id, TUTOR_SERVICE_USER_ID)
             except Exception:
                 # Fail-soft: si el CTR no acepta el evento (red caida, etc.),
                 # log y continua. El prompt principal sigue sin afectarse.
                 logger.warning(
                     "publish intento_adverso_detectado failed pattern=%s",
-                    match.pattern_id, exc_info=True,
+                    match.pattern_id,
+                    exc_info=True,
                 )
 
         # 4. Armar messages para el LLM
         messages = state.messages.copy()
         if rag_context:
             # Inyectar contexto como mensaje system adicional
-            messages.append({
-                "role": "system",
-                "content": f"Material de cátedra relevante:\n{rag_context}",
-            })
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Material de cátedra relevante:\n{rag_context}",
+                }
+            )
 
         # 4.bis (ADR-019, Sección 8.5.1): si hay match adverso de severidad
         # alta, inyectar system message reforzando rol socrático ANTES del
         # prompt del estudiante. Cumple promesa textual de "recuerdo del rol".
         # Severidad 1-2 (fiction/persuasion) NO refuerza — son ambiguos.
-        if any(
-            m.severity >= _SEVERITY_THRESHOLD_FOR_REINFORCEMENT
-            for m in adversarial_matches
-        ):
-            messages.append({
-                "role": "system",
-                "content": _REINFORCEMENT_SYSTEM_MESSAGE,
-            })
+        if any(m.severity >= _SEVERITY_THRESHOLD_FOR_REINFORCEMENT for m in adversarial_matches):
+            messages.append(
+                {
+                    "role": "system",
+                    "content": _REINFORCEMENT_SYSTEM_MESSAGE,
+                }
+            )
 
         messages.append({"role": "user", "content": user_message})
 
@@ -295,9 +292,7 @@ class TutorCore:
                 "model": self.default_model,
             },
         )
-        await self.ctr.publish_event(
-            response_event, state.tenant_id, TUTOR_SERVICE_USER_ID
-        )
+        await self.ctr.publish_event(response_event, state.tenant_id, TUTOR_SERVICE_USER_ID)
 
         yield {
             "type": "done",
@@ -307,9 +302,7 @@ class TutorCore:
 
     # ── Cerrar episodio ─────────────────────────────────────────────────
 
-    async def close_episode(
-        self, episode_id: UUID, reason: str = "student_closed"
-    ) -> None:
+    async def close_episode(self, episode_id: UUID, reason: str = "student_closed") -> None:
         state = await self.sessions.get(episode_id)
         if state is None:
             raise ValueError(f"Episode {episode_id} no existe o expiró")
@@ -371,9 +364,7 @@ class TutorCore:
         diff_chars: int,
         language: str,
         user_id: UUID,
-        origin: (
-            Literal["student_typed", "copied_from_tutor", "pasted_external"] | None
-        ) = None,
+        origin: (Literal["student_typed", "copied_from_tutor", "pasted_external"] | None) = None,
     ) -> int:
         """Publica un evento edicion_codigo al CTR.
 
@@ -405,9 +396,7 @@ class TutorCore:
         """
         state = await self.sessions.get(episode_id)
         if state is None:
-            raise ValueError(
-                f"Episode {episode_id} no existe, está cerrado o expiró"
-            )
+            raise ValueError(f"Episode {episode_id} no existe, está cerrado o expiró")
 
         payload: dict[str, str | int | None] = {
             "snapshot": snapshot,
@@ -459,9 +448,7 @@ class TutorCore:
         """
         state = await self.sessions.get(episode_id)
         if state is None:
-            raise ValueError(
-                f"Episode {episode_id} no existe, está cerrado o expiró"
-            )
+            raise ValueError(f"Episode {episode_id} no existe, está cerrado o expiró")
 
         seq = await self.sessions.next_seq(state)
         event = self._build_event(
@@ -511,9 +498,7 @@ class TutorCore:
         """
         state = await self.sessions.get(episode_id)
         if state is None:
-            raise ValueError(
-                f"Episode {episode_id} no existe, está cerrado o expiró"
-            )
+            raise ValueError(f"Episode {episode_id} no existe, está cerrado o expiró")
 
         seq = await self.sessions.next_seq(state)
         event = self._build_event(
@@ -554,7 +539,10 @@ class TutorCore:
                 logger.warning(
                     "TP validation failed on recheck (race detected): "
                     "tarea_id=%s tenant_id=%s status=%d detail=%s",
-                    tarea_id, tenant_id, exc.status_code, exc.detail,
+                    tarea_id,
+                    tenant_id,
+                    exc.status_code,
+                    exc.detail,
                 )
             raise exc
 
@@ -565,52 +553,68 @@ class TutorCore:
         )
         # 1. Existe
         if tarea is None:
-            _raise(HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tarea práctica no encontrada",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Tarea práctica no encontrada",
+                )
+            )
             return
         # 5. Tenant matches (defense in depth)
         if tarea.tenant_id != tenant_id:
-            _raise(HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tarea práctica de otro tenant",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tarea práctica de otro tenant",
+                )
+            )
         # 3. Comisión correcta
         if tarea.comision_id != comision_id:
-            _raise(HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tarea práctica no pertenece a esta comisión",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Tarea práctica no pertenece a esta comisión",
+                )
+            )
         # 2. Estado published
         if tarea.estado == "draft":
-            _raise(HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Tarea práctica en estado borrador, no se puede abrir episodio",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Tarea práctica en estado borrador, no se puede abrir episodio",
+                )
+            )
         if tarea.estado == "archived":
-            _raise(HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Tarea práctica archivada, no se aceptan nuevos episodios",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Tarea práctica archivada, no se aceptan nuevos episodios",
+                )
+            )
         if tarea.estado != "published":
             # Estado desconocido (defensa en profundidad).
-            _raise(HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Tarea práctica en estado inválido: {tarea.estado}",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Tarea práctica en estado inválido: {tarea.estado}",
+                )
+            )
         # 4. Ventana temporal
         now = datetime.now(UTC)
         if tarea.fecha_inicio is not None and now < tarea.fecha_inicio:
-            _raise(HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tarea práctica no ha comenzado todavía",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tarea práctica no ha comenzado todavía",
+                )
+            )
         if tarea.fecha_fin is not None and now > tarea.fecha_fin:
-            _raise(HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tarea práctica fuera de plazo (deadline pasado)",
-            ))
+            _raise(
+                HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tarea práctica fuera de plazo (deadline pasado)",
+                )
+            )
 
     # ── Helpers ─────────────────────────────────────────────────────────
 
@@ -647,7 +651,5 @@ class TutorCore:
             return ""
         blocks = []
         for i, c in enumerate(chunks, 1):
-            blocks.append(
-                f"[Fuente {i}: {c.material_nombre}]\n{c.contenido}"
-            )
+            blocks.append(f"[Fuente {i}: {c.material_nombre}]\n{c.contenido}")
         return "\n\n".join(blocks)

@@ -4,6 +4,7 @@
 - GET  /api/v1/episodes/{id}    episodio completo con eventos
 - POST /api/v1/episodes/{id}/verify  verifica integridad criptográfica
 """
+
 from __future__ import annotations
 
 import logging
@@ -118,9 +119,7 @@ async def get_episode(
     )
 
 
-@router.post(
-    "/episodes/{episode_id}/verify", response_model=ChainVerificationResult
-)
+@router.post("/episodes/{episode_id}/verify", response_model=ChainVerificationResult)
 async def verify_episode_chain(
     episode_id: UUID,
     user: User = Depends(require_role(*READ_ROLES)),

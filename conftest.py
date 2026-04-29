@@ -3,6 +3,7 @@
 Agrega los paths de src/ de cada servicio y paquete al sys.path para que
 pytest resuelva imports correctamente en los tests.
 """
+
 from __future__ import annotations
 
 import sys

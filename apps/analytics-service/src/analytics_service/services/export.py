@@ -4,15 +4,14 @@ F8: el `data_source_factory` ahora puede usar `RealCohortDataSource` si
 las credenciales de DB están configuradas. Si no, cae al stub (para
 desarrollo local sin infra).
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
 from uuid import UUID
 
 from platform_ops import ExportJobStore, ExportWorker
@@ -59,6 +58,7 @@ def get_worker_salt() -> str:
 def _real_data_source_enabled() -> bool:
     """True si las URLs de DB real están seteadas en Settings."""
     from analytics_service.config import settings
+
     return bool(settings.ctr_store_url and settings.classifier_db_url)
 
 
@@ -75,8 +75,8 @@ def data_source_factory(tenant_id: UUID):
         return _StubDataSource(tenant_id=tenant_id)
 
     # Import late para no tirar ImportError en dev
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from platform_ops import RealCohortDataSource, set_tenant_rls
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     class _RealDataSourceAdapter:
         """Adaptador que abre sesiones on-demand por request del worker.
@@ -104,14 +104,10 @@ def data_source_factory(tenant_id: UUID):
             )
 
         async def list_events_for_episode(self, episode_id):
-            return await self._with_sessions(
-                lambda ds: ds.list_events_for_episode(episode_id)
-            )
+            return await self._with_sessions(lambda ds: ds.list_events_for_episode(episode_id))
 
         async def get_current_classification(self, episode_id):
-            return await self._with_sessions(
-                lambda ds: ds.get_current_classification(episode_id)
-            )
+            return await self._with_sessions(lambda ds: ds.get_current_classification(episode_id))
 
     return _RealDataSourceAdapter(tenant_id)
 
@@ -119,7 +115,9 @@ def data_source_factory(tenant_id: UUID):
 @lru_cache(maxsize=1)
 def _get_ctr_engine():
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from analytics_service.config import settings
+
     return create_async_engine(
         settings.ctr_store_url,
         pool_size=5,
@@ -131,7 +129,9 @@ def _get_ctr_engine():
 @lru_cache(maxsize=1)
 def _get_classifier_engine():
     from sqlalchemy.ext.asyncio import create_async_engine
+
     from analytics_service.config import settings
+
     return create_async_engine(
         settings.classifier_db_url,
         pool_size=5,
@@ -171,7 +171,7 @@ async def stop_worker() -> None:
     if _worker_task is not None:
         try:
             await asyncio.wait_for(_worker_task, timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _worker_task.cancel()
     _worker = None
     _worker_task = None

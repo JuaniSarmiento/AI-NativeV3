@@ -7,6 +7,7 @@ Create Date: 2026-05-21
 Agrega las tablas del content-service (materiales + chunks con pgvector)
 a la base academic_main. Depende de la migración inicial del academic-service.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -33,7 +34,9 @@ def upgrade() -> None:
     op.create_table(
         "materiales",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), nullable=False,
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
             server_default=sa.text("uuid_generate_v4()"),
         ),
         sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -52,7 +55,9 @@ def upgrade() -> None:
         sa.Column("chunks_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("content_hash", sa.String(64), nullable=True),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False,
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
             server_default=sa.func.now(),
         ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
@@ -72,7 +77,9 @@ def upgrade() -> None:
     op.create_table(
         "chunks",
         sa.Column(
-            "id", postgresql.UUID(as_uuid=True), nullable=False,
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
             server_default=sa.text("uuid_generate_v4()"),
         ),
         sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -86,31 +93,32 @@ def upgrade() -> None:
         sa.Column("chunk_type", sa.String(30), nullable=False, server_default="prose"),
         sa.Column("meta", postgresql.JSONB, nullable=False, server_default="{}"),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False,
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
             server_default=sa.func.now(),
         ),
         sa.PrimaryKeyConstraint("id", name="pk_chunks"),
         sa.ForeignKeyConstraint(
-            ["material_id"], ["materiales.id"],
+            ["material_id"],
+            ["materiales.id"],
             name="fk_chunks_material_id_materiales",
             ondelete="CASCADE",
         ),
         sa.UniqueConstraint(
-            "tenant_id", "material_id", "position",
+            "tenant_id",
+            "material_id",
+            "position",
             name="uq_chunks_tenant_material_position",
         ),
     )
     # Columna vector separada para que Alembic no falle al no conocer el tipo
-    op.execute(
-        f"ALTER TABLE chunks ADD COLUMN embedding vector({EMBEDDING_DIM})"
-    )
+    op.execute(f"ALTER TABLE chunks ADD COLUMN embedding vector({EMBEDDING_DIM})")
 
     op.create_index("ix_chunks_tenant_id", "chunks", ["tenant_id"])
     op.create_index("ix_chunks_material_id", "chunks", ["material_id"])
     op.create_index("ix_chunks_comision_id", "chunks", ["comision_id"])
-    op.create_index(
-        "ix_chunks_tenant_comision", "chunks", ["tenant_id", "comision_id"]
-    )
+    op.create_index("ix_chunks_tenant_comision", "chunks", ["tenant_id", "comision_id"])
 
     # Índice aproximado IVFFlat para cosine similarity
     # 100 lists: suficiente hasta ~1M chunks; re-evaluar en F5 para escala.

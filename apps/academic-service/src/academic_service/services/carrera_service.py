@@ -1,4 +1,5 @@
 """Service de Carrera."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -40,17 +41,19 @@ class CarreraService:
         universidad = await self.universidades.get_or_404(facultad.universidad_id)
 
         new_id = uuid4()
-        carrera = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "universidad_id": universidad.id,
-            "facultad_id": facultad.id,
-            "nombre": data.nombre,
-            "codigo": data.codigo,
-            "duracion_semestres": data.duracion_semestres,
-            "modalidad": data.modalidad,
-            "director_user_id": data.director_user_id,
-        })
+        carrera = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "universidad_id": universidad.id,
+                "facultad_id": facultad.id,
+                "nombre": data.nombre,
+                "codigo": data.codigo,
+                "duracion_semestres": data.duracion_semestres,
+                "modalidad": data.modalidad,
+                "director_user_id": data.director_user_id,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -64,9 +67,7 @@ class CarreraService:
         await self.session.flush()
         return carrera
 
-    async def update(
-        self, id_: UUID, data: CarreraUpdate, user: User
-    ) -> Carrera:
+    async def update(self, id_: UUID, data: CarreraUpdate, user: User) -> Carrera:
         obj = await self.repo.get_or_404(id_)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
         for k, v in changes.items():

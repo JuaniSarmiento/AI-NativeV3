@@ -1,16 +1,14 @@
 """Tests de A/B testing de reference_profiles."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import pytest
-
 from platform_ops.ab_testing import (
-    ABComparisonReport,
     EpisodeForComparison,
     compare_profiles,
 )
-
 
 # ── Fakes que simulan el classifier-service ──────────────────────────
 
@@ -63,8 +61,9 @@ def test_lista_vacia_de_episodios_falla() -> None:
 
 def test_lista_vacia_de_profiles_falla() -> None:
     with pytest.raises(ValueError, match="profiles"):
-        compare_profiles([_ep("e1", "apropiacion_reflexiva")], [],
-                         make_fake_classify({}), fake_compute_hash)
+        compare_profiles(
+            [_ep("e1", "apropiacion_reflexiva")], [], make_fake_classify({}), fake_compute_hash
+        )
 
 
 def test_profile_perfecto_tiene_kappa_1() -> None:
@@ -76,13 +75,15 @@ def test_profile_perfecto_tiene_kappa_1() -> None:
     ]
     perfect_profile = {"name": "perfect", "version": "v1"}
     # Este profile predice exactamente igual que el humano
-    classify_fn = make_fake_classify({
-        "perfect": {
-            "e1": "apropiacion_reflexiva",
-            "e2": "delegacion_pasiva",
-            "e3": "apropiacion_superficial",
-        },
-    })
+    classify_fn = make_fake_classify(
+        {
+            "perfect": {
+                "e1": "apropiacion_reflexiva",
+                "e2": "delegacion_pasiva",
+                "e3": "apropiacion_superficial",
+            },
+        }
+    )
 
     report = compare_profiles(episodes, [perfect_profile], classify_fn, fake_compute_hash)
     assert report.n_episodes == 3
@@ -101,25 +102,30 @@ def test_dos_profiles_compiten_gana_el_mejor() -> None:
     profile_a = {"name": "default", "version": "v1"}
     profile_b = {"name": "stricter", "version": "v2"}
 
-    classify_fn = make_fake_classify({
-        # default acierta los 4
-        "default": {
-            "e1": "apropiacion_reflexiva",
-            "e2": "apropiacion_reflexiva",
-            "e3": "delegacion_pasiva",
-            "e4": "delegacion_pasiva",
-        },
-        # stricter falla en 1 (clasifica reflexiva como superficial)
-        "stricter": {
-            "e1": "apropiacion_superficial",  # error
-            "e2": "apropiacion_reflexiva",
-            "e3": "delegacion_pasiva",
-            "e4": "delegacion_pasiva",
-        },
-    })
+    classify_fn = make_fake_classify(
+        {
+            # default acierta los 4
+            "default": {
+                "e1": "apropiacion_reflexiva",
+                "e2": "apropiacion_reflexiva",
+                "e3": "delegacion_pasiva",
+                "e4": "delegacion_pasiva",
+            },
+            # stricter falla en 1 (clasifica reflexiva como superficial)
+            "stricter": {
+                "e1": "apropiacion_superficial",  # error
+                "e2": "apropiacion_reflexiva",
+                "e3": "delegacion_pasiva",
+                "e4": "delegacion_pasiva",
+            },
+        }
+    )
 
     report = compare_profiles(
-        episodes, [profile_a, profile_b], classify_fn, fake_compute_hash,
+        episodes,
+        [profile_a, profile_b],
+        classify_fn,
+        fake_compute_hash,
     )
 
     assert report.winner_by_kappa == "default"
@@ -133,9 +139,11 @@ def test_dos_profiles_compiten_gana_el_mejor() -> None:
 def test_report_incluye_predicciones_y_hash() -> None:
     episodes = [_ep("e1", "apropiacion_reflexiva")]
     profile = {"name": "test", "version": "v1"}
-    classify_fn = make_fake_classify({
-        "test": {"e1": "apropiacion_reflexiva"},
-    })
+    classify_fn = make_fake_classify(
+        {
+            "test": {"e1": "apropiacion_reflexiva"},
+        }
+    )
 
     report = compare_profiles(episodes, [profile], classify_fn, fake_compute_hash)
     result = report.results[0]
@@ -147,9 +155,11 @@ def test_report_incluye_predicciones_y_hash() -> None:
 def test_summary_table_legible() -> None:
     episodes = [_ep("e1", "apropiacion_reflexiva"), _ep("e2", "delegacion_pasiva")]
     profile_a = {"name": "default", "version": "v1"}
-    classify_fn = make_fake_classify({
-        "default": {"e1": "apropiacion_reflexiva", "e2": "delegacion_pasiva"},
-    })
+    classify_fn = make_fake_classify(
+        {
+            "default": {"e1": "apropiacion_reflexiva", "e2": "delegacion_pasiva"},
+        }
+    )
 
     report = compare_profiles(episodes, [profile_a], classify_fn, fake_compute_hash)
     table = report.summary_table()
@@ -169,11 +179,13 @@ def test_tres_profiles_simultaneos() -> None:
         {"name": "p3", "version": "v1"},
     ]
     # Cada profile tiene tasas de acierto distintas
-    classify_fn = make_fake_classify({
-        "p1": {f"e{i}": "apropiacion_reflexiva" for i in range(5)},  # perfecto
-        "p2": {f"e{i}": "apropiacion_reflexiva" for i in range(3)},  # 3/5 bien
-        "p3": {f"e{i}": "apropiacion_superficial" for i in range(5)},  # todo mal
-    })
+    classify_fn = make_fake_classify(
+        {
+            "p1": {f"e{i}": "apropiacion_reflexiva" for i in range(5)},  # perfecto
+            "p2": {f"e{i}": "apropiacion_reflexiva" for i in range(3)},  # 3/5 bien
+            "p3": {f"e{i}": "apropiacion_superficial" for i in range(5)},  # todo mal
+        }
+    )
 
     report = compare_profiles(episodes, profiles, classify_fn, fake_compute_hash)
     assert len(report.results) == 3

@@ -21,11 +21,11 @@ Clasificaciones posibles (ADR-010):
 Decisión: árbol simple y EXPLICABLE. Nada de black boxes. Cada rama se
 documenta con su razón para el `appropriation_reason` del CTR.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-
 
 DEFAULT_REFERENCE_PROFILE: dict[str, Any] = {
     "name": "default",
@@ -81,9 +81,7 @@ def classify(
     EXTREME_ORPHAN_THRESHOLD = 0.8
 
     is_extreme_delegation = ccd_orphan >= EXTREME_ORPHAN_THRESHOLD
-    is_classic_delegation = (
-        ccd_orphan >= th["ccd_orphan_high"] and ct_summary < th["ct_low"]
-    )
+    is_classic_delegation = ccd_orphan >= th["ccd_orphan_high"] and ct_summary < th["ct_low"]
     if is_extreme_delegation or is_classic_delegation:
         trigger = "extrema (sin verbalizaciones)" if is_extreme_delegation else "clásica"
         return ClassificationResult(

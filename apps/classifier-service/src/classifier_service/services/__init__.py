@@ -1,4 +1,5 @@
 """Lógica del classifier-service."""
+
 from classifier_service.services.aggregation import (
     AggregatedStats,
     AppropriationCounts,
@@ -24,19 +25,19 @@ from classifier_service.services.tree import (
 )
 
 __all__ = [
-    "ct_features",
-    "compute_ct_summary",
-    "compute_windows",
-    "compute_ccd",
-    "compute_cii",
-    "classify",
-    "ClassificationResult",
     "DEFAULT_REFERENCE_PROFILE",
-    "classify_episode_from_events",
-    "compute_classifier_config_hash",
-    "persist_classification",
-    "aggregate_by_comision",
     "AggregatedStats",
     "AppropriationCounts",
+    "ClassificationResult",
     "DailyCounts",
+    "aggregate_by_comision",
+    "classify",
+    "classify_episode_from_events",
+    "compute_ccd",
+    "compute_cii",
+    "compute_classifier_config_hash",
+    "compute_ct_summary",
+    "compute_windows",
+    "ct_features",
+    "persist_classification",
 ]

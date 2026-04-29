@@ -47,6 +47,7 @@ packages = ["src/academic_service"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--import-mode=importlib"
 markers = [
     "integration: tests que requieren testcontainers",
 ]

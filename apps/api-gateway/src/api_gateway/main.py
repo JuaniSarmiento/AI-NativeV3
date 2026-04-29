@@ -1,6 +1,7 @@
 """api-gateway: entrada única con JWT validation, rate limit y proxy."""
+
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import redis.asyncio as redis
 from fastapi import FastAPI
@@ -56,7 +57,8 @@ app.add_middleware(
 
 # ── Rate limit (F4) ─────────────────────────────────────────────────
 _rate_limit_redis = redis.from_url(
-    settings.rate_limit_redis_url, decode_responses=True,
+    settings.rate_limit_redis_url,
+    decode_responses=True,
 )
 app.add_middleware(RateLimitMiddleware, redis_client=_rate_limit_redis)
 

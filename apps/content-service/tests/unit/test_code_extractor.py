@@ -1,11 +1,11 @@
 """Tests del extractor de archivos de código."""
+
 from __future__ import annotations
 
 import io
 import zipfile
 
 import pytest
-
 from content_service.extractors.code import CodeArchiveExtractor
 
 
@@ -52,11 +52,13 @@ class Circulo:
 
 
 async def test_detecta_lenguaje_por_extension(extractor: CodeArchiveExtractor) -> None:
-    zip_bytes = _make_zip({
-        "main.py": "def foo():\n    return 1\n",
-        "app.js": "function bar() { return 2; }\n",
-        "Cli.java": "public class Cli { }\n",
-    })
+    zip_bytes = _make_zip(
+        {
+            "main.py": "def foo():\n    return 1\n",
+            "app.js": "function bar() { return 2; }\n",
+            "Cli.java": "public class Cli { }\n",
+        }
+    )
 
     result = await extractor.extract(zip_bytes, "multi.zip")
 
@@ -67,11 +69,13 @@ async def test_detecta_lenguaje_por_extension(extractor: CodeArchiveExtractor) -
 
 
 async def test_ignora_archivos_no_codigo(extractor: CodeArchiveExtractor) -> None:
-    zip_bytes = _make_zip({
-        "README.md": "# no soy codigo\n",
-        "main.py": "def run():\n    pass\n",
-        ".gitignore": "*.pyc\n",
-    })
+    zip_bytes = _make_zip(
+        {
+            "README.md": "# no soy codigo\n",
+            "main.py": "def run():\n    pass\n",
+            ".gitignore": "*.pyc\n",
+        }
+    )
 
     result = await extractor.extract(zip_bytes, "proj.zip")
 

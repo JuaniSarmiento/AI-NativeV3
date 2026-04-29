@@ -6,12 +6,12 @@ coherencias, aplica el árbol N4, y persiste la clasificación como fila
 append-only en `classifications` con `is_current=true` (marcando la
 anterior, si existía, como `is_current=false`).
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-from dataclasses import asdict
 from typing import Any
 from uuid import UUID
 

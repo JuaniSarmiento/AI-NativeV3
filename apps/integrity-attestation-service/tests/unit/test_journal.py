@@ -1,4 +1,5 @@
 """Tests del journal JSONL append-only (ADR-021)."""
+
 from __future__ import annotations
 
 from pathlib import Path

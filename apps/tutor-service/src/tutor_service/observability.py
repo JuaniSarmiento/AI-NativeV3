@@ -5,6 +5,7 @@ la API setup_observability(app) para no romper main.py, pero toda la
 lógica (OTel + structlog + auto-instrumentación) está en el package
 único para evitar duplicación entre servicios.
 """
+
 from fastapi import FastAPI
 from platform_observability import setup_observability as _setup
 

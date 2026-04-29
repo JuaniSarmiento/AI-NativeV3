@@ -3,6 +3,7 @@
 Estos helpers se usan tanto en tests como en el script check-rls.py
 que corre en CI contra la base de staging.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import text

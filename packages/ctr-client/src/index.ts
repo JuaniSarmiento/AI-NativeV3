@@ -8,7 +8,7 @@
  * - Persistencia local en IndexedDB si falla la red
  * - Idempotencia por event_uuid
  */
-import { openDB, type IDBPDatabase } from "idb"
+import { type IDBPDatabase, openDB } from "idb"
 
 export interface CTREventInput {
   event_type: string

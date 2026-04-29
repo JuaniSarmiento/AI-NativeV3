@@ -23,6 +23,7 @@ Si un auditor quisiera reimplementar la tool en otro lenguaje (Go, Rust),
 el ADR-021 documenta el buffer canonico bit-a-bit suficiente para reproducir
 las verificaciones sin acceso al codigo Python.
 """
+
 from __future__ import annotations
 
 import argparse

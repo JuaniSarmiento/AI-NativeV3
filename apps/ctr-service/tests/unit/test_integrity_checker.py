@@ -3,6 +3,7 @@
 Usa fakes de session_factory que devuelven datos controlados.
 No requiere DB real; verifica la lógica pura del verificador.
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -10,12 +11,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-import pytest
-
 from ctr_service.models.base import GENESIS_HASH
 from ctr_service.services.hashing import compute_chain_hash, compute_self_hash
 from ctr_service.workers.integrity_checker import IntegrityChecker
-
 
 # ── Fakes mínimos ──────────────────────────────────────────────────────
 
@@ -69,12 +67,16 @@ class FakeSession:
 
 
 class _NoopResult:
-    def scalar_one_or_none(self): return None
-    def scalars(self): return _Scalars([])
+    def scalar_one_or_none(self):
+        return None
+
+    def scalars(self):
+        return _Scalars([])
 
 
 class _SelectResult:
     """Devuelve eventos o episodios del FakeSession según el orden de llamada."""
+
     _calls = 0
 
     def __init__(self, session: FakeSession) -> None:
@@ -83,14 +85,19 @@ class _SelectResult:
     def scalars(self):
         # Heurística: primera llamada = episodes, segunda+ = events
         # Para tests usamos fixture que asigna manualmente.
-        return _Scalars(self.session.episodes if not hasattr(self.session, "_selecting_events")
-                        or not self.session._selecting_events
-                        else self.session.events)
+        return _Scalars(
+            self.session.episodes
+            if not hasattr(self.session, "_selecting_events") or not self.session._selecting_events
+            else self.session.events
+        )
 
 
 class _Scalars:
-    def __init__(self, items): self.items = items
-    def all(self): return self.items
+    def __init__(self, items):
+        self.items = items
+
+    def all(self):
+        return self.items
 
 
 class _FakeSessionFactory:
@@ -139,17 +146,19 @@ def _valid_chain_events(episode_id: UUID, tenant_id: UUID, n: int) -> list[FakeE
         }
         self_h = compute_self_hash(raw)
         chain_h = compute_chain_hash(self_h, prev_chain)
-        events.append(FakeEvent(
-            event_uuid=UUID(raw["event_uuid"]),
-            episode_id=episode_id,
-            tenant_id=tenant_id,
-            seq=i,
-            event_type=raw["event_type"],
-            ts=ts,
-            payload=raw["payload"],
-            self_hash=self_h,
-            chain_hash=chain_h,
-        ))
+        events.append(
+            FakeEvent(
+                event_uuid=UUID(raw["event_uuid"]),
+                episode_id=episode_id,
+                tenant_id=tenant_id,
+                seq=i,
+                event_type=raw["event_type"],
+                ts=ts,
+                payload=raw["payload"],
+                self_hash=self_h,
+                chain_hash=chain_h,
+            )
+        )
         prev_chain = chain_h
     return events
 
@@ -201,8 +210,10 @@ async def test_ya_marcados_no_se_re_chequean() -> None:
     already_compromised sin recomputar la cadena."""
     tenant = uuid4()
     ep = FakeEpisode(
-        id=uuid4(), tenant_id=tenant,
-        estado="integrity_compromised", integrity_compromised=True,
+        id=uuid4(),
+        tenant_id=tenant,
+        estado="integrity_compromised",
+        integrity_compromised=True,
     )
     factory = _FakeSessionFactory([ep], [])
     checker = IntegrityChecker(factory)

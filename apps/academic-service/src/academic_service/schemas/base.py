@@ -1,14 +1,15 @@
 """Schemas de respuesta estandarizados + problem+json para errores."""
+
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
 
-class BaseResponse(BaseModel, Generic[T]):
+class BaseResponse[T](BaseModel):
     """Response estándar de recursos individuales."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -23,7 +24,7 @@ class ListMeta(BaseModel):
     total: int | None = None
 
 
-class ListResponse(BaseModel, Generic[T]):
+class ListResponse[T](BaseModel):
     """Response estándar de listados."""
 
     data: list[T]

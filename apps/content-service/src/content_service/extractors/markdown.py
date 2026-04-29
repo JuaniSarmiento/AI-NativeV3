@@ -4,6 +4,7 @@ Divide el documento respetando la estructura de headings: cada sección
 bajo un heading H1/H2/H3 es una sección independiente. Preserva el
 "heading_path" completo para dar contexto al chunk posterior.
 """
+
 from __future__ import annotations
 
 import re
@@ -28,7 +29,6 @@ class MarkdownExtractor(BaseExtractor):
         current_section: list[str] = []
         heading_stack: list[str] = []  # [h1_title, h2_title, h3_title, ...]
         current_heading: str | None = None
-        current_level = 0
         position = 0
 
         def flush_section() -> None:
@@ -64,7 +64,6 @@ class MarkdownExtractor(BaseExtractor):
                 heading_stack = heading_stack[: level - 1]
                 heading_stack.append(title)
                 current_heading = title
-                current_level = level
                 # El heading forma parte del contenido de la sección
                 current_section.append(line)
             else:

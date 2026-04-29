@@ -1,16 +1,15 @@
 """Test de regla de negocio: no se puede crear comisión si el período está cerrado."""
+
 from __future__ import annotations
 
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-
 from academic_service.models import Comision, Materia, Periodo
 from academic_service.schemas.comision import ComisionCreate
 from academic_service.services.comision_service import ComisionService
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -57,9 +56,7 @@ async def test_no_puede_crear_comision_en_periodo_cerrado(
     assert "cerrado" in exc_info.value.detail.lower()
 
 
-async def test_puede_crear_comision_en_periodo_abierto(
-    mock_session, user_docente_admin_a
-) -> None:
+async def test_puede_crear_comision_en_periodo_abierto(mock_session, user_docente_admin_a) -> None:
     svc = ComisionService(mock_session)
 
     materia_id = uuid4()

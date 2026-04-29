@@ -1,4 +1,5 @@
 """Endpoints de Comisiones y Periodos."""
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -26,9 +27,7 @@ comisiones_router = APIRouter(prefix="/api/v1/comisiones", tags=["comisiones"])
 # ── Periodos ───────────────────────────────────────────
 
 
-@periodos_router.post(
-    "", response_model=PeriodoOut, status_code=status.HTTP_201_CREATED
-)
+@periodos_router.post("", response_model=PeriodoOut, status_code=status.HTTP_201_CREATED)
 async def create_periodo(
     data: PeriodoCreate,
     user: User = Depends(require_permission("periodo", "create")),
@@ -78,9 +77,7 @@ async def delete_periodo(
 # ── Comisiones ────────────────────────────────────────
 
 
-@comisiones_router.post(
-    "", response_model=ComisionOut, status_code=status.HTTP_201_CREATED
-)
+@comisiones_router.post("", response_model=ComisionOut, status_code=status.HTTP_201_CREATED)
 async def create_comision(
     data: ComisionCreate,
     user: User = Depends(require_permission("comision", "create")),
@@ -101,9 +98,7 @@ async def list_comisiones(
     db: AsyncSession = Depends(get_db),
 ) -> ListResponse[ComisionOut]:
     svc = ComisionService(db)
-    objs = await svc.list(
-        limit=limit, cursor=cursor, materia_id=materia_id, periodo_id=periodo_id
-    )
+    objs = await svc.list(limit=limit, cursor=cursor, materia_id=materia_id, periodo_id=periodo_id)
     items = [ComisionOut.model_validate(o) for o in objs]
     next_cursor = str(objs[-1].id) if len(objs) == limit else None
     return ListResponse(data=items, meta=ListMeta(cursor_next=next_cursor))

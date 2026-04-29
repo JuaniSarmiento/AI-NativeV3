@@ -1,7 +1,7 @@
 """Tests del endpoint de salud."""
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from identity_service.main import app
 
 

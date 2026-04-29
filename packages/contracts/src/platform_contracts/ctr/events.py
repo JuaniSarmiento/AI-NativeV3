@@ -10,6 +10,7 @@ Convención de naming (F1, alineada con runtime):
   Cambiar el string en runtime obliga a migrar seeds, tests, dashboards y
   CTRs ya persistidos — por eso alineamos los contracts al código vigente.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -172,20 +173,18 @@ class EdicionCodigoPayload(BaseModel):
     snapshot: str  # código completo en el momento del evento
     diff_chars: int  # cantidad de caracteres cambiados desde evento anterior
     language: str
-    origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = (
-        Field(
-            default=None,
-            description=(
-                "Procedencia del cambio en el editor. None = legacy/desconocido. "
-                "v1.0.0 emite student_typed y pasted_external desde web-student; "
-                "copied_from_tutor está declarado en el contract pero requiere "
-                "una afordancia de UI (botón 'Insertar código del tutor') aún "
-                "no incorporada al editor del estudiante (ver G11). El "
-                "event_labeler (ADR-020) reconoce los tres valores y aplica "
-                "override a N4 para los dos no-typed (copied_from_tutor + "
-                "pasted_external)."
-            ),
-        )
+    origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = Field(
+        default=None,
+        description=(
+            "Procedencia del cambio en el editor. None = legacy/desconocido. "
+            "v1.0.0 emite student_typed y pasted_external desde web-student; "
+            "copied_from_tutor está declarado en el contract pero requiere "
+            "una afordancia de UI (botón 'Insertar código del tutor') aún "
+            "no incorporada al editor del estudiante (ver G11). El "
+            "event_labeler (ADR-020) reconoce los tres valores y aplica "
+            "override a N4 para los dos no-typed (copied_from_tutor + "
+            "pasted_external)."
+        ),
     )
 
 

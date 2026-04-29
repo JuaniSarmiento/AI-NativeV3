@@ -1,4 +1,5 @@
 """Tests del modulo cii_longitudinal (ADR-018, G2 minimo)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -157,12 +158,21 @@ def test_classified_at_como_string_iso_8601_funciona() -> None:
     no parsean a datetime) — debe funcionar igual."""
     tid = uuid4()
     classifications = [
-        {"template_id": tid, "appropriation": "delegacion_pasiva",
-         "classified_at": "2026-04-01T10:00:00Z"},
-        {"template_id": tid, "appropriation": "apropiacion_superficial",
-         "classified_at": "2026-04-01T11:00:00Z"},
-        {"template_id": tid, "appropriation": "apropiacion_reflexiva",
-         "classified_at": "2026-04-01T12:00:00Z"},
+        {
+            "template_id": tid,
+            "appropriation": "delegacion_pasiva",
+            "classified_at": "2026-04-01T10:00:00Z",
+        },
+        {
+            "template_id": tid,
+            "appropriation": "apropiacion_superficial",
+            "classified_at": "2026-04-01T11:00:00Z",
+        },
+        {
+            "template_id": tid,
+            "appropriation": "apropiacion_reflexiva",
+            "classified_at": "2026-04-01T12:00:00Z",
+        },
     ]
     result = compute_evolution_per_template(classifications)
     assert result[0]["slope"] == 1.0

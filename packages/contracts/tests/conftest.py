@@ -1,4 +1,5 @@
 """Pytest config para los tests del package contracts."""
+
 from __future__ import annotations
 
 import sys

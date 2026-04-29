@@ -10,6 +10,7 @@ comando manual on-demand por el equipo de seguridad.
 Uso:
     python -m ctr_service.workers.integrity_checker [--limit N] [--since-hours H]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,7 +23,6 @@ from uuid import UUID
 
 from sqlalchemy import select, update
 
-from ctr_service.config import settings
 from ctr_service.db.session import get_engine, get_session_factory
 from ctr_service.models import Episode, Event
 from ctr_service.models.base import GENESIS_HASH
@@ -126,15 +126,14 @@ class IntegrityChecker:
         async with self.session_factory() as session:
             # Setear tenant para RLS antes de leer
             from sqlalchemy import text
+
             await session.execute(
                 text("SELECT set_config('app.current_tenant', :t, true)"),
                 {"t": str(episode.tenant_id)},
             )
 
             result = await session.execute(
-                select(Event)
-                .where(Event.episode_id == episode.id)
-                .order_by(Event.seq)
+                select(Event).where(Event.episode_id == episode.id).order_by(Event.seq)
             )
             events = list(result.scalars().all())
 
@@ -171,6 +170,7 @@ class IntegrityChecker:
         """Marca el episodio como comprometido + persiste."""
         async with self.session_factory() as session:
             from sqlalchemy import text
+
             await session.execute(
                 text("SELECT set_config('app.current_tenant', :t, true)"),
                 {"t": str(tenant_id)},
@@ -221,11 +221,15 @@ async def run_cli(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verificador de integridad del CTR")
     parser.add_argument(
-        "--limit", type=int, default=None,
+        "--limit",
+        type=int,
+        default=None,
         help="Máximo de episodios a verificar (None=todos)",
     )
     parser.add_argument(
-        "--since-hours", type=int, default=24,
+        "--since-hours",
+        type=int,
+        default=24,
         help="Solo episodios cerrados en las últimas N horas (default: 24)",
     )
     args = parser.parse_args()

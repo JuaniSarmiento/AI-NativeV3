@@ -1,4 +1,5 @@
 """Tests del etiquetador de eventos N1-N4 (ADR-020)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta

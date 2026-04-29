@@ -4,6 +4,7 @@ POST /api/v1/classify_episode/{episode_id}     trigger manual de clasificación
 GET  /api/v1/classifications/{episode_id}      devuelve la clasificación current
 GET  /api/v1/classifications/aggregated        estadísticas agregadas por comisión
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,7 +14,6 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from classifier_service.auth import CLASSIFY_ROLES, READ_ROLES, User, require_role
 from classifier_service.config import settings
@@ -76,10 +76,11 @@ async def classify_episode(
         episode = await _fetch_episode_from_ctr(episode_id, user)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"Episode {episode_id} no encontrado en CTR")
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
-                            detail=f"CTR error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Episode {episode_id} no encontrado en CTR",
+            )
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"CTR error: {e}")
 
     events = episode.get("events", [])
     profile = DEFAULT_REFERENCE_PROFILE
@@ -88,7 +89,7 @@ async def classify_episode(
     result = classify_episode_from_events(events, reference_profile=profile)
 
     async with tenant_session(user.tenant_id) as session:
-        persisted = await persist_classification(
+        await persist_classification(
             session=session,
             tenant_id=user.tenant_id,
             episode_id=episode_id,
@@ -196,8 +197,7 @@ async def get_current_classification(
 ) -> ClassificationOut:
     async with tenant_session(user.tenant_id) as session:
         result = await session.execute(
-            select(Classification)
-            .where(
+            select(Classification).where(
                 Classification.episode_id == episode_id,
                 Classification.is_current.is_(True),
             )

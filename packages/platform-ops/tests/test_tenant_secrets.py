@@ -1,11 +1,11 @@
 """Tests del resolver de secrets por tenant."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-
 from platform_ops.tenant_secrets import (
     SecretNotFoundError,
     TenantSecretConfig,

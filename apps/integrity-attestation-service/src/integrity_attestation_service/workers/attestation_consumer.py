@@ -27,6 +27,7 @@ Garantias (mismas que partition_worker.py del ctr-service):
 Ejecucion (paralelo al servicio HTTP, NO comparte proceso):
     python -m integrity_attestation_service.workers.attestation_consumer
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -135,9 +136,7 @@ class AttestationConsumer:
             for message_id, fields in entries:
                 await self._process_message(message_id, fields)
 
-    async def _process_message(
-        self, message_id: str, fields: dict[bytes, bytes]
-    ) -> None:
+    async def _process_message(self, message_id: str, fields: dict[bytes, bytes]) -> None:
         """Procesa un attestation request: firma + appendea al journal + ACK."""
         try:
             raw = fields.get(b"payload")
@@ -155,14 +154,19 @@ class AttestationConsumer:
             if attempts >= MAX_ATTEMPTS:
                 logger.error(
                     "Mensaje %s fallo %d veces; moviendo a DLQ",
-                    message_id, attempts, exc_info=exc,
+                    message_id,
+                    attempts,
+                    exc_info=exc,
                 )
                 await self._move_to_dlq(message_id, fields, str(exc), attempts)
                 await self._ack(message_id)
             else:
                 logger.warning(
                     "Mensaje %s fallo intento %d/%d; sera reintentado",
-                    message_id, attempts, MAX_ATTEMPTS, exc_info=exc,
+                    message_id,
+                    attempts,
+                    MAX_ATTEMPTS,
+                    exc_info=exc,
                 )
 
     async def _sign_and_journal(self, request: dict[str, Any]) -> None:

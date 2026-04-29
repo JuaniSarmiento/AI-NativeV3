@@ -1,12 +1,12 @@
 """Tests del endpoint /api/v1/analytics/kappa."""
+
 from __future__ import annotations
 
 import logging
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

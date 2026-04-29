@@ -1,4 +1,5 @@
 """Tests del MockProvider."""
+
 from __future__ import annotations
 
 from ai_gateway.providers.base import CompletionRequest, MockProvider

@@ -1,4 +1,5 @@
 """Cliente HTTP del content-service para retrieval."""
+
 from __future__ import annotations
 
 import logging

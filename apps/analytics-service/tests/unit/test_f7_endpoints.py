@@ -1,13 +1,12 @@
 """Tests de endpoints F7: /cohort/{id}/progression y /ab-test-profiles."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -99,8 +98,14 @@ def _copypaste_events() -> list[dict]:
     events = [_ev(0, "episodio_abierto", 0)]
     for i, m in enumerate([2, 2, 3, 15, 15, 16, 18, 25, 25, 26]):
         if i % 3 == 0:
-            events.append(_ev(len(events), "prompt_enviado", m,
-                              {"content": "dame la solución", "prompt_kind": "solicitud_directa"}))
+            events.append(
+                _ev(
+                    len(events),
+                    "prompt_enviado",
+                    m,
+                    {"content": "dame la solución", "prompt_kind": "solicitud_directa"},
+                )
+            )
         elif i % 3 == 1:
             events.append(_ev(len(events), "tutor_respondio", m, {"content": "..."}))
         else:
@@ -117,6 +122,7 @@ _AB_HEADERS = {
 def test_ab_endpoint_con_profile_default(client: TestClient) -> None:
     import sys
     from pathlib import Path
+
     classifier_src = Path(__file__).parent.parent.parent.parent / "classifier-service/src"
     sys.path.insert(0, str(classifier_src))
     from classifier_service.services.tree import DEFAULT_REFERENCE_PROFILE
@@ -143,7 +149,7 @@ def test_ab_endpoint_con_profile_default(client: TestClient) -> None:
     # El profile default detecta correctamente estos copypastes
     assert data["winner_by_kappa"] == DEFAULT_REFERENCE_PROFILE["name"]
     # Predicciones presentes
-    for ep_id, pred in data["results"][0]["predictions"].items():
+    for _ep_id, pred in data["results"][0]["predictions"].items():
         assert pred == "delegacion_pasiva"
 
 
@@ -192,6 +198,7 @@ def test_ab_endpoint_sin_profiles_falla(client: TestClient) -> None:
 def test_ab_endpoint_dos_profiles_reporta_ambos(client: TestClient) -> None:
     import sys
     from pathlib import Path
+
     classifier_src = Path(__file__).parent.parent.parent.parent / "classifier-service/src"
     sys.path.insert(0, str(classifier_src))
     from classifier_service.services.tree import DEFAULT_REFERENCE_PROFILE
@@ -238,6 +245,7 @@ def test_ab_endpoint_emite_audit_log_estructurado(
     import logging
     import sys
     from pathlib import Path
+
     classifier_src = Path(__file__).parent.parent.parent.parent / "classifier-service/src"
     sys.path.insert(0, str(classifier_src))
     from classifier_service.services.tree import DEFAULT_REFERENCE_PROFILE
@@ -260,7 +268,9 @@ def test_ab_endpoint_emite_audit_log_estructurado(
         )
     assert r.status_code == 200
 
-    audit_lines = [rec for rec in caplog.records if "ab_test_profiles_completed" in rec.getMessage()]
+    audit_lines = [
+        rec for rec in caplog.records if "ab_test_profiles_completed" in rec.getMessage()
+    ]
     assert len(audit_lines) == 1, f"esperaba 1 audit log, obtuve {len(audit_lines)}"
 
     msg = audit_lines[0].getMessage()
@@ -279,8 +289,11 @@ def test_ab_endpoint_sin_tenant_header_401(client: TestClient) -> None:
         headers={"X-User-Id": _AB_HEADERS["X-User-Id"]},
         json={
             "episodes": [
-                {"episode_id": f"ep_{i}", "events": _copypaste_events(),
-                 "human_label": "delegacion_pasiva"}
+                {
+                    "episode_id": f"ep_{i}",
+                    "events": _copypaste_events(),
+                    "human_label": "delegacion_pasiva",
+                }
                 for i in range(2)
             ],
             "profiles": [{"name": "x", "version": "v1"}],

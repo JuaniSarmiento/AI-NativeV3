@@ -5,6 +5,7 @@ Estos tests son la red de seguridad para que cualquier reimplementacion
 (otro lenguaje, otra version del servicio) produzca firmas COMPATIBLES con
 las del piloto.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

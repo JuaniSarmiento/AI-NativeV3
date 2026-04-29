@@ -3,6 +3,7 @@
 El shard = hash(episode_id) mod N garantiza que todos los eventos de un
 episodio van a la misma partición (requerido para orden estricto).
 """
+
 from __future__ import annotations
 
 import hashlib

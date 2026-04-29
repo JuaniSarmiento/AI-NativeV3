@@ -1,8 +1,8 @@
 """Tests del embedder mock."""
+
 from __future__ import annotations
 
 import pytest
-
 from content_service.embedding.embedder import EMBEDDING_DIM, MockEmbedder
 
 

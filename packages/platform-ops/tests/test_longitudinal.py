@@ -1,16 +1,15 @@
 """Tests del análisis longitudinal por estudiante."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-import pytest
-
 from platform_ops.longitudinal import (
     APPROPRIATION_ORDINAL,
-    StudentTrajectory,
     ClassificationPoint,
+    StudentTrajectory,
     build_trajectories,
     summarize_cohort,
 )
@@ -46,9 +45,7 @@ def test_trayectoria_vacia_sin_errores() -> None:
 
 
 def test_trayectoria_con_1_episodio_es_insuficiente() -> None:
-    t = StudentTrajectory(
-        student_pseudonym="s_1", points=[_cp(0, "apropiacion_reflexiva")]
-    )
+    t = StudentTrajectory(student_pseudonym="s_1", points=[_cp(0, "apropiacion_reflexiva")])
     assert t.progression_label() == "insuficiente"
     assert t.tercile_means() is None
 
@@ -127,8 +124,14 @@ def test_max_appropriation_reached() -> None:
 
 def test_appropriation_ordinal_preserva_orden() -> None:
     """El orden ordinal debe ser delegacion < superficial < reflexiva."""
-    assert APPROPRIATION_ORDINAL["delegacion_pasiva"] < APPROPRIATION_ORDINAL["apropiacion_superficial"]
-    assert APPROPRIATION_ORDINAL["apropiacion_superficial"] < APPROPRIATION_ORDINAL["apropiacion_reflexiva"]
+    assert (
+        APPROPRIATION_ORDINAL["delegacion_pasiva"]
+        < APPROPRIATION_ORDINAL["apropiacion_superficial"]
+    )
+    assert (
+        APPROPRIATION_ORDINAL["apropiacion_superficial"]
+        < APPROPRIATION_ORDINAL["apropiacion_reflexiva"]
+    )
 
 
 # ── build_trajectories ────────────────────────────────────────────────
@@ -138,16 +141,27 @@ async def test_build_trajectories_sorts_por_classified_at() -> None:
     """El data source podría devolver en cualquier orden; debemos ordenar por tiempo."""
     comision_id = uuid4()
     # Intencionalmente fuera de orden
-    ds = FakeDataSource(grouped={
-        "s_alice": [
-            {"episode_id": str(uuid4()), "classified_at": "2026-05-01T10:00:00Z",
-             "appropriation": "apropiacion_reflexiva"},
-            {"episode_id": str(uuid4()), "classified_at": "2026-03-01T10:00:00Z",
-             "appropriation": "delegacion_pasiva"},
-            {"episode_id": str(uuid4()), "classified_at": "2026-04-01T10:00:00Z",
-             "appropriation": "apropiacion_superficial"},
-        ],
-    })
+    ds = FakeDataSource(
+        grouped={
+            "s_alice": [
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-05-01T10:00:00Z",
+                    "appropriation": "apropiacion_reflexiva",
+                },
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-03-01T10:00:00Z",
+                    "appropriation": "delegacion_pasiva",
+                },
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-04-01T10:00:00Z",
+                    "appropriation": "apropiacion_superficial",
+                },
+            ],
+        }
+    )
 
     trajectories = await build_trajectories(ds, comision_id)
     assert len(trajectories) == 1
@@ -160,18 +174,29 @@ async def test_build_trajectories_sorts_por_classified_at() -> None:
 
 
 async def test_build_trajectories_multi_estudiante() -> None:
-    ds = FakeDataSource(grouped={
-        "s_alice": [
-            {"episode_id": str(uuid4()), "classified_at": "2026-03-01T10:00:00Z",
-             "appropriation": "delegacion_pasiva"},
-        ],
-        "s_bob": [
-            {"episode_id": str(uuid4()), "classified_at": "2026-03-01T10:00:00Z",
-             "appropriation": "apropiacion_reflexiva"},
-            {"episode_id": str(uuid4()), "classified_at": "2026-03-02T10:00:00Z",
-             "appropriation": "apropiacion_reflexiva"},
-        ],
-    })
+    ds = FakeDataSource(
+        grouped={
+            "s_alice": [
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-03-01T10:00:00Z",
+                    "appropriation": "delegacion_pasiva",
+                },
+            ],
+            "s_bob": [
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-03-01T10:00:00Z",
+                    "appropriation": "apropiacion_reflexiva",
+                },
+                {
+                    "episode_id": str(uuid4()),
+                    "classified_at": "2026-03-02T10:00:00Z",
+                    "appropriation": "apropiacion_reflexiva",
+                },
+            ],
+        }
+    )
     trajectories = await build_trajectories(ds, uuid4())
     assert len(trajectories) == 2
     pseudonyms = {t.student_pseudonym for t in trajectories}
@@ -185,19 +210,31 @@ def test_cohort_summary_cuenta_por_label() -> None:
     comision_id = uuid4()
     trajectories = [
         # mejorando
-        StudentTrajectory("s_1", [
-            _cp(0, "delegacion_pasiva"), _cp(100, "delegacion_pasiva"),
-            _cp(200, "apropiacion_superficial"), _cp(300, "apropiacion_superficial"),
-            _cp(400, "apropiacion_reflexiva"), _cp(500, "apropiacion_reflexiva"),
-        ]),
+        StudentTrajectory(
+            "s_1",
+            [
+                _cp(0, "delegacion_pasiva"),
+                _cp(100, "delegacion_pasiva"),
+                _cp(200, "apropiacion_superficial"),
+                _cp(300, "apropiacion_superficial"),
+                _cp(400, "apropiacion_reflexiva"),
+                _cp(500, "apropiacion_reflexiva"),
+            ],
+        ),
         # estable
         StudentTrajectory("s_2", [_cp(i, "apropiacion_superficial") for i in range(6)]),
         # empeorando
-        StudentTrajectory("s_3", [
-            _cp(0, "apropiacion_reflexiva"), _cp(100, "apropiacion_reflexiva"),
-            _cp(200, "apropiacion_superficial"), _cp(300, "apropiacion_superficial"),
-            _cp(400, "delegacion_pasiva"), _cp(500, "delegacion_pasiva"),
-        ]),
+        StudentTrajectory(
+            "s_3",
+            [
+                _cp(0, "apropiacion_reflexiva"),
+                _cp(100, "apropiacion_reflexiva"),
+                _cp(200, "apropiacion_superficial"),
+                _cp(300, "apropiacion_superficial"),
+                _cp(400, "delegacion_pasiva"),
+                _cp(500, "delegacion_pasiva"),
+            ],
+        ),
         # insuficiente (1 episodio)
         StudentTrajectory("s_4", [_cp(0, "apropiacion_reflexiva")]),
     ]
@@ -216,19 +253,31 @@ def test_net_progression_positiva_si_mayoria_mejora() -> None:
     trajectories = [
         # 3 mejorando
         *[
-            StudentTrajectory(f"s_{i}", [
-                _cp(0, "delegacion_pasiva"), _cp(100, "delegacion_pasiva"),
-                _cp(200, "apropiacion_superficial"), _cp(300, "apropiacion_superficial"),
-                _cp(400, "apropiacion_reflexiva"), _cp(500, "apropiacion_reflexiva"),
-            ])
+            StudentTrajectory(
+                f"s_{i}",
+                [
+                    _cp(0, "delegacion_pasiva"),
+                    _cp(100, "delegacion_pasiva"),
+                    _cp(200, "apropiacion_superficial"),
+                    _cp(300, "apropiacion_superficial"),
+                    _cp(400, "apropiacion_reflexiva"),
+                    _cp(500, "apropiacion_reflexiva"),
+                ],
+            )
             for i in range(3)
         ],
         # 1 empeorando
-        StudentTrajectory("s_bad", [
-            _cp(0, "apropiacion_reflexiva"), _cp(100, "apropiacion_reflexiva"),
-            _cp(200, "apropiacion_superficial"), _cp(300, "apropiacion_superficial"),
-            _cp(400, "delegacion_pasiva"), _cp(500, "delegacion_pasiva"),
-        ]),
+        StudentTrajectory(
+            "s_bad",
+            [
+                _cp(0, "apropiacion_reflexiva"),
+                _cp(100, "apropiacion_reflexiva"),
+                _cp(200, "apropiacion_superficial"),
+                _cp(300, "apropiacion_superficial"),
+                _cp(400, "delegacion_pasiva"),
+                _cp(500, "delegacion_pasiva"),
+            ],
+        ),
     ]
     summary = summarize_cohort(comision_id, trajectories)
     # 3 mejorando, 1 empeorando, 4 con data

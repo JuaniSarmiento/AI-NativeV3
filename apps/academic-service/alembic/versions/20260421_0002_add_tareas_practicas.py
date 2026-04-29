@@ -8,6 +8,7 @@ Crea la tabla tareas_practicas (TP) con versioning inmutable
 (parent_tarea_id auto-FK), constraints de estado/peso/version y
 política RLS por tenant_id.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -48,17 +49,22 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id", name="pk_tareas_practicas"),
         sa.ForeignKeyConstraint(
-            ["comision_id"], ["comisiones.id"],
+            ["comision_id"],
+            ["comisiones.id"],
             name="fk_tareas_practicas_comision_id_comisiones",
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["parent_tarea_id"], ["tareas_practicas.id"],
+            ["parent_tarea_id"],
+            ["tareas_practicas.id"],
             name="fk_tareas_practicas_parent_tarea_id_tareas_practicas",
             ondelete="RESTRICT",
         ),
         sa.UniqueConstraint(
-            "tenant_id", "comision_id", "codigo", "version",
+            "tenant_id",
+            "comision_id",
+            "codigo",
+            "version",
             name="uq_tarea_codigo_version",
         ),
         sa.CheckConstraint(
@@ -76,9 +82,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_tareas_practicas_tenant_id", "tareas_practicas", ["tenant_id"])
     op.create_index("ix_tareas_practicas_comision_id", "tareas_practicas", ["comision_id"])
-    op.create_index(
-        "ix_tareas_practicas_parent_tarea_id", "tareas_practicas", ["parent_tarea_id"]
-    )
+    op.create_index("ix_tareas_practicas_parent_tarea_id", "tareas_practicas", ["parent_tarea_id"])
     op.create_index("ix_tareas_practicas_deleted_at", "tareas_practicas", ["deleted_at"])
 
     # Aplicar RLS por tenant_id

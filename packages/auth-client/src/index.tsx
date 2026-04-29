@@ -10,8 +10,8 @@
  */
 import Keycloak from "keycloak-js"
 import {
-  createContext,
   type ReactNode,
+  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -100,10 +100,7 @@ export function AuthProvider({
     keycloak.logout()
   }, [keycloak])
 
-  const hasRole = useCallback(
-    (role: string) => user?.roles.includes(role) ?? false,
-    [user],
-  )
+  const hasRole = useCallback((role: string) => user?.roles.includes(role) ?? false, [user])
 
   const getAccessToken = useCallback(async () => {
     try {

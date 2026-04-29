@@ -9,17 +9,17 @@ Estilo mock-based, alineado con `test_facultades_crud.py` y
 El aislamiento RLS multi-tenant a nivel DB lo cubre `test_rls_isolation.py`;
 acá verificamos el filtrado por user_id que es la lógica de aplicación.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.dialects import postgresql
-
 from academic_service.auth.dependencies import User
 from academic_service.models import Comision
 from academic_service.services.comision_service import ComisionService
+from sqlalchemy.dialects import postgresql
 
 
 @pytest.fixture

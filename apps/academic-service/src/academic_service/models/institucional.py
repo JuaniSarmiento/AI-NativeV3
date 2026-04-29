@@ -1,12 +1,13 @@
 """Jerarquía institucional: Universidad → Facultad → Carrera → Plan → Materia."""
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from academic_service.models.base import (
@@ -18,7 +19,7 @@ from academic_service.models.base import (
 )
 
 if TYPE_CHECKING:
-    from academic_service.models.operacional import Comision, Periodo
+    from academic_service.models.operacional import Comision
 
 
 class Universidad(Base, TimestampMixin):
@@ -56,9 +57,7 @@ class Facultad(Base, TenantMixin, TimestampMixin):
     universidad: Mapped[Universidad] = relationship(back_populates="facultades")
     carreras: Mapped[list[Carrera]] = relationship(back_populates="facultad")
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "codigo", name="uq_facultad_tenant_codigo"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "codigo", name="uq_facultad_tenant_codigo"),)
 
 
 class Carrera(Base, TenantMixin, TimestampMixin):
@@ -79,9 +78,7 @@ class Carrera(Base, TenantMixin, TimestampMixin):
     facultad: Mapped[Facultad] = relationship(back_populates="carreras")
     planes: Mapped[list[PlanEstudios]] = relationship(back_populates="carrera")
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "codigo", name="uq_carrera_tenant_codigo"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "codigo", name="uq_carrera_tenant_codigo"),)
 
 
 class PlanEstudios(Base, TenantMixin, TimestampMixin):
@@ -123,6 +120,4 @@ class Materia(Base, TenantMixin, TimestampMixin):
     plan: Mapped[PlanEstudios] = relationship(back_populates="materias")
     comisiones: Mapped[list[Comision]] = relationship(back_populates="materia")
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "plan_id", "codigo", name="uq_materia_codigo"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "plan_id", "codigo", name="uq_materia_codigo"),)

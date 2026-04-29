@@ -1,19 +1,19 @@
 """Tablas transversales: audit_log (auditoría) y casbin_rules (permisos)."""
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Integer, String, Text
-from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PgUUID
+from sqlalchemy import DateTime, String
+from sqlalchemy.dialects.postgresql import INET, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from academic_service.models.base import (
     Base,
     TenantMixin,
-    TimestampMixin,
-    uuid_pk,
     utc_now,
 )
 
@@ -39,7 +39,10 @@ class AuditLog(Base, TenantMixin):
     request_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
     ts: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now, nullable=False, index=True,
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+        index=True,
     )
 
 

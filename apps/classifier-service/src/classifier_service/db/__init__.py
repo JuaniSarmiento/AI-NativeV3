@@ -1,10 +1,16 @@
 """DB session del classifier-service con tenant RLS."""
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from uuid import UUID
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from classifier_service.config import settings
 
@@ -17,7 +23,10 @@ def get_engine() -> AsyncEngine:
     if _engine is None:
         _engine = create_async_engine(
             settings.classifier_db_url,
-            pool_size=10, max_overflow=5, pool_pre_ping=True, echo=settings.db_echo,
+            pool_size=10,
+            max_overflow=5,
+            pool_pre_ping=True,
+            echo=settings.db_echo,
         )
     return _engine
 

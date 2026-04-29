@@ -1,4 +1,5 @@
 """Service de PlanEstudios."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -21,15 +22,17 @@ class PlanService:
         carrera = await self.carreras.get_or_404(data.carrera_id)
 
         new_id = uuid4()
-        plan = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "carrera_id": carrera.id,
-            "version": data.version,
-            "año_inicio": data.año_inicio,
-            "ordenanza": data.ordenanza,
-            "vigente": data.vigente,
-        })
+        plan = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "carrera_id": carrera.id,
+                "version": data.version,
+                "año_inicio": data.año_inicio,
+                "ordenanza": data.ordenanza,
+                "vigente": data.vigente,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -43,9 +46,7 @@ class PlanService:
         await self.session.flush()
         return plan
 
-    async def update(
-        self, id_: UUID, data: PlanUpdate, user: User
-    ) -> PlanEstudios:
+    async def update(self, id_: UUID, data: PlanUpdate, user: User) -> PlanEstudios:
         obj = await self.repo.get_or_404(id_)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
         for k, v in changes.items():

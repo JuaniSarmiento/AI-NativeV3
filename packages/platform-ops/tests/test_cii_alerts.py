@@ -1,4 +1,5 @@
 """Tests de cii_alerts: cuartiles + alertas vs cohorte (función pura)."""
+
 from __future__ import annotations
 
 from platform_ops.cii_alerts import (
@@ -10,7 +11,6 @@ from platform_ops.cii_alerts import (
     compute_student_alerts,
     position_in_quartiles,
 )
-
 
 # ---------------------------------------------------------------------------
 # Cuartiles de cohorte

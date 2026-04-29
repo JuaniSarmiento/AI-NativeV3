@@ -12,11 +12,12 @@ Al validar exitosamente:
     X-* que vengan del cliente; el gateway los setea autoritativamente)
   - Agrega X-Request-Id si no existe
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -41,7 +42,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
     """
 
     EXEMPT_PATHS = (
-        "/", "/health", "/metrics", "/docs", "/openapi.json", "/redoc",
+        "/",
+        "/health",
+        "/metrics",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
     )
 
     def __init__(
@@ -92,19 +98,26 @@ class JWTMiddleware(BaseHTTPMiddleware):
         # Reescribir headers X-* autoritativamente
         # (scope["headers"] es una lista de tuplas byte-encoded)
         headers = [
-            (k, v) for k, v in request.scope["headers"]
-            if k.lower() not in (
-                b"x-user-id", b"x-tenant-id", b"x-user-email",
-                b"x-user-roles", b"x-user-realm",
+            (k, v)
+            for k, v in request.scope["headers"]
+            if k.lower()
+            not in (
+                b"x-user-id",
+                b"x-tenant-id",
+                b"x-user-email",
+                b"x-user-roles",
+                b"x-user-realm",
             )
         ]
-        headers.extend([
-            (b"x-user-id", principal.user_id.encode()),
-            (b"x-tenant-id", principal.tenant_id.encode()),
-            (b"x-user-email", principal.email.encode()),
-            (b"x-user-roles", ",".join(sorted(principal.roles)).encode()),
-            (b"x-user-realm", principal.realm.encode()),
-        ])
+        headers.extend(
+            [
+                (b"x-user-id", principal.user_id.encode()),
+                (b"x-tenant-id", principal.tenant_id.encode()),
+                (b"x-user-email", principal.email.encode()),
+                (b"x-user-roles", ",".join(sorted(principal.roles)).encode()),
+                (b"x-user-realm", principal.realm.encode()),
+            ]
+        )
         request.scope["headers"] = headers
 
         return await _add_request_id(request, call_next)

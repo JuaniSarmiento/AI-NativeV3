@@ -5,6 +5,7 @@ tenant_id seteado en current_setting('app.current_tenant'). El helper
 `get_session` de FastAPI hace esto automáticamente si se usa con el
 dependency `TenantContext` que extrae el tenant del JWT.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

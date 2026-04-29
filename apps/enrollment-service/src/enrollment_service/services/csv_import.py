@@ -11,6 +11,7 @@ Formato CSV esperado:
 
 Ver docs/imports/enrollment-csv-format.md para detalle completo.
 """
+
 from __future__ import annotations
 
 import io
@@ -67,17 +68,17 @@ def validate_csv_bytes(content: bytes) -> ImportValidationResult:
         # student_pseudonym
         try:
             from uuid import UUID
+
             UUID(str(row["student_pseudonym"]))
         except (ValueError, TypeError):
-            row_errors.append(
-                ImportError(row_num, "student_pseudonym", "no es UUID válido")
-            )
+            row_errors.append(ImportError(row_num, "student_pseudonym", "no es UUID válido"))
 
         # rol
         if row["rol"] not in VALID_ROLES:
             row_errors.append(
                 ImportError(
-                    row_num, "rol",
+                    row_num,
+                    "rol",
                     f"debe ser uno de {sorted(VALID_ROLES)}",
                 )
             )
@@ -92,9 +93,7 @@ def validate_csv_bytes(content: bytes) -> ImportValidationResult:
 
         # comision_codigo
         if not str(row["comision_codigo"]).strip():
-            row_errors.append(
-                ImportError(row_num, "comision_codigo", "vacío")
-            )
+            row_errors.append(ImportError(row_num, "comision_codigo", "vacío"))
 
         if row_errors:
             result.errors.extend(row_errors)

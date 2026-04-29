@@ -8,6 +8,7 @@ Clave del diseño: `verify_hash()` recomputa el SHA-256 del contenido y
 lo compara con el declarado en `manifest.yaml`. Si no coincide, falla
 fail-loud (nunca servir contenido manipulado).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -74,9 +75,7 @@ class PromptLoader:
         prompt_dir = self.repo_path / "prompts" / name / version
         system_file = prompt_dir / "system.md"
         if not system_file.exists():
-            raise FileNotFoundError(
-                f"Prompt {name}/{version} no existe en {self.repo_path}"
-            )
+            raise FileNotFoundError(f"Prompt {name}/{version} no existe en {self.repo_path}")
 
         content = system_file.read_text(encoding="utf-8")
         computed_hash = compute_content_hash(content)

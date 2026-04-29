@@ -1,4 +1,5 @@
 """Schemas para Periodo y Comisión."""
+
 from __future__ import annotations
 
 from datetime import date, datetime

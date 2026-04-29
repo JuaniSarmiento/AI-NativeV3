@@ -4,6 +4,7 @@ Este endpoint lo consume el tutor-service (F3) como fuente de contexto
 ancla. También lo pueden llamar docentes directamente para testear el
 funcionamiento del RAG sobre su cátedra.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

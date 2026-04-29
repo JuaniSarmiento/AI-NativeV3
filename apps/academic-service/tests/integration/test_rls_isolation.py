@@ -6,15 +6,15 @@ ver/modificar datos del otro bajo RLS activo.
 
 Este test es el safety-net más importante del plano académico.
 """
+
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
-
 
 pytestmark = pytest.mark.integration
 
@@ -56,6 +56,7 @@ def pg_container():
     with PostgresContainer("pgvector/pgvector:pg16") as pg:
         # Bootstrap del schema
         import psycopg2
+
         conn = psycopg2.connect(pg.get_connection_url().replace("+psycopg2", ""))
         conn.autocommit = True
         with conn.cursor() as cur:
@@ -140,9 +141,7 @@ async def test_tenant_a_no_puede_modificar_datos_de_b(engine) -> None:
             text("SELECT set_config('app.current_tenant', :t, true)"),
             {"t": str(tenant_a)},
         )
-        result = await conn.execute(
-            text("UPDATE test_items SET nombre = 'hacked'")
-        )
+        result = await conn.execute(text("UPDATE test_items SET nombre = 'hacked'"))
         # rowcount debería ser 0 — RLS filtra aún el UPDATE
         assert result.rowcount == 0
 

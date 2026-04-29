@@ -11,6 +11,7 @@ Exit code:
 
 Este script corre en CI como última verificación después de las migraciones.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -82,7 +83,7 @@ async def main() -> int:
         try:
             issues = await check_database(name, dsn)
             all_issues.extend(issues)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"ERROR conectando a {name}: {e}", file=sys.stderr)
             return 2
 

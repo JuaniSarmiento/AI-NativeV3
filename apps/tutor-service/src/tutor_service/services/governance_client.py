@@ -4,6 +4,7 @@ El tutor consulta al governance para obtener el prompt system activo +
 su hash. El hash se incluye en cada evento CTR emitido durante el
 episodio, lo cual permite auditabilidad y reproducibilidad (ADR-009).
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,9 +40,7 @@ class GovernanceClient:
     async def load_prompt(self, name: str, version: str) -> ActivePrompt:
         """Carga un prompt verificado."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.get(
-                f"{self.base_url}/api/v1/prompts/{name}/{version}"
-            )
+            resp = await client.get(f"{self.base_url}/api/v1/prompts/{name}/{version}")
             resp.raise_for_status()
             data = resp.json()
             return ActivePrompt(
@@ -51,9 +50,7 @@ class GovernanceClient:
                 hash=data["hash"],
             )
 
-    async def resolve_for_tenant(
-        self, tenant_id: str, prompt_name: str = "tutor"
-    ) -> ActivePrompt:
+    async def resolve_for_tenant(self, tenant_id: str, prompt_name: str = "tutor") -> ActivePrompt:
         """Obtiene el prompt activo para un tenant específico.
 
         Busca primero override por tenant_id en el manifest; si no existe,
@@ -61,9 +58,8 @@ class GovernanceClient:
         """
         configs = await self.active_configs()
         active = configs.get("active", {})
-        version = (
-            active.get(tenant_id, {}).get(prompt_name)
-            or active.get("default", {}).get(prompt_name)
+        version = active.get(tenant_id, {}).get(prompt_name) or active.get("default", {}).get(
+            prompt_name
         )
         if not version:
             raise RuntimeError(

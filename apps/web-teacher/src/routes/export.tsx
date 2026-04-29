@@ -12,10 +12,7 @@ export const Route = createFileRoute("/export")({
     const { getToken } = Route.useRouteContext()
     const { comisionId } = Route.useSearch()
     return (
-      <ExportView
-        getToken={getToken}
-        {...(comisionId ? { comisionIdDefault: comisionId } : {})}
-      />
+      <ExportView getToken={getToken} {...(comisionId ? { comisionIdDefault: comisionId } : {})} />
     )
   },
 })

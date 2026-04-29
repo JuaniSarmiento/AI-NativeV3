@@ -1,4 +1,5 @@
 """Providers LLM."""
+
 from ai_gateway.providers.base import (
     AnthropicProvider,
     BaseProvider,
@@ -9,10 +10,10 @@ from ai_gateway.providers.base import (
 )
 
 __all__ = [
+    "AnthropicProvider",
     "BaseProvider",
     "CompletionRequest",
     "CompletionResponse",
     "MockProvider",
-    "AnthropicProvider",
     "get_provider",
 ]

@@ -6,6 +6,7 @@ ingesta elige el extractor por magic bytes + extensión del archivo.
 Los extractores NO hacen chunking final — solo extraen secciones
 semánticas. El chunking se hace después con estrategia uniforme.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

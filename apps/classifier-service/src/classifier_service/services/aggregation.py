@@ -1,4 +1,5 @@
 """Agregación de clasificaciones por comisión para vista docente."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,11 +20,7 @@ class AppropriationCounts:
 
     @property
     def total(self) -> int:
-        return (
-            self.delegacion_pasiva
-            + self.apropiacion_superficial
-            + self.apropiacion_reflexiva
-        )
+        return self.delegacion_pasiva + self.apropiacion_superficial + self.apropiacion_reflexiva
 
 
 @dataclass
@@ -94,9 +91,7 @@ async def aggregate_by_comision(
 
     def weighted_avg(field_name: str) -> float | None:
         parts = [
-            (float(a[field_name]), int(a["n"]))
-            for a in all_avgs
-            if a.get(field_name) is not None
+            (float(a[field_name]), int(a["n"])) for a in all_avgs if a.get(field_name) is not None
         ]
         if not parts:
             return None
@@ -135,10 +130,7 @@ async def aggregate_by_comision(
         elif row["appropriation"] == "apropiacion_reflexiva":
             counts.apropiacion_reflexiva = n
 
-    timeseries = [
-        DailyCounts(date=day, counts=counts)
-        for day, counts in sorted(ts_map.items())
-    ]
+    timeseries = [DailyCounts(date=day, counts=counts) for day, counts in sorted(ts_map.items())]
 
     return AggregatedStats(
         comision_id=comision_id,

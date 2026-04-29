@@ -8,6 +8,7 @@ la unión Zod queda incompleta y un consumer TS que valide payloads contra
 Este test parsea el `index.ts` con regex (no ejecuta TS — sin dep de `tsx`)
 y compara contra el set de `event_type` literales del Pydantic.
 """
+
 from __future__ import annotations
 
 import re
@@ -68,7 +69,7 @@ def _ts_event_types_in_union() -> set[str]:
     literals: set[str] = set()
     for name in schema_names:
         decl = re.search(
-            rf'export const {re.escape(name)}\s*=\s*CTRBase\.extend\(\{{[^}}]*?'
+            rf"export const {re.escape(name)}\s*=\s*CTRBase\.extend\(\{{[^}}]*?"
             rf'event_type:\s*z\.literal\("([a-z_]+)"\)',
             src,
             flags=re.DOTALL,

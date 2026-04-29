@@ -25,16 +25,15 @@ Secretos (passwords, tokens de Keycloak admin) deben venir de variables
 de entorno en CI, no argparse. Las variables soportadas:
     KEYCLOAK_ADMIN_USER, KEYCLOAK_ADMIN_PASSWORD, TENANT_DB_URL
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import Any
 from uuid import UUID
 
 import httpx
@@ -78,7 +77,9 @@ class KeycloakClient:
     async def _token_or_login(self, client: httpx.AsyncClient) -> str:
         if self._token:
             return self._token
-        url = f"{self.config.base_url}/realms/{self.config.admin_realm}/protocol/openid-connect/token"
+        url = (
+            f"{self.config.base_url}/realms/{self.config.admin_realm}/protocol/openid-connect/token"
+        )
         r = await client.post(
             url,
             data={
@@ -258,11 +259,13 @@ class KeycloakClient:
                     "email": spec.admin_email,
                     "enabled": True,
                     "emailVerified": False,
-                    "credentials": [{
-                        "type": "password",
-                        "value": spec.admin_password_temp,
-                        "temporary": True,  # fuerza cambio en primer login
-                    }],
+                    "credentials": [
+                        {
+                            "type": "password",
+                            "value": spec.admin_password_temp,
+                            "temporary": True,  # fuerza cambio en primer login
+                        }
+                    ],
                     "requiredActions": ["UPDATE_PASSWORD"],
                 },
             )
@@ -330,7 +333,7 @@ class TenantOnboarder:
 
         # 2. Client
         await self.keycloak.create_client(spec)
-        report.actions.append(f"Client 'platform-backend' asegurado")
+        report.actions.append("Client 'platform-backend' asegurado")
 
         # 3. Mapper de tenant_id
         await self.keycloak.add_tenant_id_mapper(spec)
@@ -356,8 +359,7 @@ class TenantOnboarder:
             "`make seed-tenant TENANT_UUID=... TENANT_NAME=...` (no incluido aquí)"
         )
         report.warnings.append(
-            "Prompts repo debe clonarse al governance-service "
-            "según el flujo GitOps del tenant"
+            "Prompts repo debe clonarse al governance-service según el flujo GitOps del tenant"
         )
 
         return report
@@ -374,11 +376,13 @@ async def run_cli(args: argparse.Namespace) -> int:
         print("ERROR: KEYCLOAK_ADMIN_PASSWORD env var es requerida", file=sys.stderr)
         return 2
 
-    kc = KeycloakClient(KeycloakConfig(
-        base_url=args.keycloak_url,
-        admin_user=os.environ.get("KEYCLOAK_ADMIN_USER", "admin"),
-        admin_password=kc_password,
-    ))
+    kc = KeycloakClient(
+        KeycloakConfig(
+            base_url=args.keycloak_url,
+            admin_user=os.environ.get("KEYCLOAK_ADMIN_USER", "admin"),
+            admin_password=kc_password,
+        )
+    )
 
     spec = TenantSpec(
         name=args.tenant_name,
@@ -398,13 +402,18 @@ async def run_cli(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Onboarding de tenant nuevo")
     parser.add_argument("--tenant-name", required=True, help="Nombre del tenant (ej UNSL)")
-    parser.add_argument("--tenant-uuid", required=True, help="UUID del tenant (tenant_id autoritativo)")
-    parser.add_argument("--realm-name", help="Nombre del realm K.C. (default: tenant-name lowercased)")
+    parser.add_argument(
+        "--tenant-uuid", required=True, help="UUID del tenant (tenant_id autoritativo)"
+    )
+    parser.add_argument(
+        "--realm-name", help="Nombre del realm K.C. (default: tenant-name lowercased)"
+    )
     parser.add_argument("--admin-email", required=True)
     parser.add_argument("--admin-password", help="Password inicial temporal")
     parser.add_argument("--keycloak-url", default="http://localhost:8180")
     parser.add_argument(
-        "--allowed-origin", action="append",
+        "--allowed-origin",
+        action="append",
         help="Origen permitido para redirects (puede repetirse)",
     )
     args = parser.parse_args()

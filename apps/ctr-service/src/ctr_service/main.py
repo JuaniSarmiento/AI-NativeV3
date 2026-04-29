@@ -3,8 +3,9 @@
 F3: expone API HTTP para publish/read/verify + workers particionados
 que consumen del bus y persisten eventos con cadena SHA-256.
 """
+
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

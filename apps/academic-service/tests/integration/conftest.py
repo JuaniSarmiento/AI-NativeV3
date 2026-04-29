@@ -6,12 +6,12 @@ el mismo que `test_facultades_crud.py` y `test_soft_delete.py` definen
 inline; centralizarlo acá evita duplicación y errores de collection
 cuando un test omite la definición.
 """
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
 
 import pytest
-
 from academic_service.auth.dependencies import User
 
 

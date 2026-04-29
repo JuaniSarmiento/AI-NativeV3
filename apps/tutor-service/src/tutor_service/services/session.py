@@ -8,15 +8,14 @@ Estado en Redis con TTL de 6h (las sesiones típicas duran <1h). Al
 cerrar episodio o al expirar, el state se elimina; la fuente de verdad
 histórica es el CTR en Postgres.
 """
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
 from uuid import UUID
 
 import redis.asyncio as redis
-
 
 SESSION_TTL = 6 * 3600  # 6 horas
 
@@ -75,9 +74,7 @@ class SessionManager:
             "classifier_config_hash": state.classifier_config_hash,
             "curso_config_hash": state.curso_config_hash,
         }
-        await self.redis.setex(
-            self._key(state.episode_id), SESSION_TTL, json.dumps(data)
-        )
+        await self.redis.setex(self._key(state.episode_id), SESSION_TTL, json.dumps(data))
 
     async def delete(self, episode_id: UUID) -> None:
         await self.redis.delete(self._key(episode_id))

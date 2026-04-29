@@ -14,6 +14,7 @@ La estrategia varía por tipo de sección:
 Aproximación de tokens: ~1 token cada 4 caracteres en español. Para el
 MVP esto es suficiente; refinar con tiktoken en F3 si hace falta.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -21,7 +22,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from content_service.extractors import ExtractedSection
-
 
 # Configuración por tipo de sección
 DEFAULT_TARGET_TOKENS = 512
@@ -179,9 +179,7 @@ def _chunk_prose(
     return chunks
 
 
-def _as_single_chunk(
-    section: ExtractedSection, position: int, chunk_type: str
-) -> FinalChunk:
+def _as_single_chunk(section: ExtractedSection, position: int, chunk_type: str) -> FinalChunk:
     return FinalChunk(
         contenido=section.content,
         contenido_hash=_hash_text(section.content),
@@ -194,6 +192,7 @@ def _as_single_chunk(
 def _split_sentences(text: str) -> list[str]:
     """División heurística de oraciones por puntuación."""
     import re
+
     # Simple: split por puntos/exclamaciones/preguntas seguidos de espacio+mayúscula
     # Para producción en F3+ usar spaCy o similar.
     parts = re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ])", text)

@@ -5,6 +5,7 @@ Plantilla canónica de TP por (Materia, Período). La instancia por comisión
 el template solo provee la fuente única editable de enunciado/rúbrica/peso
 que la cátedra replica en todas sus comisiones.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

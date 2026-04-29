@@ -13,16 +13,16 @@ Propiedades que debemos preservar:
 3. Idempotencia: eventos duplicados (mismo event_uuid) se ignoran.
 4. Append-only: nunca UPDATE ni DELETE de eventos persistidos.
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, MetaData, text
+from sqlalchemy import MetaData, text
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 GENESIS_HASH = "0" * 64  # SHA-256 de cero bytes; alias criptográfico de "cadena vacía"
 
@@ -48,9 +48,7 @@ def utc_now() -> datetime:
 
 
 class TenantMixin:
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
 
 
 def uuid_pk() -> Mapped[uuid.UUID]:

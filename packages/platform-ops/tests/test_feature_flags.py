@@ -1,16 +1,15 @@
 """Tests de feature flags por tenant."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-
 from platform_ops.feature_flags import (
     FeatureFlags,
     FeatureNotDeclaredError,
 )
-
 
 UNSL_UUID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
@@ -134,6 +133,8 @@ def test_cambio_en_archivo_se_recarga(flags_file: Path) -> None:
     assert flags.get_value(UNSL_UUID, "max_episodes_per_day") == 200
 
     # Modificar el archivo
-    flags_file.write_text(SAMPLE_CONFIG.replace("max_episodes_per_day: 200", "max_episodes_per_day: 500"))
+    flags_file.write_text(
+        SAMPLE_CONFIG.replace("max_episodes_per_day: 200", "max_episodes_per_day: 500")
+    )
     # Con reload_interval_seconds=0, la próxima consulta recarga
     assert flags.get_value(UNSL_UUID, "max_episodes_per_day") == 500

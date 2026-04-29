@@ -4,14 +4,12 @@ Usa el pipeline real del classifier-service (no mockeado) para
 verificar que el módulo ab_testing funciona con la implementación
 productiva, no solo con fakes.
 """
+
 from __future__ import annotations
 
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
-
-import pytest
 
 # Permitir importar el classifier-service sin tenerlo instalado
 CLASSIFIER_SRC = Path(__file__).parent.parent.parent.parent / "apps/classifier-service/src"
@@ -23,7 +21,6 @@ from classifier_service.services.pipeline import (
     compute_classifier_config_hash,
 )
 from classifier_service.services.tree import DEFAULT_REFERENCE_PROFILE
-
 from platform_ops.ab_testing import EpisodeForComparison, compare_profiles
 
 
@@ -42,8 +39,14 @@ def _copypaste_events() -> list[dict]:
     events = [_ev(0, "episodio_abierto", 0)]
     for i, m in enumerate([2, 2, 3, 15, 15, 16, 18, 25, 25, 26]):
         if i % 3 == 0:
-            events.append(_ev(len(events), "prompt_enviado", m,
-                              {"content": "dame la solución", "prompt_kind": "solicitud_directa"}))
+            events.append(
+                _ev(
+                    len(events),
+                    "prompt_enviado",
+                    m,
+                    {"content": "dame la solución", "prompt_kind": "solicitud_directa"},
+                )
+            )
         elif i % 3 == 1:
             events.append(_ev(len(events), "tutor_respondio", m, {"content": "..."}))
         else:

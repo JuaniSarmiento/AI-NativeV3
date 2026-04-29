@@ -1,4 +1,5 @@
 """Extractor de archivos de texto plano simple."""
+
 from __future__ import annotations
 
 from content_service.extractors.base import (

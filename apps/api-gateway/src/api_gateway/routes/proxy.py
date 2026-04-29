@@ -12,6 +12,7 @@ Mapa de rutas:
     /api/v1/periodos/*      → academic-service
     /api/v1/imports/*       → enrollment-service
 """
+
 from __future__ import annotations
 
 import httpx
@@ -89,7 +90,8 @@ async def proxy(full_path: str, request: Request) -> StreamingResponse:
         iter_content(),
         status_code=upstream.status_code,
         headers={
-            k: v for k, v in upstream.headers.items()
+            k: v
+            for k, v in upstream.headers.items()
             if k.lower() not in {"content-length", "transfer-encoding", "connection"}
         },
     )

@@ -143,8 +143,7 @@ export function CodeEditor({
           // tecla → undo dentro del debounce), no disparamos.
           if (snapshot === lastFiredSnapshotRef.current) return
           lastFiredSnapshotRef.current = snapshot
-          const origin: "pasted_external" | "student_typed" = pasteSinceLastFlushRef
-            .current
+          const origin: "pasted_external" | "student_typed" = pasteSinceLastFlushRef.current
             ? "pasted_external"
             : "student_typed"
           pasteSinceLastFlushRef.current = false

@@ -1,4 +1,5 @@
 """Tests del chunker estratificado."""
+
 from __future__ import annotations
 
 from content_service.extractors.base import ExtractedSection
@@ -44,10 +45,7 @@ def test_codigo_muy_grande_se_subdivide() -> None:
 def test_prosa_usa_ventana_deslizante() -> None:
     """Prosa larga se divide en ventanas con solapamiento."""
     # Generar un texto con varias oraciones
-    sentences = [
-        f"Esta es la oración número {i} del texto de prueba."
-        for i in range(200)
-    ]
+    sentences = [f"Esta es la oración número {i} del texto de prueba." for i in range(200)]
     long_text = " ".join(sentences)
 
     sections = [

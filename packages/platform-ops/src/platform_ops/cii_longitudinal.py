@@ -22,6 +22,7 @@ identifica que reglas se usaron para calcular. Bumpear cambia la estructura del
 output en `Classification.features['cii_evolution_longitudinal']`; los datos
 viejos quedan etiquetados con la version anterior.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -126,11 +127,7 @@ def compute_mean_slope(per_template: list[dict[str, Any]]) -> float | None:
     Templates con `slope=None` (insufficient data) se excluyen. None si
     ningun template del estudiante tiene N>=3.
     """
-    valid_slopes = [
-        entry["slope"]
-        for entry in per_template
-        if entry.get("slope") is not None
-    ]
+    valid_slopes = [entry["slope"] for entry in per_template if entry.get("slope") is not None]
     if not valid_slopes:
         return None
     return sum(valid_slopes) / len(valid_slopes)
@@ -147,9 +144,7 @@ def compute_cii_evolution_longitudinal(
     per_template = compute_evolution_per_template(classifications)
     mean_slope = compute_mean_slope(per_template)
 
-    n_groups_evaluated = sum(
-        1 for entry in per_template if not entry.get("insufficient_data")
-    )
+    n_groups_evaluated = sum(1 for entry in per_template if not entry.get("insufficient_data"))
     n_groups_insufficient = len(per_template) - n_groups_evaluated
     n_episodes_total = sum(entry["n_episodes"] for entry in per_template)
 

@@ -1,4 +1,5 @@
 """Acceso a base de datos."""
+
 from academic_service.db.session import (
     get_engine,
     get_session_factory,
@@ -9,6 +10,6 @@ from academic_service.db.session import (
 __all__ = [
     "get_engine",
     "get_session_factory",
-    "tenant_session",
     "superadmin_session",
+    "tenant_session",
 ]

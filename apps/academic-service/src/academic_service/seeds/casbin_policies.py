@@ -6,6 +6,7 @@ La matriz replica la tabla del documento de arquitectura sección 6.2.
 Uso:
     python -m academic_service.seeds.casbin_policies
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,6 @@ if str(SRC) not in sys.path:
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
-
 
 # Matriz de permisos (sujeto, recurso, acción)
 # "sub" es role:<rol>. Casbin resuelve la pertenencia via g (role inheritance),
@@ -73,7 +73,6 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:superadmin", "*", "tarea_practica_template:*", "update"),
     ("role:superadmin", "*", "tarea_practica_template:*", "delete"),
     ("role:superadmin", "*", "audit:*", "read"),
-
     # ── Docente admin: gestión institucional completa de su tenant ────
     # (dom "*" acá es metafórico — en F5 se filtra por tenant)
     ("role:docente_admin", "*", "universidad:*", "read"),
@@ -117,7 +116,6 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente_admin", "*", "tarea_practica_template:*", "update"),
     ("role:docente_admin", "*", "tarea_practica_template:*", "delete"),
     ("role:docente_admin", "*", "audit:*", "read"),
-
     # ── Docente: solo comisiones asignadas + lectura del árbol ─────────
     ("role:docente", "*", "universidad:*", "read"),
     ("role:docente", "*", "facultad:*", "read"),
@@ -137,7 +135,6 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente", "*", "tarea_practica_template:*", "delete"),
     # En F2+, docente tendrá create/update sobre material, ejercicios, rúbricas
     # y correcciones de SUS comisiones (se enforza con ABAC adicional).
-
     # ── Estudiante: lectura muy limitada ──────────────────────────────
     ("role:estudiante", "*", "universidad:*", "read"),
     ("role:estudiante", "*", "carrera:*", "read"),
@@ -146,7 +143,6 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:estudiante", "*", "tarea_practica:*", "read"),
     ("role:estudiante", "*", "tarea_practica_template:*", "read"),
     # En F2+: propio material, problemas de sus comisiones, tutor socrático
-
     # ── Service accounts (cross-service) ─────────────────────────────
     ("role:tutor_service", "*", "tarea_practica:*", "read"),
     ("role:tutor_service", "*", "tarea_practica_template:*", "read"),
@@ -174,9 +170,7 @@ async def seed() -> None:
                 {"sub": sub, "dom": dom, "obj": obj, "act": act},
             )
 
-        count = await conn.scalar(
-            text("SELECT COUNT(*) FROM casbin_rules WHERE ptype = 'p'")
-        )
+        count = await conn.scalar(text("SELECT COUNT(*) FROM casbin_rules WHERE ptype = 'p'"))
         print(f"[OK] {count} policies Casbin cargadas")
 
     await engine.dispose()

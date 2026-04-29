@@ -4,6 +4,7 @@ El CTR es escrito principalmente por service-accounts (tutor-service),
 no por usuarios finales directamente. Los docentes pueden LEER episodios
 completos de sus comisiones. Superadmin puede leer cualquiera.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

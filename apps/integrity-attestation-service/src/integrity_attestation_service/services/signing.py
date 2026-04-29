@@ -17,6 +17,7 @@ Reglas criticas:
 
 Cualquier desviacion ROMPE la verificacion. Test bit-exact en `test_signing.py`.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -67,8 +68,7 @@ def compute_canonical_buffer(
     tn_str = str(tenant_id).lower()
 
     canonical = (
-        f"{ep_str}|{tn_str}|{final_chain_hash}|{total_events}"
-        f"|{ts_episode_closed}|{schema_version}"
+        f"{ep_str}|{tn_str}|{final_chain_hash}|{total_events}|{ts_episode_closed}|{schema_version}"
     )
     return canonical.encode("utf-8")
 

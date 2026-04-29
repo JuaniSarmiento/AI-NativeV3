@@ -4,6 +4,7 @@ Bloquea regresión del typo histórico `GOVERNANCE_REPO_PATH` (template) vs
 `PROMPTS_REPO_PATH` (código). Si alguien rota el nombre de la env var
 en uno de los dos lados sin tocar el otro, este test rompe.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -47,7 +48,7 @@ def test_env_example_does_not_use_old_governance_repo_path() -> None:
 
 def test_env_example_var_matches_settings_field(monkeypatch) -> None:
     """Settings() lee PROMPTS_REPO_PATH y respeta el valor del entorno."""
-    fixture_path = "/tmp/test-prompts-fixture"  # noqa: S108 — string fixture en test, sin escritura real a disco
+    fixture_path = "/tmp/test-prompts-fixture"
     monkeypatch.setenv("PROMPTS_REPO_PATH", fixture_path)
     # Aislamos el lookup del .env del CWD para no contaminar el test
     monkeypatch.chdir(_REPO_ROOT.parent if _REPO_ROOT.parent.exists() else _REPO_ROOT)

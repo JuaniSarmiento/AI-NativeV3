@@ -4,13 +4,13 @@ Validan el flujo `_sign_and_journal` aislado del Redis: dado un payload
 valido, debe firmar + appendear al journal con la attestation completa.
 Ademas testea el path de DLQ tras MAX_ATTEMPTS reintentos.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-
 from integrity_attestation_service.config import settings
 from integrity_attestation_service.services.signing import (
     DEV_PUBKEY_ID,
@@ -41,7 +41,7 @@ def _redirect_log_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def consumer() -> AttestationConsumer:
-    private_key, public_key, pubkey_id = load_keypair_with_failsafe(
+    private_key, _public_key, pubkey_id = load_keypair_with_failsafe(
         private_path=settings.attestation_private_key_path,
         public_path=settings.attestation_public_key_path,
         environment="development",

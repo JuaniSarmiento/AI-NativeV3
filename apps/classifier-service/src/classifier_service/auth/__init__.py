@@ -1,4 +1,5 @@
 """Auth del classifier-service."""
+
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -34,9 +35,11 @@ async def get_current_user(
 def require_role(*roles: str):
     async def checker(user: User = Depends(get_current_user)) -> User:
         if not user.roles.intersection(roles):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail=f"Requiere: {', '.join(roles)}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Requiere: {', '.join(roles)}"
+            )
         return user
+
     return checker
 
 
@@ -44,4 +47,4 @@ CLASSIFY_ROLES = ("docente", "docente_admin", "superadmin", "classifier_worker")
 READ_ROLES = ("docente", "docente_admin", "superadmin", "estudiante")
 
 
-__all__ = ["User", "get_current_user", "require_role", "CLASSIFY_ROLES", "READ_ROLES"]
+__all__ = ["CLASSIFY_ROLES", "READ_ROLES", "User", "get_current_user", "require_role"]

@@ -1,11 +1,11 @@
 """Tests del SessionManager usando fakeredis."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import fakeredis.aioredis
 import pytest
-
 from tutor_service.services.session import SessionManager, SessionState
 
 

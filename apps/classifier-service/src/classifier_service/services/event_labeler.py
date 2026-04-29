@@ -31,6 +31,7 @@ del Eje B (clasificacion semantica) post-defensa. Cualquier cambio de la
 asignacion fija obliga a bumpear LABELER_VERSION (ADR-020) y a actualizar
 Seccion 19.5 de la tesis sobre el sesgo que se cierra.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

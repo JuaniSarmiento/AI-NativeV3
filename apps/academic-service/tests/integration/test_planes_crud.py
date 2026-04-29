@@ -5,21 +5,21 @@ filtrado por carrera, soft-delete, audit log) usando mocks de session/repos
 en línea con `test_comision_periodo_cerrado.py`. El test de aislamiento RLS
 levanta un Postgres real con testcontainers.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-from testcontainers.postgres import PostgresContainer
-
 from academic_service.auth.dependencies import User
 from academic_service.models import AuditLog, Carrera, PlanEstudios
 from academic_service.schemas.plan import PlanCreate, PlanUpdate
 from academic_service.services.plan_service import PlanService
+from fastapi import HTTPException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from testcontainers.postgres import PostgresContainer
 
 
 @pytest.fixture
@@ -89,8 +89,7 @@ async def test_plan_create_happy_path(mock_session, user_docente_admin) -> None:
     assert create_args["año_inicio"] == 2025
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "plan.create"
@@ -131,9 +130,7 @@ async def test_plan_list_filtra_por_carrera(mock_session, user_docente_admin) ->
     result = await svc.list(limit=50, cursor=None, carrera_id=carrera_id)
 
     assert result == fake_planes
-    svc.repo.list.assert_called_once_with(
-        limit=50, cursor=None, filters={"carrera_id": carrera_id}
-    )
+    svc.repo.list.assert_called_once_with(limit=50, cursor=None, filters={"carrera_id": carrera_id})
 
 
 async def test_plan_list_sin_filtros(mock_session, user_docente_admin) -> None:
@@ -174,8 +171,7 @@ async def test_plan_update_happy_path(mock_session, user_docente_admin) -> None:
     assert fake_plan.ordenanza == "ORD-DEROG/26"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "plan.update"
@@ -197,8 +193,7 @@ async def test_plan_soft_delete(mock_session, user_docente_admin) -> None:
     svc.repo.soft_delete.assert_called_once_with(plan_id)
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "plan.delete"
@@ -239,6 +234,7 @@ GRANT USAGE ON SCHEMA public TO app_user;
 def pg_container_planes():
     with PostgresContainer("pgvector/pgvector:pg16") as pg:
         import psycopg2
+
         conn = psycopg2.connect(pg.get_connection_url().replace("+psycopg2", ""))
         conn.autocommit = True
         with conn.cursor() as cur:

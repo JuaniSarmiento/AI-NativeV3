@@ -2,6 +2,7 @@
 
 Wrapper sobre `platform-observability` (paquete compartido del workspace).
 """
+
 from fastapi import FastAPI
 from platform_observability import setup_observability as _setup
 

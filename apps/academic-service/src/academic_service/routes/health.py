@@ -4,6 +4,7 @@
 - /health/ready → 200 si dependencias están OK (DB, Redis, Keycloak)
 - /health      → alias de readiness por compatibilidad
 """
+
 from fastapi import APIRouter, status
 from pydantic import BaseModel
 

@@ -1,4 +1,5 @@
 """Eventos del plano académico que se publican al bus."""
+
 from __future__ import annotations
 
 from datetime import datetime

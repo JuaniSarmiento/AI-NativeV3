@@ -15,6 +15,7 @@ Flujo:
 
 Errores → 401 con mensaje descriptivo.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,6 @@ from typing import Any
 
 import httpx
 import jwt
-from jwt import PyJWKClient
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,7 @@ class JWKSCache:
             jwks = r.json()
 
         from jwt.algorithms import RSAAlgorithm
+
         new_cache: dict[str, Any] = {}
         for key_data in jwks.get("keys", []):
             kid = key_data.get("kid")
@@ -107,7 +108,7 @@ class JWKSCache:
             try:
                 key = RSAAlgorithm.from_jwk(key_data)
                 new_cache[kid] = key
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning("Failed to parse JWK kid=%s: %s", kid, e)
 
         self._cache = new_cache

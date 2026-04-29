@@ -9,6 +9,7 @@ Uso en routers y servicios:
     else:
         model = "claude-sonnet-4-6"
 """
+
 from __future__ import annotations
 
 from functools import lru_cache

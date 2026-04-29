@@ -66,7 +66,6 @@ export function useAuthenticatedFetch() {
   )
 }
 
-
 /**
  * SSE con auth — EventSource nativo no soporta headers custom, así que
  * tenemos que usar fetch + stream manual para endpoints SSE del tutor.

@@ -16,6 +16,7 @@ Exit code:
     1 = al menos una falló
     2 = error de conexión o config
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,7 +28,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-
 
 DEFAULT_API_BASE = "http://localhost:8009"
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
@@ -42,6 +42,7 @@ def load_golden_yaml(path: Path) -> dict:
     """
     try:
         import yaml  # type: ignore
+
         return yaml.safe_load(path.read_text())
     except ImportError:
         return _parse_minimal_yaml(path.read_text())
@@ -108,12 +109,14 @@ def post_retrieve(
     headers: dict[str, str],
 ) -> tuple[dict, float]:
     """POST /api/v1/retrieve. Devuelve (respuesta_json, latencia_ms)."""
-    body = json.dumps({
-        "query": query,
-        "comision_id": comision_id,
-        "top_k": top_k,
-        "score_threshold": 0.0,  # eval mide el score, no filtra
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "query": query,
+            "comision_id": comision_id,
+            "top_k": top_k,
+            "score_threshold": 0.0,  # eval mide el score, no filtra
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         f"{api_base}/api/v1/retrieve",
@@ -139,9 +142,7 @@ def evaluate_query(
 ) -> tuple[bool, str, float]:
     """Evalúa una query. Devuelve (pass, motivo, latencia_ms)."""
     try:
-        resp, latency = post_retrieve(
-            api_base, query_spec["query"], comision_id, 5, headers
-        )
+        resp, latency = post_retrieve(api_base, query_spec["query"], comision_id, 5, headers)
     except urllib.error.URLError as e:
         return False, f"error de red: {e}", 0.0
     except Exception as e:

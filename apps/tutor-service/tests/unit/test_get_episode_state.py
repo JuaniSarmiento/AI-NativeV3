@@ -11,6 +11,7 @@ Verifica que el wrapper en tutor-service:
 
 El CTRClient está mockeado con AsyncMock — no hay tráfico HTTP real.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -20,10 +21,8 @@ from uuid import UUID, uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from tutor_service.main import app
 from tutor_service.routes import episodes as episodes_route
-
 
 TENANT_HEADERS = {
     # Headers de service-account para bypassear el JWT (mismo path que
@@ -40,9 +39,7 @@ OTHER_TENANT = UUID("99999999-9999-9999-9999-999999999999")
 
 @pytest.fixture
 async def client() -> AsyncClient:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -79,9 +76,7 @@ def _make_ctr_episode(
         "problema_id": str(problema_id),
         "estado": estado,
         "opened_at": opened.isoformat().replace("+00:00", "Z"),
-        "closed_at": (
-            closed_at.isoformat().replace("+00:00", "Z") if closed_at else None
-        ),
+        "closed_at": (closed_at.isoformat().replace("+00:00", "Z") if closed_at else None),
         "events_count": len(events or []),
         "last_chain_hash": "f" * 64,
         "integrity_compromised": False,
@@ -116,9 +111,7 @@ def _ev(
 # ── Tests ────────────────────────────────────────────────────────────
 
 
-async def test_get_episode_state_happy_path(
-    client: AsyncClient, ctr_mock: AsyncMock
-) -> None:
+async def test_get_episode_state_happy_path(client: AsyncClient, ctr_mock: AsyncMock) -> None:
     """Episodio abierto con prompts/respuestas/edición/nota → state
     reconstruído correctamente con todos los campos."""
     episode_id = uuid4()
@@ -156,9 +149,7 @@ async def test_get_episode_state_happy_path(
         events=events,
     )
 
-    resp = await client.get(
-        f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS
-    )
+    resp = await client.get(f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS)
 
     assert resp.status_code == 200, resp.text
     data = resp.json()
@@ -168,9 +159,7 @@ async def test_get_episode_state_happy_path(
     assert data["estado"] == "open"
     assert data["closed_at"] is None
     # last_code_snapshot debe ser el del último evento de código (seq=4)
-    assert data["last_code_snapshot"] == (
-        "def hola():\n    print('hola')\n\nhola()\n"
-    )
+    assert data["last_code_snapshot"] == ("def hola():\n    print('hola')\n\nhola()\n")
     # 1 user + 1 assistant
     assert len(data["messages"]) == 2
     assert data["messages"][0]["role"] == "user"
@@ -188,24 +177,18 @@ async def test_get_episode_state_happy_path(
     assert call.kwargs["tenant_id"] == USER_TENANT
 
 
-async def test_get_episode_state_not_found_404(
-    client: AsyncClient, ctr_mock: AsyncMock
-) -> None:
+async def test_get_episode_state_not_found_404(client: AsyncClient, ctr_mock: AsyncMock) -> None:
     """Si ctr-service responde 404 (CTRClient.get_episode → None),
     el wrapper también responde 404."""
     ctr_mock.get_episode.return_value = None
 
-    resp = await client.get(
-        f"/api/v1/episodes/{uuid4()}", headers=TENANT_HEADERS
-    )
+    resp = await client.get(f"/api/v1/episodes/{uuid4()}", headers=TENANT_HEADERS)
 
     assert resp.status_code == 404
     assert "no encontrado" in resp.json()["detail"]
 
 
-async def test_get_episode_state_otro_tenant_403(
-    client: AsyncClient, ctr_mock: AsyncMock
-) -> None:
+async def test_get_episode_state_otro_tenant_403(client: AsyncClient, ctr_mock: AsyncMock) -> None:
     """Defensa en profundidad: si el ctr-service devuelve un episodio
     cuyo tenant_id no matchea con el del user, el wrapper bloquea con
     403 (RLS debería haberlo filtrado, pero por las dudas)."""
@@ -217,9 +200,7 @@ async def test_get_episode_state_otro_tenant_403(
         problema_id=uuid4(),
     )
 
-    resp = await client.get(
-        f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS
-    )
+    resp = await client.get(f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS)
 
     assert resp.status_code == 403
     assert "tenant" in resp.json()["detail"].lower()
@@ -253,9 +234,7 @@ async def test_get_episode_state_closed_episode_devuelve_estado(
         events=events,
     )
 
-    resp = await client.get(
-        f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS
-    )
+    resp = await client.get(f"/api/v1/episodes/{episode_id}", headers=TENANT_HEADERS)
 
     assert resp.status_code == 200, resp.text
     data = resp.json()

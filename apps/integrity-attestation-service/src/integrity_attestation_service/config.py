@@ -8,6 +8,7 @@ ADR-021 — registro externo auditable. La separacion dev/produccion es central:
   pubkey activa coincide con la dev key Y `environment=production`, el servicio
   rechaza arrancar (failsafe contra deploy accidental con clave de juguete).
 """
+
 from functools import lru_cache
 from pathlib import Path
 

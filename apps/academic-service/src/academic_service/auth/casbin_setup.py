@@ -2,6 +2,7 @@
 
 Ver: https://casbin.org/docs/rbac-with-domains
 """
+
 from __future__ import annotations
 
 import functools
@@ -11,7 +12,6 @@ from pathlib import Path
 import casbin
 from casbin_sqlalchemy_adapter import Adapter
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import create_async_engine
 
 from academic_service.auth.dependencies import User, get_current_user
 from academic_service.config import settings
@@ -60,6 +60,7 @@ def get_enforcer() -> casbin.Enforcer:
     # Adapter sync, OK para lectura
     db_url = settings.academic_db_url.replace("+asyncpg", "")
     from academic_service.models.transversal import CasbinRule
+
     adapter = Adapter(db_url, db_class=CasbinRule, create_all_models=False)
     enforcer = casbin.Enforcer(str(model_path), adapter)
     enforcer.load_policy()
@@ -74,9 +75,7 @@ def check_permission(user: User, resource: str, action: str) -> bool:
     enforcer = get_enforcer()
     obj = resource if ":" in resource else f"{resource}:*"
     for role in user.roles:
-        if enforcer.enforce(
-            f"role:{role}", str(user.tenant_id), obj, action
-        ):
+        if enforcer.enforce(f"role:{role}", str(user.tenant_id), obj, action):
             return True
     return False
 

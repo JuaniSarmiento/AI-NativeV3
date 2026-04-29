@@ -1,12 +1,12 @@
 """Tests del endpoint /api/v1/analytics/student/{id}/cii-evolution-longitudinal (ADR-018)."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 _TENANT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 _USER_ID = "11111111-1111-1111-1111-111111111111"
@@ -57,8 +57,7 @@ def test_tenant_header_no_uuid_devuelve_400(client: TestClient) -> None:
 def test_student_pseudonym_no_uuid_devuelve_422(client: TestClient) -> None:
     """FastAPI valida tipos de path params."""
     r = client.get(
-        f"/api/v1/analytics/student/not-a-uuid/cii-evolution-longitudinal"
-        f"?comision_id={uuid4()}",
+        f"/api/v1/analytics/student/not-a-uuid/cii-evolution-longitudinal?comision_id={uuid4()}",
         headers=_VALID_HEADERS,
     )
     assert r.status_code == 422

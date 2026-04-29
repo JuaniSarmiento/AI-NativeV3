@@ -8,18 +8,18 @@ El test de RLS multi-tenant a nivel DB vive en test_rls_isolation.py — acá
 verificamos el aislamiento a nivel de service (que el repo filtre por tenant
 del user activo, que es lo que el caller HTTP termina invocando).
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import HTTPException
-
 from academic_service.auth.dependencies import User
 from academic_service.models import AuditLog, Facultad, Universidad
 from academic_service.schemas.facultad import FacultadCreate, FacultadUpdate
 from academic_service.services.facultad_service import FacultadService
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -110,8 +110,7 @@ async def test_facultad_create_happy_path(
 
     # Verificar que se agregó el audit log a la misma sesión (RN-016)
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     audit = audit_calls[0]
@@ -212,8 +211,7 @@ async def test_facultad_update_happy_path(
     assert result.nombre == "Nueva Facultad"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "facultad.update"
@@ -236,8 +234,7 @@ async def test_facultad_soft_delete(
     svc.repo.soft_delete.assert_called_once_with(fac_id)
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "facultad.delete"
@@ -245,8 +242,11 @@ async def test_facultad_soft_delete(
 
 
 async def test_facultad_rls_isolation(
-    mock_session, user_docente_admin_a: User, user_docente_admin_b: User,
-    tenant_a_id: UUID, tenant_b_id: UUID,
+    mock_session,
+    user_docente_admin_a: User,
+    user_docente_admin_b: User,
+    tenant_a_id: UUID,
+    tenant_b_id: UUID,
 ) -> None:
     """Aislamiento por tenant a nivel service.
 
@@ -265,9 +265,7 @@ async def test_facultad_rls_isolation(
     svc_a.repo.create = AsyncMock(return_value=MagicMock(spec=Facultad))
 
     await svc_a.create(
-        FacultadCreate(
-            universidad_id=tenant_a_id, nombre="Facultad A", codigo="FA"
-        ),
+        FacultadCreate(universidad_id=tenant_a_id, nombre="Facultad A", codigo="FA"),
         user_docente_admin_a,
     )
 
@@ -281,8 +279,7 @@ async def test_facultad_rls_isolation(
 
     # Cada audit log usa el tenant_id de SU user (no se cruzan)
     audit_logs = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert all(a.tenant_id == tenant_a_id for a in audit_logs)
     assert not any(a.tenant_id == tenant_b_id for a in audit_logs)

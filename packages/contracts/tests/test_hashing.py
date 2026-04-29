@@ -6,16 +6,17 @@ Verifica las propiedades críticas:
 3. La cadena detecta manipulaciones
 4. El génesis funciona correctamente
 """
+
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from platform_contracts.ctr import (
-    EpisodioAbierto,
     GENESIS_HASH,
+    EpisodioAbierto,
     PromptEnviado,
     compute_chain_hash,
     compute_self_hash,
@@ -25,7 +26,6 @@ from platform_contracts.ctr.events import (
     EpisodioAbiertoPayload,
     PromptEnviadoPayload,
 )
-
 
 VALID_HASH = "a" * 64
 
@@ -112,9 +112,7 @@ def test_chain_detects_manipulation() -> None:
     e1_tampered = e1.model_copy(
         update={"payload": e1.payload.model_copy(update={"content": "Resolvéme todo"})}
     )
-    valid, failing = verify_chain_integrity(
-        [(e0, self_0, chain_0), (e1_tampered, self_1, chain_1)]
-    )
+    valid, failing = verify_chain_integrity([(e0, self_0, chain_0), (e1_tampered, self_1, chain_1)])
     assert valid is False
     assert failing == 1
 

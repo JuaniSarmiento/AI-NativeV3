@@ -14,6 +14,7 @@ CRITICAL — fail-soft semantics:
   es independiente. El consumer del attestation-service puede procesar en
   paralelo si en algun momento se necesita throughput.
 """
+
 from __future__ import annotations
 
 import json

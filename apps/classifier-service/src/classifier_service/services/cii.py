@@ -16,16 +16,17 @@ Definición operacional:
 
 Ambas se reportan en [0, 1].
 """
+
 from __future__ import annotations
 
+import itertools
 from typing import Any
 
 
 def compute_cii(events: list[dict]) -> dict[str, Any]:
     """Calcula cii_stability y cii_evolution."""
     prompts = [
-        e for e in sorted(events, key=lambda x: x["seq"])
-        if e["event_type"] == "prompt_enviado"
+        e for e in sorted(events, key=lambda x: x["seq"]) if e["event_type"] == "prompt_enviado"
     ]
 
     if len(prompts) < 2:
@@ -36,14 +37,11 @@ def compute_cii(events: list[dict]) -> dict[str, Any]:
             "insufficient_data": True,
         }
 
-    contents = [
-        (p.get("payload") or {}).get("content", "")
-        for p in prompts
-    ]
+    contents = [(p.get("payload") or {}).get("content", "") for p in prompts]
 
     # Stability: similitud media entre prompts consecutivos
     similarities = []
-    for a, b in zip(contents, contents[1:], strict=False):
+    for a, b in itertools.pairwise(contents):
         sim = _jaccard_tokens(a, b)
         similarities.append(sim)
     stability = sum(similarities) / len(similarities) if similarities else 0.0

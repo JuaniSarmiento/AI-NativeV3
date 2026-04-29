@@ -6,6 +6,7 @@ una TP existente, publicada, en plazo y de la comisión correcta.
 Mirror del patrón `ContentClient`: usa headers de service-account
 (`X-User-Id` con el UUID fijo del tutor, `X-Tenant-Id`, `X-User-Roles`).
 """
+
 from __future__ import annotations
 
 import logging

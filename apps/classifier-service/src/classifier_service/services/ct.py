@@ -11,12 +11,13 @@ Definición operacional:
 La métrica NO colapsa los valores por ventana: se preservan en `features`
 para explainability. El score global es solo una síntesis.
 """
+
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
-
 
 PAUSE_THRESHOLD = timedelta(minutes=5)
 # Pausas mayores dividen el episodio en ventanas distintas
@@ -68,7 +69,7 @@ def compute_windows(events: list[dict]) -> list[WorkWindow]:
     windows: list[WorkWindow] = []
     current_events: list[dict] = [sorted_events[0]]
 
-    for prev, curr in zip(sorted_events, sorted_events[1:], strict=False):
+    for prev, curr in itertools.pairwise(sorted_events):
         prev_ts = _parse_ts(prev["ts"])
         curr_ts = _parse_ts(curr["ts"])
         if curr_ts - prev_ts > PAUSE_THRESHOLD:

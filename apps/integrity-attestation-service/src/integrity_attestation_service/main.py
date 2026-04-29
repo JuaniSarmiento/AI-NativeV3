@@ -8,6 +8,7 @@ api-gateway publico. Solo el ctr-service (autenticado por mTLS o IP allowlist)
 puede emitir POST. La verificacion la hace un auditor externo con la pubkey
 + tool CLI `scripts/verify-attestations.py`.
 """
+
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager

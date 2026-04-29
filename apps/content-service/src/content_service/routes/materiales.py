@@ -1,4 +1,5 @@
 """Endpoints de gestión de materiales."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -73,9 +74,7 @@ async def upload_material(
 
     # Crear registro en DB
     material_id = uuid4()
-    storage_key = make_storage_key(
-        user.tenant_id, comision_id, material_id, file.filename
-    )
+    storage_key = make_storage_key(user.tenant_id, comision_id, material_id, file.filename)
 
     # Subir a storage
     storage = get_storage()
@@ -166,9 +165,7 @@ async def delete_material(
 
     El contenido físico en storage se conserva (F5 decidirá política de GC).
     """
-    result = await db.execute(
-        select(Material).where(Material.id == material_id)
-    )
+    result = await db.execute(select(Material).where(Material.id == material_id))
     material = result.scalar_one_or_none()
     if not material:
         raise HTTPException(

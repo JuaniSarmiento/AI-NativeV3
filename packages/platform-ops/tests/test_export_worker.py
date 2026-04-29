@@ -1,12 +1,11 @@
 """Tests del ExportWorker + ExportJobStore."""
+
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
-
-import pytest
 
 from platform_ops.export_worker import (
     ExportJob,
@@ -19,6 +18,7 @@ from platform_ops.export_worker import (
 @dataclass
 class FakeCohortDataSource:
     """Data source que devuelve datos ligeramente configurables."""
+
     episodes_to_return: list[dict] = field(default_factory=list)
     fail_on_list: bool = False
 
@@ -202,6 +202,7 @@ async def test_worker_run_forever_se_puede_detener() -> None:
 
 async def test_job_serializable_a_dict() -> None:
     import json
+
     job = _make_job()
     job.started_at = datetime.now(UTC)
     d = job.to_dict()

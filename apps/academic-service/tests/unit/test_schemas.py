@@ -2,6 +2,7 @@
 
 Son rápidos (no DB, no red) y se corren en cada PR.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -9,11 +10,10 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
-
 from academic_service.schemas.carrera import CarreraCreate
 from academic_service.schemas.comision import ComisionCreate, PeriodoCreate
 from academic_service.schemas.universidad import UniversidadCreate
+from pydantic import ValidationError
 
 
 class TestUniversidadSchema:

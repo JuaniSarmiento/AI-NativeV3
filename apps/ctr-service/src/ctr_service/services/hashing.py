@@ -7,6 +7,7 @@ para que el mismo objeto lógico produzca siempre los mismos bytes.
 El módulo re-exporta primitivas de `platform_contracts` para tener una
 API estable en el servicio.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -66,7 +67,8 @@ def compute_self_hash(event: dict[str, Any]) -> str:
     reclasificar con otro profile y producir cadena distinguible).
     """
     clean = {
-        k: v for k, v in event.items()
+        k: v
+        for k, v in event.items()
         if k not in {"self_hash", "chain_hash", "prev_chain_hash", "persisted_at", "id"}
     }
     return hashlib.sha256(canonicalize(clean)).hexdigest()
@@ -78,7 +80,7 @@ def compute_chain_hash(self_hash: str, prev_chain_hash: str | None) -> str:
     El primer evento de un episodio usa GENESIS_HASH como prev.
     """
     prev = prev_chain_hash if prev_chain_hash is not None else GENESIS_HASH
-    combined = f"{self_hash}{prev}".encode("utf-8")
+    combined = f"{self_hash}{prev}".encode()
     return hashlib.sha256(combined).hexdigest()
 
 

@@ -5,15 +5,13 @@ resultado correcto según las policies del seed.
 
 Usa un enforcer en memoria (sin adapter DB) para velocidad.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import casbin
 import pytest
-
 from academic_service.auth.casbin_setup import CASBIN_MODEL
 from academic_service.seeds.casbin_policies import POLICIES
 
@@ -43,7 +41,6 @@ MATRIX = [
     ("role:superadmin", "comision:abc", "update", True),
     ("role:superadmin", "tarea_practica_template:tpl1", "create", True),
     ("role:superadmin", "tarea_practica_template:tpl1", "delete", True),
-
     # Docente admin: gestiona su tenant
     ("role:docente_admin", "carrera:x", "create", True),
     ("role:docente_admin", "carrera:x", "read", True),
@@ -54,7 +51,6 @@ MATRIX = [
     ("role:docente_admin", "tarea_practica_template:tpl1", "create", True),
     ("role:docente_admin", "tarea_practica_template:tpl1", "update", True),
     ("role:docente_admin", "tarea_practica_template:tpl1", "delete", True),
-
     # Docente: lectura del árbol académico, sin modificar
     ("role:docente", "comision:abc", "read", True),
     ("role:docente", "comision:abc", "create", False),
@@ -66,7 +62,6 @@ MATRIX = [
     ("role:docente", "tarea_practica_template:tpl1", "read", True),
     ("role:docente", "tarea_practica_template:tpl1", "update", True),
     ("role:docente", "tarea_practica_template:tpl1", "delete", True),
-
     # Estudiante: muy limitado
     ("role:estudiante", "comision:abc", "read", True),
     ("role:estudiante", "comision:abc", "create", False),
@@ -91,9 +86,7 @@ def test_casbin_matrix(
 ) -> None:
     """Cada celda de la matriz de permisos se evalúa correctamente."""
     actual = enforcer.enforce(sub, "*", obj, act)
-    assert actual == expected, (
-        f"({sub}, {obj}, {act}) = {actual}, esperado {expected}"
-    )
+    assert actual == expected, f"({sub}, {obj}, {act}) = {actual}, esperado {expected}"
 
 
 def test_matriz_es_exhaustiva(enforcer: casbin.Enforcer) -> None:
@@ -110,6 +103,4 @@ def test_matriz_es_exhaustiva(enforcer: casbin.Enforcer) -> None:
 def test_deny_por_default(enforcer: casbin.Enforcer) -> None:
     """Sin policy, la respuesta debe ser deny."""
     assert not enforcer.enforce("role:invitado", "*", "comision:abc", "read")
-    assert not enforcer.enforce(
-        "role:estudiante", "*", "recurso-no-existe:x", "create"
-    )
+    assert not enforcer.enforce("role:estudiante", "*", "recurso-no-existe:x", "create")

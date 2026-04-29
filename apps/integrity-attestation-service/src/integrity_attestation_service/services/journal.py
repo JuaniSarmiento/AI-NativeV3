@@ -13,6 +13,7 @@ Cada attestation serializado es ~500 bytes, por lo que NO se necesita lock
 explicito siempre y cuando solo escriba un consumer (single-consumer del stream
 Redis). Si en el futuro se introduce paralelismo, agregar `filelock` package.
 """
+
 from __future__ import annotations
 
 import json

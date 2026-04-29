@@ -1,11 +1,11 @@
 """Tests de BudgetTracker y ResponseCache usando fakeredis."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import fakeredis.aioredis
 import pytest
-
 from ai_gateway.providers.base import CompletionRequest, CompletionResponse
 from ai_gateway.services.budget_and_cache import BudgetTracker, ResponseCache
 

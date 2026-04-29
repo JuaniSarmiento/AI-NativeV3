@@ -1,4 +1,5 @@
 """Tests de LDAP federation con respx."""
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -6,14 +7,12 @@ from uuid import UUID
 import pytest
 import respx
 from httpx import Response
-
 from platform_ops.ldap_federation import (
     LDAPConfig,
     LDAPFederationSpec,
     LDAPFederator,
     LDAPGroupMapping,
 )
-
 
 KC_BASE = "http://kc.test"
 
@@ -86,9 +85,14 @@ async def test_actualiza_provider_si_ya_existe(federator, ldap_spec) -> None:
             side_effect=[
                 Response(200, json=[{"id": "existing-prov", "name": "LDAP UNSL"}]),
                 # Mappers existentes incluye todos los mappers para que no se dupliquen
-                Response(200, json=[
-                    {"name": "email"}, {"name": "first name"}, {"name": "last name"},
-                ]),
+                Response(
+                    200,
+                    json=[
+                        {"name": "email"},
+                        {"name": "first name"},
+                        {"name": "last name"},
+                    ],
+                ),
                 # tenant_id mapper ya existe
                 Response(200, json=[{"name": "tenant_id_from_ldap_provider"}]),
                 # group mapping ya existe
@@ -96,9 +100,9 @@ async def test_actualiza_provider_si_ya_existe(federator, ldap_spec) -> None:
             ]
         )
         # PUT para update
-        update_put = router.put(
-            f"{KC_BASE}/admin/realms/unsl/components/existing-prov"
-        ).mock(return_value=Response(204))
+        update_put = router.put(f"{KC_BASE}/admin/realms/unsl/components/existing-prov").mock(
+            return_value=Response(204)
+        )
         # NO debe haber POSTs de creación
         create_posts = router.post(f"{KC_BASE}/admin/realms/unsl/components").mock(
             return_value=Response(500)  # si lo llaman, explota
@@ -130,6 +134,7 @@ async def test_config_ldap_pasa_valores_correctos_a_keycloak(federator, ldap_spe
 
         async def capture(request):
             import json
+
             captured_bodies.append(json.loads(request.content))
             return Response(
                 201, headers={"location": f"{KC_BASE}/admin/realms/unsl/components/xxx"}
@@ -167,12 +172,13 @@ async def test_crea_mappers_estandar(federator, ldap_spec) -> None:
                 Response(200, json=[]),  # group check vacío → crear
             ]
         )
-        router.put(
-            f"{KC_BASE}/admin/realms/unsl/components/prov-1"
-        ).mock(return_value=Response(204))
+        router.put(f"{KC_BASE}/admin/realms/unsl/components/prov-1").mock(
+            return_value=Response(204)
+        )
 
         async def capture_mapper(request):
             import json
+
             body = json.loads(request.content)
             mapper_posts.append(body)
             return Response(201)
@@ -200,9 +206,14 @@ async def test_tenant_id_mapper_tiene_uuid_correcto(federator, ldap_spec) -> Non
         router.get(f"{KC_BASE}/admin/realms/unsl/components").mock(
             side_effect=[
                 Response(200, json=[{"id": "prov-1", "name": "LDAP UNSL"}]),
-                Response(200, json=[
-                    {"name": "email"}, {"name": "first name"}, {"name": "last name"},
-                ]),
+                Response(
+                    200,
+                    json=[
+                        {"name": "email"},
+                        {"name": "first name"},
+                        {"name": "last name"},
+                    ],
+                ),
                 Response(200, json=[]),  # tenant_id mapper no existe → crear
                 Response(200, json=[]),
             ]
@@ -213,6 +224,7 @@ async def test_tenant_id_mapper_tiene_uuid_correcto(federator, ldap_spec) -> Non
 
         async def capture(request):
             import json
+
             captured_mappers.append(json.loads(request.content))
             return Response(201)
 

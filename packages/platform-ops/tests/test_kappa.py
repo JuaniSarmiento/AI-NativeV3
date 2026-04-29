@@ -1,10 +1,9 @@
 """Tests del análisis inter-rater Kappa."""
+
 from __future__ import annotations
 
 import pytest
-
 from platform_ops.kappa_analysis import (
-    CATEGORIES,
     KappaRating,
     compute_cohen_kappa,
     format_report,
@@ -13,8 +12,7 @@ from platform_ops.kappa_analysis import (
 
 def _make(ratings: list[tuple[str, str]]) -> list[KappaRating]:
     return [
-        KappaRating(episode_id=f"ep_{i}", rater_a=a, rater_b=b)
-        for i, (a, b) in enumerate(ratings)
+        KappaRating(episode_id=f"ep_{i}", rater_a=a, rater_b=b) for i, (a, b) in enumerate(ratings)
     ]
 
 
@@ -28,9 +26,11 @@ def test_sin_ratings_falla() -> None:
 
 def test_categoria_invalida_falla() -> None:
     with pytest.raises(ValueError, match="Categoría inválida"):
-        compute_cohen_kappa([
-            KappaRating(episode_id="x", rater_a="foo", rater_b="apropiacion_reflexiva"),
-        ])
+        compute_cohen_kappa(
+            [
+                KappaRating(episode_id="x", rater_a="foo", rater_b="apropiacion_reflexiva"),
+            ]
+        )
 
 
 # ── Casos clásicos ────────────────────────────────────────────────────
@@ -38,12 +38,14 @@ def test_categoria_invalida_falla() -> None:
 
 def test_acuerdo_perfecto_kappa_1() -> None:
     """Si ambos raters coinciden en TODO, kappa = 1.0."""
-    ratings = _make([
-        ("apropiacion_reflexiva", "apropiacion_reflexiva"),
-        ("apropiacion_superficial", "apropiacion_superficial"),
-        ("delegacion_pasiva", "delegacion_pasiva"),
-        ("apropiacion_reflexiva", "apropiacion_reflexiva"),
-    ])
+    ratings = _make(
+        [
+            ("apropiacion_reflexiva", "apropiacion_reflexiva"),
+            ("apropiacion_superficial", "apropiacion_superficial"),
+            ("delegacion_pasiva", "delegacion_pasiva"),
+            ("apropiacion_reflexiva", "apropiacion_reflexiva"),
+        ]
+    )
     result = compute_cohen_kappa(ratings)
     assert result.kappa == 1.0
     assert result.interpretation == "casi perfecto"
@@ -51,12 +53,14 @@ def test_acuerdo_perfecto_kappa_1() -> None:
 
 def test_desacuerdo_total_kappa_negativo() -> None:
     """Si los raters nunca coinciden, kappa < 0 (peor que azar)."""
-    ratings = _make([
-        ("apropiacion_reflexiva", "delegacion_pasiva"),
-        ("delegacion_pasiva", "apropiacion_reflexiva"),
-        ("apropiacion_reflexiva", "delegacion_pasiva"),
-        ("delegacion_pasiva", "apropiacion_reflexiva"),
-    ])
+    ratings = _make(
+        [
+            ("apropiacion_reflexiva", "delegacion_pasiva"),
+            ("delegacion_pasiva", "apropiacion_reflexiva"),
+            ("apropiacion_reflexiva", "delegacion_pasiva"),
+            ("delegacion_pasiva", "apropiacion_reflexiva"),
+        ]
+    )
     result = compute_cohen_kappa(ratings)
     assert result.kappa < 0
 
@@ -68,20 +72,22 @@ def test_acuerdo_azar_kappa_0() -> None:
     # rater_a: 3 de cada categoría
     # rater_b: también 3 de cada categoría
     # Sin correlación entre raters → p_o = p_e
-    ratings = _make([
-        # rater_a=reflexiva
-        ("apropiacion_reflexiva", "apropiacion_reflexiva"),
-        ("apropiacion_reflexiva", "apropiacion_superficial"),
-        ("apropiacion_reflexiva", "delegacion_pasiva"),
-        # rater_a=superficial
-        ("apropiacion_superficial", "apropiacion_reflexiva"),
-        ("apropiacion_superficial", "apropiacion_superficial"),
-        ("apropiacion_superficial", "delegacion_pasiva"),
-        # rater_a=delegacion
-        ("delegacion_pasiva", "apropiacion_reflexiva"),
-        ("delegacion_pasiva", "apropiacion_superficial"),
-        ("delegacion_pasiva", "delegacion_pasiva"),
-    ])
+    ratings = _make(
+        [
+            # rater_a=reflexiva
+            ("apropiacion_reflexiva", "apropiacion_reflexiva"),
+            ("apropiacion_reflexiva", "apropiacion_superficial"),
+            ("apropiacion_reflexiva", "delegacion_pasiva"),
+            # rater_a=superficial
+            ("apropiacion_superficial", "apropiacion_reflexiva"),
+            ("apropiacion_superficial", "apropiacion_superficial"),
+            ("apropiacion_superficial", "delegacion_pasiva"),
+            # rater_a=delegacion
+            ("delegacion_pasiva", "apropiacion_reflexiva"),
+            ("delegacion_pasiva", "apropiacion_superficial"),
+            ("delegacion_pasiva", "delegacion_pasiva"),
+        ]
+    )
     result = compute_cohen_kappa(ratings)
     # p_o = 3/9 = 0.333, p_e = (3/9)^2 * 3 = 0.333 → kappa = 0
     assert abs(result.kappa) < 0.001
@@ -128,12 +134,14 @@ def test_per_class_agreement_identifica_clase_problemática() -> None:
 
 
 def test_matriz_de_confusion_precisa() -> None:
-    ratings = _make([
-        ("apropiacion_reflexiva", "apropiacion_reflexiva"),
-        ("apropiacion_reflexiva", "apropiacion_superficial"),
-        ("apropiacion_superficial", "apropiacion_reflexiva"),
-        ("delegacion_pasiva", "delegacion_pasiva"),
-    ])
+    ratings = _make(
+        [
+            ("apropiacion_reflexiva", "apropiacion_reflexiva"),
+            ("apropiacion_reflexiva", "apropiacion_superficial"),
+            ("apropiacion_superficial", "apropiacion_reflexiva"),
+            ("delegacion_pasiva", "delegacion_pasiva"),
+        ]
+    )
     result = compute_cohen_kappa(ratings)
     cm = result.confusion_matrix
     assert cm["apropiacion_reflexiva"]["apropiacion_reflexiva"] == 1
@@ -143,10 +151,12 @@ def test_matriz_de_confusion_precisa() -> None:
 
 
 def test_reporte_legible_incluye_interpretacion() -> None:
-    ratings = _make([
-        ("apropiacion_reflexiva", "apropiacion_reflexiva"),
-        ("apropiacion_superficial", "apropiacion_superficial"),
-    ])
+    ratings = _make(
+        [
+            ("apropiacion_reflexiva", "apropiacion_reflexiva"),
+            ("apropiacion_superficial", "apropiacion_superficial"),
+        ]
+    )
     result = compute_cohen_kappa(ratings)
     report = format_report(result)
     assert "κ =" in report
@@ -158,7 +168,6 @@ def test_reporte_legible_incluye_interpretacion() -> None:
 
 
 def test_interpretacion_por_rango() -> None:
-    from dataclasses import replace
     from platform_ops.kappa_analysis import KappaResult
 
     test_cases = [
@@ -170,7 +179,11 @@ def test_interpretacion_por_rango() -> None:
     ]
     for kappa, expected in test_cases:
         r = KappaResult(
-            kappa=kappa, n_episodes=10,
-            observed_agreement=0.0, expected_agreement=0.0,
+            kappa=kappa,
+            n_episodes=10,
+            observed_agreement=0.0,
+            expected_agreement=0.0,
         )
-        assert r.interpretation == expected, f"kappa={kappa} → esperaba {expected}, got {r.interpretation}"
+        assert r.interpretation == expected, (
+            f"kappa={kappa} → esperaba {expected}, got {r.interpretation}"
+        )

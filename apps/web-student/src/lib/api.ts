@@ -198,10 +198,7 @@ export async function emitCodigoEjecutado(
   return (await r.json()) as EventEmitResponse
 }
 
-export type EdicionCodigoOrigin =
-  | "student_typed"
-  | "copied_from_tutor"
-  | "pasted_external"
+export type EdicionCodigoOrigin = "student_typed" | "copied_from_tutor" | "pasted_external"
 
 /** Emite un evento edicion_codigo al CTR. Disparado por el editor con
  * debouncing (1s) — el snapshot es el estado actual del buffer y diff_chars

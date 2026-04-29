@@ -12,6 +12,7 @@ Arquitectura: re-uso puro del pipeline del classifier-service. Los
 profiles se pasan como dicts en memoria; no hay que tocar la DB ni
 reemplazar el `is_current` de las clasificaciones reales.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -111,22 +112,26 @@ def compare_profiles(
             pred = classification.appropriation
             predictions[ep.episode_id] = pred
 
-            ratings.append(KappaRating(
-                episode_id=ep.episode_id,
-                rater_a=pred,           # predicción del profile (modelo)
-                rater_b=ep.human_label, # gold standard humano
-            ))
+            ratings.append(
+                KappaRating(
+                    episode_id=ep.episode_id,
+                    rater_a=pred,  # predicción del profile (modelo)
+                    rater_b=ep.human_label,  # gold standard humano
+                )
+            )
 
         # 2. Calcular Kappa del profile vs humano
         kappa = compute_cohen_kappa(ratings)
 
-        results.append(ProfileComparisonResult(
-            profile_name=profile.get("name", "unknown"),
-            profile_version=profile.get("version", "unknown"),
-            profile_hash=compute_hash_fn(profile),
-            kappa=kappa,
-            predictions=predictions,
-        ))
+        results.append(
+            ProfileComparisonResult(
+                profile_name=profile.get("name", "unknown"),
+                profile_version=profile.get("version", "unknown"),
+                profile_hash=compute_hash_fn(profile),
+                kappa=kappa,
+                predictions=predictions,
+            )
+        )
 
     # Determinar ganador
     winner = None
@@ -141,8 +146,8 @@ def compare_profiles(
 
 
 __all__ = [
+    "ABComparisonReport",
     "EpisodeForComparison",
     "ProfileComparisonResult",
-    "ABComparisonReport",
     "compare_profiles",
 ]

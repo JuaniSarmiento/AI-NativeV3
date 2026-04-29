@@ -4,6 +4,7 @@ Un `Material` es un archivo cargado por un docente (PDF, Markdown,
 ZIP de código, video). Al procesarse se descompone en `Chunk`s con
 embedding vectorial para retrieval semántico.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -12,7 +13,8 @@ from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import BigInteger, DateTime, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from content_service.models.base import (
@@ -20,10 +22,9 @@ from content_service.models.base import (
     TenantMixin,
     TimestampMixin,
     fk_uuid,
-    uuid_pk,
     utc_now,
+    uuid_pk,
 )
-
 
 # Dimensión del modelo de embeddings default (multilingual-e5-large = 1024)
 EMBEDDING_DIM = 1024
@@ -35,9 +36,7 @@ class Material(Base, TenantMixin, TimestampMixin):
     __tablename__ = "materiales"
 
     id: Mapped[uuid.UUID] = uuid_pk()
-    comision_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     # No hay FK a comisiones porque esa tabla vive en academic_main (ADR-003).
     # La consistencia se verifica en capa de servicio mediante HTTP a academic-service.
 
@@ -82,17 +81,13 @@ class Chunk(Base, TenantMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     material_id: Mapped[uuid.UUID] = fk_uuid("materiales.id")
-    comision_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     # Denormalizado desde Material para permitir filtrar sin join
 
     contenido: Mapped[str] = mapped_column(Text, nullable=False)
     contenido_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
-    embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(EMBEDDING_DIM), nullable=True
-    )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     # Nullable porque la creación del chunk y su embedding son pasos
     # separados del pipeline (chunking síncrono, embedding asíncrono).
 
@@ -110,14 +105,18 @@ class Chunk(Base, TenantMixin):
     # timestamp_seconds, heading_path, ...}
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now, nullable=False,
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
     )
 
     material: Mapped[Material] = relationship(back_populates="chunks")
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "material_id", "position",
+            "tenant_id",
+            "material_id",
+            "position",
             name="uq_chunks_tenant_material_position",
         ),
     )

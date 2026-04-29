@@ -5,6 +5,7 @@ Cubre:
 - GET /api/v1/attestations/pubkey: devuelve PEM con header X-Signer-Pubkey-Id
 - GET /api/v1/attestations/{date}: 200 con bytes exactos / 404 / 400 si formato invalido
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -99,9 +100,7 @@ async def test_post_attestation_firma_es_verificable_con_pubkey(
     assert verify_buffer(pub, canonical, data["signature"]) is True
 
 
-async def test_post_attestation_appendea_al_journal(
-    client: AsyncClient, tmp_path: Path
-) -> None:
+async def test_post_attestation_appendea_al_journal(client: AsyncClient, tmp_path: Path) -> None:
     """Despues del POST exitoso, debe existir un archivo JSONL del dia con
     al menos una linea conteniendo el episode_id."""
     r = await client.post("/api/v1/attestations", json=_VALID_REQUEST)

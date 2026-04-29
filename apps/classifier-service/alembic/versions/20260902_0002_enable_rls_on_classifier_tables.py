@@ -13,6 +13,7 @@ servicio que produce las etiquetas N4 que se exportan a investigadores —
 una falla de aislamiento acá contamina el dataset de un tenant con datos
 de otro.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

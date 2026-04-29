@@ -1,4 +1,5 @@
 """Tests del detector de formato."""
+
 from __future__ import annotations
 
 from content_service.extractors.base import detect_format

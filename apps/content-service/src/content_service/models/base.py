@@ -3,6 +3,7 @@
 Reutiliza las convenciones de academic-service: mixins de tenant y
 timestamp, helpers de uuid_pk y fk_uuid.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -12,7 +13,6 @@ from typing import Any
 from sqlalchemy import DateTime, ForeignKey, MetaData, text
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 NAMING_CONVENTION: dict[str, str] = {
     "ix": "ix_%(column_0_label)s",
@@ -45,9 +45,7 @@ class TimestampMixin:
 
 
 class TenantMixin:
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
 
 
 def uuid_pk() -> Mapped[uuid.UUID]:

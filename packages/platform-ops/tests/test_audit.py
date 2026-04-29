@@ -1,9 +1,8 @@
 """Tests de auditoría de accesos sospechosos."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-
-import pytest
 
 from platform_ops.audit import (
     AccessEvent,
@@ -129,8 +128,7 @@ def test_cross_tenant_requests_normales_no_disparan() -> None:
 def test_repeated_401s_disparan() -> None:
     rule = RepeatedAuthFailuresRule(threshold=10, window=timedelta(minutes=10))
     events = [
-        _ev(i * 30, action="api_request", status=401)
-        for i in range(10)
+        _ev(i * 30, action="api_request", status=401) for i in range(10)
     ]  # 10 401s en 300 seg
     findings = rule.evaluate(events)
     assert len(findings) == 1
@@ -155,8 +153,10 @@ def test_engine_corre_todas_las_reglas() -> None:
         *[_ev(i * 10, action="login_failed") for i in range(5)],
         # 1 cross-tenant
         _ev(
-            100, principal="another",
-            action="api_request", status=403,
+            100,
+            principal="another",
+            action="api_request",
+            status=403,
             error_reason="tenant mismatch",
         ),
     ]
@@ -172,8 +172,10 @@ def test_engine_ordena_por_severidad() -> None:
     events = [
         *[_ev(i * 10, action="login_failed") for i in range(5)],  # HIGH
         _ev(
-            100, principal="another",
-            action="api_request", status=403,
+            100,
+            principal="another",
+            action="api_request",
+            status=403,
             error_reason="tenant mismatch",
         ),  # CRITICAL
     ]
@@ -189,6 +191,7 @@ def test_finding_serializable() -> None:
     findings = rule.evaluate(events)
 
     import json
+
     serialized = json.dumps(findings[0].to_dict())
     parsed = json.loads(serialized)
     assert parsed["severity"] == "high"

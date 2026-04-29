@@ -1,4 +1,5 @@
 """Alembic env.py del ctr-service."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +17,7 @@ SRC = Path(__file__).parent.parent / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from ctr_service.models import Base  # noqa: E402
+from ctr_service.models import Base
 
 config = context.config
 if config.config_file_name is not None:
@@ -46,7 +47,9 @@ async def run_async_migrations() -> None:
 
 
 if context.is_offline_mode():
-    context.configure(url=get_url(), target_metadata=target_metadata, literal_binds=True, compare_type=True)
+    context.configure(
+        url=get_url(), target_metadata=target_metadata, literal_binds=True, compare_type=True
+    )
     with context.begin_transaction():
         context.run_migrations()
 else:

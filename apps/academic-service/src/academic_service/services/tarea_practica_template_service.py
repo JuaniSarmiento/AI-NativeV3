@@ -17,6 +17,7 @@ Invariantes críticas (coherentes con `TareaPracticaService`):
   en vez de hacer un fan-out parcial (ADR-016 > Consecuencias > Conflicto
   codigo con TP huérfanas).
 """
+
 from __future__ import annotations
 
 import logging
@@ -152,9 +153,7 @@ class TareaPracticaTemplateService:
     # CRUD público
     # ------------------------------------------------------------------
 
-    async def create(
-        self, data: TareaPracticaTemplateCreate, user: User
-    ) -> TareaPracticaTemplate:
+    async def create(self, data: TareaPracticaTemplateCreate, user: User) -> TareaPracticaTemplate:
         """Crea template + auto-instancia una TP en cada comisión de la materia+periodo.
 
         Si alguna comisión ya tiene una `TareaPractica` con el mismo `codigo`,
@@ -205,25 +204,27 @@ class TareaPracticaTemplateService:
         instances_created = 0
         for comision_id in comision_ids:
             new_tp_id = uuid4()
-            await self.tp_repo.create({
-                "id": new_tp_id,
-                "tenant_id": user.tenant_id,
-                "comision_id": comision_id,
-                "codigo": data.codigo,
-                "titulo": data.titulo,
-                "enunciado": data.enunciado,
-                "inicial_codigo": data.inicial_codigo,
-                "fecha_inicio": data.fecha_inicio,
-                "fecha_fin": data.fecha_fin,
-                "peso": data.peso,
-                "rubrica": data.rubrica,
-                "estado": "draft",
-                "version": 1,
-                "parent_tarea_id": None,
-                "template_id": template.id,
-                "has_drift": False,
-                "created_by": user.id,
-            })
+            await self.tp_repo.create(
+                {
+                    "id": new_tp_id,
+                    "tenant_id": user.tenant_id,
+                    "comision_id": comision_id,
+                    "codigo": data.codigo,
+                    "titulo": data.titulo,
+                    "enunciado": data.enunciado,
+                    "inicial_codigo": data.inicial_codigo,
+                    "fecha_inicio": data.fecha_inicio,
+                    "fecha_fin": data.fecha_fin,
+                    "peso": data.peso,
+                    "rubrica": data.rubrica,
+                    "estado": "draft",
+                    "version": 1,
+                    "parent_tarea_id": None,
+                    "template_id": template.id,
+                    "has_drift": False,
+                    "created_by": user.id,
+                }
+            )
             self._add_instance_audit(
                 tenant_id=user.tenant_id,
                 user_id=user.id,
@@ -249,9 +250,7 @@ class TareaPracticaTemplateService:
         await self.session.flush()
         return template
 
-    async def get(
-        self, template_id: UUID, tenant_id: UUID
-    ) -> TareaPracticaTemplate:
+    async def get(self, template_id: UUID, tenant_id: UUID) -> TareaPracticaTemplate:
         return await self._get_template_or_404(template_id, tenant_id)
 
     async def update(
@@ -268,10 +267,7 @@ class TareaPracticaTemplateService:
         if obj.estado != "draft":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"Template en estado '{obj.estado}' es inmutable; "
-                    "cree una nueva versión"
-                ),
+                detail=(f"Template en estado '{obj.estado}' es inmutable; cree una nueva versión"),
             )
 
         changes = patch.model_dump(exclude_unset=True, exclude_none=True)
@@ -289,9 +285,7 @@ class TareaPracticaTemplateService:
         await self.session.refresh(obj)
         return obj
 
-    async def publish(
-        self, template_id: UUID, user: User
-    ) -> TareaPracticaTemplate:
+    async def publish(self, template_id: UUID, user: User) -> TareaPracticaTemplate:
         """Marca template como published. NO publica instancias."""
         obj = await self._get_template_or_404(template_id, user.tenant_id)
         if obj.estado == "published":
@@ -317,9 +311,7 @@ class TareaPracticaTemplateService:
         await self.session.refresh(obj)
         return obj
 
-    async def archive(
-        self, template_id: UUID, user: User
-    ) -> TareaPracticaTemplate:
+    async def archive(self, template_id: UUID, user: User) -> TareaPracticaTemplate:
         """Marca template como archived. No archiva instancias."""
         obj = await self._get_template_or_404(template_id, user.tenant_id)
         if obj.estado == "archived":
@@ -368,9 +360,7 @@ class TareaPracticaTemplateService:
                 "codigo": parent.codigo,
                 "titulo": overrides.get("titulo", parent.titulo),
                 "enunciado": overrides.get("enunciado", parent.enunciado),
-                "inicial_codigo": overrides.get(
-                    "inicial_codigo", parent.inicial_codigo
-                ),
+                "inicial_codigo": overrides.get("inicial_codigo", parent.inicial_codigo),
                 "rubrica": overrides.get("rubrica", parent.rubrica),
                 "peso": overrides.get("peso", parent.peso),
                 "fecha_inicio": overrides.get("fecha_inicio", parent.fecha_inicio),
@@ -396,33 +386,32 @@ class TareaPracticaTemplateService:
             for inst in instances:
                 if inst.has_drift:
                     logger.warning(
-                        "Instance %s skipped: has_drift=true", inst.id,
+                        "Instance %s skipped: has_drift=true",
+                        inst.id,
                     )
                     continue
                 new_tp_id = uuid4()
-                await self.tp_repo.create({
-                    "id": new_tp_id,
-                    "tenant_id": user.tenant_id,
-                    "comision_id": inst.comision_id,
-                    "codigo": parent.codigo,
-                    "titulo": overrides.get("titulo", inst.titulo),
-                    "enunciado": overrides.get("enunciado", inst.enunciado),
-                    "inicial_codigo": overrides.get(
-                        "inicial_codigo", inst.inicial_codigo
-                    ),
-                    "fecha_inicio": overrides.get(
-                        "fecha_inicio", inst.fecha_inicio
-                    ),
-                    "fecha_fin": overrides.get("fecha_fin", inst.fecha_fin),
-                    "peso": overrides.get("peso", inst.peso),
-                    "rubrica": overrides.get("rubrica", inst.rubrica),
-                    "estado": "draft",
-                    "version": inst.version + 1,
-                    "parent_tarea_id": inst.id,
-                    "template_id": new_template.id,
-                    "has_drift": False,
-                    "created_by": user.id,
-                })
+                await self.tp_repo.create(
+                    {
+                        "id": new_tp_id,
+                        "tenant_id": user.tenant_id,
+                        "comision_id": inst.comision_id,
+                        "codigo": parent.codigo,
+                        "titulo": overrides.get("titulo", inst.titulo),
+                        "enunciado": overrides.get("enunciado", inst.enunciado),
+                        "inicial_codigo": overrides.get("inicial_codigo", inst.inicial_codigo),
+                        "fecha_inicio": overrides.get("fecha_inicio", inst.fecha_inicio),
+                        "fecha_fin": overrides.get("fecha_fin", inst.fecha_fin),
+                        "peso": overrides.get("peso", inst.peso),
+                        "rubrica": overrides.get("rubrica", inst.rubrica),
+                        "estado": "draft",
+                        "version": inst.version + 1,
+                        "parent_tarea_id": inst.id,
+                        "template_id": new_template.id,
+                        "has_drift": False,
+                        "created_by": user.id,
+                    }
+                )
                 reinstanced_count += 1
 
         self._add_audit(
@@ -439,25 +428,17 @@ class TareaPracticaTemplateService:
         await self.session.flush()
         return new_template
 
-    async def list_instances(
-        self, template_id: UUID, tenant_id: UUID
-    ) -> list[TareaPractica]:
+    async def list_instances(self, template_id: UUID, tenant_id: UUID) -> list[TareaPractica]:
         """Lista las instancias vigentes del template."""
         # Valida que el template exista (y pertenezca al tenant) antes de
         # listar; evita devolver `[]` falso positivo para un id inexistente.
         await self._get_template_or_404(template_id, tenant_id)
-        return await self.repo.list_instances(
-            self.session, tenant_id, template_id
-        )
+        return await self.repo.list_instances(self.session, tenant_id, template_id)
 
-    async def list_versions(
-        self, template_id: UUID, tenant_id: UUID
-    ) -> list[dict[str, Any]]:
+    async def list_versions(self, template_id: UUID, tenant_id: UUID) -> list[dict[str, Any]]:
         """Devuelve la cadena de versiones con flag `is_current` en la última no archivada."""
         await self._get_template_or_404(template_id, tenant_id)
-        chain = await self.repo.list_versions(
-            self.session, tenant_id, template_id
-        )
+        chain = await self.repo.list_versions(self.session, tenant_id, template_id)
 
         # "current" = la mayor versión no archivada (si existe).
         non_archived = [t for t in chain if t.estado != "archived"]
@@ -476,16 +457,12 @@ class TareaPracticaTemplateService:
             for t in chain
         ]
 
-    async def soft_delete(
-        self, template_id: UUID, user: User
-    ) -> TareaPracticaTemplate:
+    async def soft_delete(self, template_id: UUID, user: User) -> TareaPracticaTemplate:
         """Soft-delete del template. NO borra instancias (evidencia CTR)."""
         obj = await self._get_template_or_404(template_id, user.tenant_id)
 
         # Contar instancias vigentes ANTES de soft-delete — para audit log.
-        instances = await self.repo.list_instances(
-            self.session, user.tenant_id, template_id
-        )
+        instances = await self.repo.list_instances(self.session, user.tenant_id, template_id)
         instances_remaining = len(instances)
 
         await self.repo.soft_delete(self.session, obj)
@@ -523,8 +500,6 @@ class TareaPracticaTemplateService:
             stmt = stmt.where(TareaPracticaTemplate.periodo_id == periodo_id)
         if estado is not None:
             stmt = stmt.where(TareaPracticaTemplate.estado == estado)
-        stmt = stmt.order_by(
-            TareaPracticaTemplate.codigo, TareaPracticaTemplate.version
-        )
+        stmt = stmt.order_by(TareaPracticaTemplate.codigo, TareaPracticaTemplate.version)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

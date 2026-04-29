@@ -13,16 +13,17 @@ Los eventos se evalúan contra reglas y se generan `SuspiciousAccess`
 findings. En F7 el resultado se exporta a SIEM; en F6 lo guardamos como
 registros locales para revisión manual del docente_admin.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-from enum import Enum
-from typing import Iterable
+from datetime import datetime, timedelta
+from enum import StrEnum
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -98,25 +99,24 @@ class BruteForceRule:
             for ev in evs_sorted:
                 window_events.append(ev)
                 # Drop eventos fuera de la ventana
-                while (
-                    window_events
-                    and (ev.ts - window_events[0].ts) > self.window
-                ):
+                while window_events and (ev.ts - window_events[0].ts) > self.window:
                     window_events.popleft()
                 if len(window_events) >= self.threshold:
-                    findings.append(SuspiciousAccess(
-                        rule_id=self.rule_id,
-                        severity=Severity.HIGH,
-                        principal_id=principal,
-                        tenant_id=None,
-                        summary=(
-                            f"{len(window_events)} logins fallidos en {self.window.total_seconds()/60:.0f} min"
-                        ),
-                        event_count=len(window_events),
-                        first_seen=window_events[0].ts,
-                        last_seen=window_events[-1].ts,
-                        sample_events=list(window_events)[:5],
-                    ))
+                    findings.append(
+                        SuspiciousAccess(
+                            rule_id=self.rule_id,
+                            severity=Severity.HIGH,
+                            principal_id=principal,
+                            tenant_id=None,
+                            summary=(
+                                f"{len(window_events)} logins fallidos en {self.window.total_seconds() / 60:.0f} min"
+                            ),
+                            event_count=len(window_events),
+                            first_seen=window_events[0].ts,
+                            last_seen=window_events[-1].ts,
+                            sample_events=list(window_events)[:5],
+                        )
+                    )
                     break  # un finding por principal es suficiente
         return findings
 
@@ -141,17 +141,19 @@ class CrossTenantAccessRule:
                 and ev.error_reason
                 and "tenant" in ev.error_reason.lower()
             ):
-                findings.append(SuspiciousAccess(
-                    rule_id=self.rule_id,
-                    severity=Severity.CRITICAL,
-                    principal_id=ev.principal_id,
-                    tenant_id=ev.tenant_id,
-                    summary=f"Intento cross-tenant: {ev.error_reason}",
-                    event_count=1,
-                    first_seen=ev.ts,
-                    last_seen=ev.ts,
-                    sample_events=[ev],
-                ))
+                findings.append(
+                    SuspiciousAccess(
+                        rule_id=self.rule_id,
+                        severity=Severity.CRITICAL,
+                        principal_id=ev.principal_id,
+                        tenant_id=ev.tenant_id,
+                        summary=f"Intento cross-tenant: {ev.error_reason}",
+                        event_count=1,
+                        first_seen=ev.ts,
+                        last_seen=ev.ts,
+                        sample_events=[ev],
+                    )
+                )
         return findings
 
 
@@ -176,24 +178,23 @@ class RepeatedAuthFailuresRule:
             window_events: deque[AccessEvent] = deque()
             for ev in evs_sorted:
                 window_events.append(ev)
-                while (
-                    window_events
-                    and (ev.ts - window_events[0].ts) > self.window
-                ):
+                while window_events and (ev.ts - window_events[0].ts) > self.window:
                     window_events.popleft()
                 if len(window_events) >= self.threshold:
-                    findings.append(SuspiciousAccess(
-                        rule_id=self.rule_id,
-                        severity=Severity.MEDIUM,
-                        principal_id=principal,
-                        tenant_id=evs_sorted[0].tenant_id,
-                        summary=(
-                            f"{len(window_events)} errores 401 en {self.window.total_seconds()/60:.0f} min"
-                        ),
-                        event_count=len(window_events),
-                        first_seen=window_events[0].ts,
-                        last_seen=window_events[-1].ts,
-                    ))
+                    findings.append(
+                        SuspiciousAccess(
+                            rule_id=self.rule_id,
+                            severity=Severity.MEDIUM,
+                            principal_id=principal,
+                            tenant_id=evs_sorted[0].tenant_id,
+                            summary=(
+                                f"{len(window_events)} errores 401 en {self.window.total_seconds() / 60:.0f} min"
+                            ),
+                            event_count=len(window_events),
+                            first_seen=window_events[0].ts,
+                            last_seen=window_events[-1].ts,
+                        )
+                    )
                     break
         return findings
 
@@ -227,7 +228,5 @@ class AuditEngine:
             Severity.MEDIUM: 2,
             Severity.LOW: 3,
         }
-        findings.sort(
-            key=lambda f: (severity_order[f.severity], -f.last_seen.timestamp())
-        )
+        findings.sort(key=lambda f: (severity_order[f.severity], -f.last_seen.timestamp()))
         return findings

@@ -9,6 +9,7 @@ piloto se restringe por IP allowlist a nivel red. Los GETs son publicos por
 diseno: la informacion de las attestations (hashes + firmas) es lo que
 buscamos que sea verificable por terceros.
 """
+
 from __future__ import annotations
 
 import logging

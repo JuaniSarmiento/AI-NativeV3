@@ -4,6 +4,7 @@ Esta función orquesta el flujo completo para un Material dado. En F2 es
 síncrona (mismo request HTTP); en F3 se mueve a un job async con
 Redis Streams para no bloquear uploads grandes.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -81,9 +82,7 @@ class IngestionPipeline:
             vectors = await embedder.embed_documents(texts)
 
             # 5. Persistencia: borrar chunks anteriores del material + insertar nuevos
-            await self.session.execute(
-                delete(Chunk).where(Chunk.material_id == material.id)
-            )
+            await self.session.execute(delete(Chunk).where(Chunk.material_id == material.id))
 
             for final_chunk, vector in zip(chunks, vectors, strict=True):
                 chunk_row = Chunk(

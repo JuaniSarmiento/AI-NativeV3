@@ -10,6 +10,7 @@ que el estudiante ve en el editor al abrir un episodio. NULL significa
 "sin template" — el campo es semánticamente significativo, no hay
 default.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

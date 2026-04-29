@@ -16,6 +16,7 @@ Uso:
     cd apps/integrity-attestation-service
     uv run python dev-keys/regenerate.py
 """
+
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization

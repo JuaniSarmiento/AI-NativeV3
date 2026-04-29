@@ -4,12 +4,12 @@ El test crítico: si el manifest declara un hash que no coincide con el
 contenido real, el loader falla fail-loud. Esta es la defensa contra
 manipulación en runtime (ADR-009).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
-
 from governance_service.services.prompt_loader import (
     PromptLoader,
     compute_content_hash,
@@ -23,9 +23,7 @@ def _make_repo(tmp_path: Path, content: str, declared_hash: str | None = None) -
     (prompt_dir / "system.md").write_text(content)
 
     if declared_hash is not None:
-        (prompt_dir / "manifest.yaml").write_text(
-            f"files:\n  system.md: {declared_hash}\n"
-        )
+        (prompt_dir / "manifest.yaml").write_text(f"files:\n  system.md: {declared_hash}\n")
 
     return tmp_path
 

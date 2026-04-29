@@ -1,7 +1,8 @@
 """Embeddings y re-ranking."""
+
 from content_service.embedding.embedder import (
-    BaseEmbedder,
     EMBEDDING_DIM,
+    BaseEmbedder,
     MockEmbedder,
     SentenceTransformerEmbedder,
     get_embedder,
@@ -14,13 +15,13 @@ from content_service.embedding.reranker import (
 )
 
 __all__ = [
-    "BaseEmbedder",
-    "MockEmbedder",
-    "SentenceTransformerEmbedder",
-    "get_embedder",
     "EMBEDDING_DIM",
+    "BaseEmbedder",
     "BaseReranker",
     "CrossEncoderReranker",
     "IdentityReranker",
+    "MockEmbedder",
+    "SentenceTransformerEmbedder",
+    "get_embedder",
     "get_reranker",
 ]

@@ -1,12 +1,12 @@
 """Tests del endpoint /api/v1/analytics/cohort/{id}/adversarial-events (ADR-019)."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 _TENANT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 _USER_ID = "11111111-1111-1111-1111-111111111111"

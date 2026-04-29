@@ -1,8 +1,8 @@
 """Tests del endpoint de salud."""
-import pytest
-from httpx import ASGITransport, AsyncClient
 
+import pytest
 from content_service.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture

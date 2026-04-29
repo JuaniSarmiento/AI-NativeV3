@@ -424,11 +424,7 @@ export default function EpisodePage() {
  *    flushea en el siguiente flush con episode válido (mejor evidencia
  *    cuando la TP demoró en abrir).
  */
-function useReadingTimeReporter(
-  episodeId: string | null,
-  enabled: boolean,
-  flushMs = 30_000,
-) {
+function useReadingTimeReporter(episodeId: string | null, enabled: boolean, flushMs = 30_000) {
   const elementRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -437,8 +433,7 @@ function useReadingTimeReporter(
     if (!target) return
 
     let visibleInDom = false
-    let tabVisible =
-      typeof document !== "undefined" ? document.visibilityState === "visible" : true
+    let tabVisible = typeof document !== "undefined" ? document.visibilityState === "visible" : true
     let accumMs = 0
     let lastTickAt: number | null = null
 

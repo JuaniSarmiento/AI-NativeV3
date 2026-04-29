@@ -10,6 +10,7 @@ Sin ambos, el tutor podría recibir chunks de otras comisiones de la
 misma universidad. Esto violaría la propiedad de aislamiento pedagógico
 de la tesis.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -25,7 +26,6 @@ from content_service.schemas import (
     RetrievalResponse,
     RetrievedChunk,
 )
-
 
 # Cuántos candidatos traer del vector search antes de re-rankear
 VECTOR_TOP_N = 20
@@ -83,9 +83,7 @@ class RetrievalService:
             )
 
         # Filtrar por threshold de similitud vectorial (descartar basura obvia)
-        above_threshold = [
-            r for r in candidates if r["score_vector"] >= request.score_threshold
-        ]
+        above_threshold = [r for r in candidates if r["score_vector"] >= request.score_threshold]
         if not above_threshold:
             return RetrievalResponse(
                 chunks=[],

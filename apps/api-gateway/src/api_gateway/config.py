@@ -1,4 +1,5 @@
 """Configuración del api-gateway."""
+
 from functools import lru_cache
 
 from pydantic import Field
@@ -40,7 +41,9 @@ class Settings(BaseSettings):
     # modo dev y acepta headers X-* tal cual vienen (solo para local).
     jwt_issuer: str = ""  # ej "http://keycloak:8080/realms/demo_uni"
     jwt_audience: str = "platform-backend"
-    jwt_jwks_uri: str = ""  # ej "http://keycloak:8080/realms/demo_uni/protocol/openid-connect/certs"
+    jwt_jwks_uri: str = (
+        ""  # ej "http://keycloak:8080/realms/demo_uni/protocol/openid-connect/certs"
+    )
     jwt_jwks_cache_ttl: int = 300
     dev_trust_headers: bool = True  # en prod esto debe ser False
 

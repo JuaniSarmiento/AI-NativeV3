@@ -23,12 +23,12 @@ Uso:
     result = compute_cohen_kappa(ratings)
     print(f"Kappa = {result.kappa:.3f} ({result.interpretation})")
 """
+
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
-
 
 CATEGORIES = (
     "delegacion_pasiva",
@@ -94,9 +94,7 @@ def compute_cohen_kappa(ratings: Sequence[KappaRating]) -> KappaResult:
             raise ValueError(f"Categoría inválida en rater_b: {r.rater_b}")
 
     # 1. Matriz de confusión (filas = rater_a, cols = rater_b)
-    confusion: dict[str, dict[str, int]] = {
-        c: {cc: 0 for cc in CATEGORIES} for c in CATEGORIES
-    }
+    confusion: dict[str, dict[str, int]] = {c: dict.fromkeys(CATEGORIES, 0) for c in CATEGORIES}
     for r in ratings:
         confusion[r.rater_a][r.rater_b] += 1
 
@@ -109,10 +107,7 @@ def compute_cohen_kappa(ratings: Sequence[KappaRating]) -> KappaResult:
     marg_b = Counter(r.rater_b for r in ratings)
 
     # 4. Acuerdo esperado por azar
-    p_e = sum(
-        (marg_a[c] / n) * (marg_b[c] / n)
-        for c in CATEGORIES
-    )
+    p_e = sum((marg_a[c] / n) * (marg_b[c] / n) for c in CATEGORIES)
 
     # 5. Kappa
     if p_e == 1.0:
@@ -158,9 +153,7 @@ def format_report(result: KappaResult) -> str:
 
     lines.append("")
     lines.append("Matriz de confusión (rater_a × rater_b):")
-    header = "                           | " + " | ".join(
-        f"{c:>15}" for c in CATEGORIES
-    )
+    header = "                           | " + " | ".join(f"{c:>15}" for c in CATEGORIES)
     lines.append(header)
     lines.append("-" * len(header))
     for c in CATEGORIES:

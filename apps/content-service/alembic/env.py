@@ -1,4 +1,5 @@
 """Alembic environment del content-service."""
+
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +17,7 @@ SRC = Path(__file__).parent.parent / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from content_service.models import Base  # noqa: E402
+from content_service.models import Base
 
 config = context.config
 if config.config_file_name is not None:

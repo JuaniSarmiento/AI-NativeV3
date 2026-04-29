@@ -34,6 +34,7 @@ Con env vars custom:
     ACADEMIC_DB_URL=...  CTR_STORE_URL=...  CLASSIFIER_DB_URL=...  \
     python scripts/seed-3-comisiones.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -52,15 +53,14 @@ sys.path.insert(0, str(ROOT / "apps" / "ctr-service" / "src"))
 sys.path.insert(0, str(ROOT / "apps" / "classifier-service" / "src"))
 sys.path.insert(0, str(ROOT / "apps" / "academic-service" / "src"))
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 # Hashing helpers del proyecto (source of truth, ADR-010)
-from ctr_service.services.hashing import (  # noqa: E402
+from ctr_service.services.hashing import (
     GENESIS_HASH,
     compute_chain_hash,
     compute_self_hash,
 )
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ---------------------------------------------------------------------
 # Constantes del piloto
@@ -70,18 +70,18 @@ TENANT_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
 # Jerarquia academica compartida por las 3 comisiones
 UNIVERSIDAD_ID = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-FACULTAD_ID    = UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
-CARRERA_ID     = UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
-PLAN_ID        = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
-MATERIA_ID     = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
-PERIODO_ID     = UUID("12345678-1234-1234-1234-123456789abc")
+FACULTAD_ID = UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+CARRERA_ID = UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+PLAN_ID = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+MATERIA_ID = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+PERIODO_ID = UUID("12345678-1234-1234-1234-123456789abc")
 
 DOCENTE_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 
-PROMPT_SYSTEM_HASH     = hashlib.sha256(b"prompt-system-demo-v1").hexdigest()
-PROMPT_SYSTEM_VERSION  = "v1.0.0"
+PROMPT_SYSTEM_HASH = hashlib.sha256(b"prompt-system-demo-v1").hexdigest()
+PROMPT_SYSTEM_VERSION = "v1.0.0"
 CLASSIFIER_CONFIG_HASH = hashlib.sha256(b"classifier-config-demo-v1").hexdigest()
-CURSO_CONFIG_HASH      = hashlib.sha256(b"curso-config-demo-v1").hexdigest()
+CURSO_CONFIG_HASH = hashlib.sha256(b"curso-config-demo-v1").hexdigest()
 
 PROBLEMA_ID = UUID("99999999-9999-9999-9999-999999999999")
 
@@ -166,7 +166,9 @@ COHORTES = [
         # Patron balanceado (identico al demo original)
         "patterns": [
             ["apropiacion_superficial"] * 2 + ["apropiacion_reflexiva"] * 4,
-            ["delegacion_pasiva"] * 2 + ["apropiacion_superficial"] * 2 + ["apropiacion_reflexiva"] * 2,
+            ["delegacion_pasiva"] * 2
+            + ["apropiacion_superficial"] * 2
+            + ["apropiacion_reflexiva"] * 2,
             ["apropiacion_superficial"] * 5,
             ["apropiacion_reflexiva"] * 5,
             ["apropiacion_reflexiva"] * 3 + ["apropiacion_superficial"] * 3,
@@ -316,9 +318,7 @@ def _build_events_for_episode(
     results: list[dict] = []
     prev_chain = GENESIS_HASH
     for seq, spec in enumerate(specs):
-        event_uuid = UUID(
-            int=(episode_id.int ^ (seq + 1) * 0x9E3779B97F4A7C15) & ((1 << 128) - 1)
-        )
+        event_uuid = UUID(int=(episode_id.int ^ (seq + 1) * 0x9E3779B97F4A7C15) & ((1 << 128) - 1))
         canonical = _build_event_canonical(
             event_uuid=event_uuid,
             episode_id=episode_id,
@@ -330,16 +330,18 @@ def _build_events_for_episode(
         )
         self_hash = compute_self_hash(canonical)
         chain_hash = compute_chain_hash(self_hash, prev_chain)
-        results.append({
-            "event_uuid": event_uuid,
-            "seq": seq,
-            "event_type": spec["event_type"],
-            "ts_dt": spec["ts"],
-            "payload": spec["payload"],
-            "self_hash": self_hash,
-            "chain_hash": chain_hash,
-            "prev_chain_hash": prev_chain,
-        })
+        results.append(
+            {
+                "event_uuid": event_uuid,
+                "seq": seq,
+                "event_type": spec["event_type"],
+                "ts_dt": spec["ts"],
+                "payload": spec["payload"],
+                "self_hash": self_hash,
+                "chain_hash": chain_hash,
+                "prev_chain_hash": prev_chain,
+            }
+        )
         prev_chain = chain_hash
     return results
 
@@ -400,70 +402,126 @@ async def seed_academic(academic_url: str) -> None:
                     "INSERT INTO universidades (id, nombre, codigo, dominio_email, keycloak_realm, config) "
                     "VALUES (:id, :nombre, :codigo, :dominio, :realm, '{}'::jsonb)"
                 ),
-                {"id": str(UNIVERSIDAD_ID), "nombre": "UNSL demo",
-                 "codigo": "UNSL-DEMO", "dominio": "unsl.edu.ar",
-                 "realm": "demo_uni"},
+                {
+                    "id": str(UNIVERSIDAD_ID),
+                    "nombre": "UNSL demo",
+                    "codigo": "UNSL-DEMO",
+                    "dominio": "unsl.edu.ar",
+                    "realm": "demo_uni",
+                },
             )
             await session.execute(
-                text("INSERT INTO facultades (id, tenant_id, universidad_id, nombre, codigo) "
-                     "VALUES (:id, :t, :uni, :nombre, :codigo)"),
-                {"id": str(FACULTAD_ID), "t": str(TENANT_ID), "uni": str(UNIVERSIDAD_ID),
-                 "nombre": "FCFMyN demo", "codigo": "FCFMYN"},
+                text(
+                    "INSERT INTO facultades (id, tenant_id, universidad_id, nombre, codigo) "
+                    "VALUES (:id, :t, :uni, :nombre, :codigo)"
+                ),
+                {
+                    "id": str(FACULTAD_ID),
+                    "t": str(TENANT_ID),
+                    "uni": str(UNIVERSIDAD_ID),
+                    "nombre": "FCFMyN demo",
+                    "codigo": "FCFMYN",
+                },
             )
             await session.execute(
-                text("INSERT INTO carreras (id, tenant_id, universidad_id, facultad_id, nombre, codigo) "
-                     "VALUES (:id, :t, :uni, :fac, :nombre, :codigo)"),
-                {"id": str(CARRERA_ID), "t": str(TENANT_ID), "uni": str(UNIVERSIDAD_ID),
-                 "fac": str(FACULTAD_ID), "nombre": "TSU IA", "codigo": "TSU-IA"},
+                text(
+                    "INSERT INTO carreras (id, tenant_id, universidad_id, facultad_id, nombre, codigo) "
+                    "VALUES (:id, :t, :uni, :fac, :nombre, :codigo)"
+                ),
+                {
+                    "id": str(CARRERA_ID),
+                    "t": str(TENANT_ID),
+                    "uni": str(UNIVERSIDAD_ID),
+                    "fac": str(FACULTAD_ID),
+                    "nombre": "TSU IA",
+                    "codigo": "TSU-IA",
+                },
             )
             await session.execute(
-                text("INSERT INTO planes_estudio (id, tenant_id, carrera_id, version, año_inicio) "
-                     "VALUES (:id, :t, :car, :v, :anio)"),
-                {"id": str(PLAN_ID), "t": str(TENANT_ID), "car": str(CARRERA_ID),
-                 "v": "2024", "anio": 2024},
+                text(
+                    "INSERT INTO planes_estudio (id, tenant_id, carrera_id, version, año_inicio) "
+                    "VALUES (:id, :t, :car, :v, :anio)"
+                ),
+                {
+                    "id": str(PLAN_ID),
+                    "t": str(TENANT_ID),
+                    "car": str(CARRERA_ID),
+                    "v": "2024",
+                    "anio": 2024,
+                },
             )
             await session.execute(
-                text("INSERT INTO materias (id, tenant_id, plan_id, nombre, codigo) "
-                     "VALUES (:id, :t, :p, :nombre, :codigo)"),
-                {"id": str(MATERIA_ID), "t": str(TENANT_ID), "p": str(PLAN_ID),
-                 "nombre": "Programacion 2", "codigo": "PROG2"},
+                text(
+                    "INSERT INTO materias (id, tenant_id, plan_id, nombre, codigo) "
+                    "VALUES (:id, :t, :p, :nombre, :codigo)"
+                ),
+                {
+                    "id": str(MATERIA_ID),
+                    "t": str(TENANT_ID),
+                    "p": str(PLAN_ID),
+                    "nombre": "Programacion 2",
+                    "codigo": "PROG2",
+                },
             )
             await session.execute(
-                text("INSERT INTO periodos (id, tenant_id, codigo, nombre, fecha_inicio, fecha_fin, estado) "
-                     "VALUES (:id, :t, :codigo, :nombre, :ini, :fin, 'abierto')"),
-                {"id": str(PERIODO_ID), "t": str(TENANT_ID),
-                 "codigo": f"{today.year}-S1", "nombre": f"Cuatrimestre {today.year}-S1",
-                 "ini": today - timedelta(days=60),
-                 "fin": today + timedelta(days=60)},
+                text(
+                    "INSERT INTO periodos (id, tenant_id, codigo, nombre, fecha_inicio, fecha_fin, estado) "
+                    "VALUES (:id, :t, :codigo, :nombre, :ini, :fin, 'abierto')"
+                ),
+                {
+                    "id": str(PERIODO_ID),
+                    "t": str(TENANT_ID),
+                    "codigo": f"{today.year}-S1",
+                    "nombre": f"Cuatrimestre {today.year}-S1",
+                    "ini": today - timedelta(days=60),
+                    "fin": today + timedelta(days=60),
+                },
             )
 
             # 3 comisiones
             for cohort in COHORTES:
                 await session.execute(
-                    text("INSERT INTO comisiones (id, tenant_id, materia_id, periodo_id, codigo, curso_config_hash) "
-                         "VALUES (:id, :t, :m, :p, :codigo, :cch)"),
-                    {"id": str(cohort["comision_id"]), "t": str(TENANT_ID),
-                     "m": str(MATERIA_ID), "p": str(PERIODO_ID),
-                     "codigo": cohort["codigo"], "cch": CURSO_CONFIG_HASH},
+                    text(
+                        "INSERT INTO comisiones (id, tenant_id, materia_id, periodo_id, codigo, curso_config_hash) "
+                        "VALUES (:id, :t, :m, :p, :codigo, :cch)"
+                    ),
+                    {
+                        "id": str(cohort["comision_id"]),
+                        "t": str(TENANT_ID),
+                        "m": str(MATERIA_ID),
+                        "p": str(PERIODO_ID),
+                        "codigo": cohort["codigo"],
+                        "cch": CURSO_CONFIG_HASH,
+                    },
                 )
                 # Docente como titular en las 3 comisiones
                 await session.execute(
-                    text("INSERT INTO usuarios_comision "
-                         "(tenant_id, comision_id, user_id, rol, fecha_desde) "
-                         "VALUES (:t, :c, :u, 'titular', :fd)"),
-                    {"t": str(TENANT_ID), "c": str(cohort["comision_id"]),
-                     "u": str(DOCENTE_USER_ID),
-                     "fd": today - timedelta(days=60)},
+                    text(
+                        "INSERT INTO usuarios_comision "
+                        "(tenant_id, comision_id, user_id, rol, fecha_desde) "
+                        "VALUES (:t, :c, :u, 'titular', :fd)"
+                    ),
+                    {
+                        "t": str(TENANT_ID),
+                        "c": str(cohort["comision_id"]),
+                        "u": str(DOCENTE_USER_ID),
+                        "fd": today - timedelta(days=60),
+                    },
                 )
                 # Inscripciones
                 for pseudo in cohort["students"]:
                     await session.execute(
-                        text("INSERT INTO inscripciones "
-                             "(tenant_id, comision_id, student_pseudonym, rol, estado, fecha_inscripcion) "
-                             "VALUES (:t, :c, :s, 'regular', 'cursando', :fi)"),
-                        {"t": str(TENANT_ID), "c": str(cohort["comision_id"]),
-                         "s": str(pseudo),
-                         "fi": today - timedelta(days=45)},
+                        text(
+                            "INSERT INTO inscripciones "
+                            "(tenant_id, comision_id, student_pseudonym, rol, estado, fecha_inscripcion) "
+                            "VALUES (:t, :c, :s, 'regular', 'cursando', :fi)"
+                        ),
+                        {
+                            "t": str(TENANT_ID),
+                            "c": str(cohort["comision_id"]),
+                            "s": str(pseudo),
+                            "fi": today - timedelta(days=45),
+                        },
                     )
 
             # Plantillas de TP (ADR-016) — fuente canonica por (materia, periodo).
@@ -499,17 +557,19 @@ async def seed_academic(academic_url: str) -> None:
                 # (template, cohort) para que el seed sea idempotente.
                 for cohort_idx, cohort in enumerate(COHORTES):
                     instance_id = UUID(
-                        int=(
-                            cast(UUID, tpl["id"]).int
-                            ^ ((cohort_idx + 1) * 0xC0DE_C0DE_C0DE_C0DE)
-                        ) & ((1 << 128) - 1)
+                        int=(cast(UUID, tpl["id"]).int ^ ((cohort_idx + 1) * 0xC0DE_C0DE_C0DE_C0DE))
+                        & ((1 << 128) - 1)
                     )
                     # Fechas: inicio hoy-15d, fin hoy+30d (TP en curso)
                     fecha_inicio = datetime.combine(
-                        today - timedelta(days=15), datetime.min.time(), tzinfo=UTC,
+                        today - timedelta(days=15),
+                        datetime.min.time(),
+                        tzinfo=UTC,
                     )
                     fecha_fin = datetime.combine(
-                        today + timedelta(days=30), datetime.min.time(), tzinfo=UTC,
+                        today + timedelta(days=30),
+                        datetime.min.time(),
+                        tzinfo=UTC,
                     )
                     await session.execute(
                         text(
@@ -588,7 +648,8 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
                                 (cohort_idx + 1) * 1_000_000
                                 + (student_idx + 1) * 10_000
                                 + (ep_idx + 1) * 100
-                            ) | (1 << 127)
+                            )
+                            | (1 << 127)
                         )
 
                         events = _build_events_for_episode(
@@ -616,13 +677,22 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
                                 ":ec, :lch, false, '{}'::jsonb"
                                 ")"
                             ),
-                            {"id": str(episode_id), "t": str(TENANT_ID),
-                             "c": str(comision_id), "s": str(pseudo),
-                             "pb": str(PROBLEMA_ID),
-                             "psh": PROMPT_SYSTEM_HASH, "psv": PROMPT_SYSTEM_VERSION,
-                             "cch": CLASSIFIER_CONFIG_HASH, "cuch": CURSO_CONFIG_HASH,
-                             "estado": "closed", "oa": opened_at, "ca": closed_at,
-                             "ec": len(events), "lch": last_chain_hash},
+                            {
+                                "id": str(episode_id),
+                                "t": str(TENANT_ID),
+                                "c": str(comision_id),
+                                "s": str(pseudo),
+                                "pb": str(PROBLEMA_ID),
+                                "psh": PROMPT_SYSTEM_HASH,
+                                "psv": PROMPT_SYSTEM_VERSION,
+                                "cch": CLASSIFIER_CONFIG_HASH,
+                                "cuch": CURSO_CONFIG_HASH,
+                                "estado": "closed",
+                                "oa": opened_at,
+                                "ca": closed_at,
+                                "ec": len(events),
+                                "lch": last_chain_hash,
+                            },
                         )
 
                         for ev in events:
@@ -638,14 +708,21 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
                                     ":psh, :psv, :cch"
                                     ")"
                                 ),
-                                {"euid": str(ev["event_uuid"]), "t": str(TENANT_ID),
-                                 "eid": str(episode_id), "seq": ev["seq"],
-                                 "et": ev["event_type"], "ts": ev["ts_dt"],
-                                 "pl": json.dumps(ev["payload"]),
-                                 "sh": ev["self_hash"], "ch": ev["chain_hash"],
-                                 "pch": ev["prev_chain_hash"],
-                                 "psh": PROMPT_SYSTEM_HASH, "psv": PROMPT_SYSTEM_VERSION,
-                                 "cch": CLASSIFIER_CONFIG_HASH},
+                                {
+                                    "euid": str(ev["event_uuid"]),
+                                    "t": str(TENANT_ID),
+                                    "eid": str(episode_id),
+                                    "seq": ev["seq"],
+                                    "et": ev["event_type"],
+                                    "ts": ev["ts_dt"],
+                                    "pl": json.dumps(ev["payload"]),
+                                    "sh": ev["self_hash"],
+                                    "ch": ev["chain_hash"],
+                                    "pch": ev["prev_chain_hash"],
+                                    "psh": PROMPT_SYSTEM_HASH,
+                                    "psv": PROMPT_SYSTEM_VERSION,
+                                    "cch": CLASSIFIER_CONFIG_HASH,
+                                },
                             )
 
                         classified_at = closed_at + timedelta(minutes=2)
@@ -685,7 +762,7 @@ async def seed_classifications(
             for cohort in COHORTES:
                 for student_idx, pattern in enumerate(cohort["patterns"]):
                     for ep_idx, appropriation in enumerate(pattern):
-                        episode_id, comision_id, pseudo, classified_at = episode_refs[idx]
+                        episode_id, comision_id, _pseudo, classified_at = episode_refs[idx]
                         idx += 1
 
                         if appropriation == "apropiacion_reflexiva":
@@ -699,7 +776,7 @@ async def seed_classifications(
                             f"[{cohort['codigo']}] Arbol N4 - {appropriation}: "
                             f"CT={ct:.2f}, CCD={ccd:.2f}, orph={orph:.2f}, "
                             f"stab={stab:.2f}, evo={evo:+.2f} "
-                            f"(episodio {ep_idx+1}, estudiante #{student_idx+1})"
+                            f"(episodio {ep_idx + 1}, estudiante #{student_idx + 1})"
                         )
 
                         await session.execute(
@@ -715,11 +792,20 @@ async def seed_classifications(
                                 ":ct, :ccd, :orph, :stab, :evo, "
                                 "'{}'::jsonb, :ca, true)"
                             ),
-                            {"eid": str(episode_id), "t": str(TENANT_ID),
-                             "c": str(comision_id), "cch": CLASSIFIER_CONFIG_HASH,
-                             "app": appropriation, "reason": reason,
-                             "ct": ct, "ccd": ccd, "orph": orph,
-                             "stab": stab, "evo": evo, "ca": classified_at},
+                            {
+                                "eid": str(episode_id),
+                                "t": str(TENANT_ID),
+                                "c": str(comision_id),
+                                "cch": CLASSIFIER_CONFIG_HASH,
+                                "app": appropriation,
+                                "reason": reason,
+                                "ct": ct,
+                                "ccd": ccd,
+                                "orph": orph,
+                                "stab": stab,
+                                "evo": evo,
+                                "ca": classified_at,
+                            },
                         )
 
             await session.commit()
@@ -750,10 +836,14 @@ async def main() -> None:
     total_episodes = sum(sum(len(p) for p in c["patterns"]) for c in COHORTES)
 
     print(f"[seed] tenant      = {TENANT_ID}")
-    print(f"[seed] comisiones  = {len(COHORTES)} ({', '.join(c['codigo'] + '-' + c['nombre'] for c in COHORTES)})")
+    print(
+        f"[seed] comisiones  = {len(COHORTES)} ({', '.join(c['codigo'] + '-' + c['nombre'] for c in COHORTES)})"
+    )
     print(f"[seed] estudiantes = {total_students}")
     print(f"[seed] episodios   = {total_episodes}")
-    print(f"[seed] plantillas  = {len(TEMPLATES_DEMO)} (auto-instanciadas en las {len(COHORTES)} comisiones -> {len(TEMPLATES_DEMO) * len(COHORTES)} TPs)")
+    print(
+        f"[seed] plantillas  = {len(TEMPLATES_DEMO)} (auto-instanciadas en las {len(COHORTES)} comisiones -> {len(TEMPLATES_DEMO) * len(COHORTES)} TPs)"
+    )
     print(f"[seed] academic    -> {academic_url.split('@')[-1]}")
     print(f"[seed] ctr_store   -> {ctr_url.split('@')[-1]}")
     print(f"[seed] classifier  -> {classifier_url.split('@')[-1]}")

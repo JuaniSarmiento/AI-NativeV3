@@ -20,6 +20,7 @@ Limitaciones declaradas en el ADR-019 + revisión adversarial 2026-04-27:
 - Falsos positivos posibles (especialmente `jailbreak_fiction` — severidad 2).
 - `overuse` (Sección 8.5.3) NO en v1.x — requiere ventana cross-prompt.
 """
+
 from __future__ import annotations
 
 import hashlib

@@ -1,6 +1,7 @@
 """Servicio identity-service: Wrapper de la Admin API de Keycloak + gestión de pseudonimización"""
+
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

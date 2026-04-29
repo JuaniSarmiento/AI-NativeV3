@@ -1,13 +1,11 @@
 """Tests de Coherencia Temporal."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 from classifier_service.services.ct import (
-    PAUSE_THRESHOLD,
     compute_windows,
-    compute_ct_summary,
     ct_features,
 )
 

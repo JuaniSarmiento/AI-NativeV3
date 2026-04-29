@@ -1,8 +1,8 @@
 """Tests del extractor de Markdown."""
+
 from __future__ import annotations
 
 import pytest
-
 from content_service.extractors.markdown import MarkdownExtractor
 
 

@@ -3,10 +3,10 @@
 Verifica que las 3 ramas se disparen correctamente según las 3
 coherencias y el reference_profile.
 """
+
 from __future__ import annotations
 
 from classifier_service.services.tree import (
-    DEFAULT_REFERENCE_PROFILE,
     classify,
 )
 

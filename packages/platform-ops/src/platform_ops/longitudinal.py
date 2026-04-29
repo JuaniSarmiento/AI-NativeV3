@@ -19,13 +19,13 @@ Dos niveles de análisis:
 El análisis se hace a partir del mismo data_source que ya consume el
 AcademicExporter (desacoplado de la DB, testeable).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
-
 
 AppropriationValue = Literal[
     "delegacion_pasiva", "apropiacion_superficial", "apropiacion_reflexiva"
@@ -88,7 +88,7 @@ class StudentTrajectory:
         # Tercio medio: puede solaparse si n no divide en 3
         mid_start = size
         mid_end = n - size
-        mid = scores[mid_start:mid_end] if mid_end > mid_start else scores[size:size + 1]
+        mid = scores[mid_start:mid_end] if mid_end > mid_start else scores[size : size + 1]
         return (
             sum(first) / len(first),
             sum(mid) / len(mid),
@@ -97,10 +97,10 @@ class StudentTrajectory:
 
     def progression_label(self) -> str:
         """Clasifica la trayectoria global:
-          - 'mejorando'   si el último tercio es mayor que el primero
-          - 'estable'     si son iguales
-          - 'empeorando'  si baja
-          - 'insuficiente' si hay menos de 3 episodios
+        - 'mejorando'   si el último tercio es mayor que el primero
+        - 'estable'     si son iguales
+        - 'empeorando'  si baja
+        - 'insuficiente' si hay menos de 3 episodios
         """
         terciles = self.tercile_means()
         if terciles is None:
@@ -151,14 +151,16 @@ class _DataSource:
     """Interface mínima."""
 
     async def list_classifications_grouped_by_student(
-        self, comision_id: UUID,
+        self,
+        comision_id: UUID,
     ) -> dict[str, list[dict]]:
         """Devuelve {student_pseudonym: [classification_dict, ...]} ordenados por classified_at."""
         raise NotImplementedError
 
 
 async def build_trajectories(
-    data_source: _DataSource, comision_id: UUID,
+    data_source: _DataSource,
+    comision_id: UUID,
 ) -> list[StudentTrajectory]:
     """Construye trayectorias de todos los estudiantes de una comisión."""
     grouped = await data_source.list_classifications_grouped_by_student(comision_id)
@@ -167,20 +169,24 @@ async def build_trajectories(
     for student_pseudonym, raw_list in grouped.items():
         points: list[ClassificationPoint] = []
         for row in raw_list:
-            points.append(ClassificationPoint(
-                episode_id=UUID(row["episode_id"]) if isinstance(row["episode_id"], str) else row["episode_id"],
-                classified_at=(
-                    row["classified_at"]
-                    if isinstance(row["classified_at"], datetime)
-                    else datetime.fromisoformat(row["classified_at"].replace("Z", "+00:00"))
-                ),
-                appropriation=row["appropriation"],
-                ct_summary=row.get("ct_summary"),
-                ccd_mean=row.get("ccd_mean"),
-                ccd_orphan_ratio=row.get("ccd_orphan_ratio"),
-                cii_stability=row.get("cii_stability"),
-                cii_evolution=row.get("cii_evolution"),
-            ))
+            points.append(
+                ClassificationPoint(
+                    episode_id=UUID(row["episode_id"])
+                    if isinstance(row["episode_id"], str)
+                    else row["episode_id"],
+                    classified_at=(
+                        row["classified_at"]
+                        if isinstance(row["classified_at"], datetime)
+                        else datetime.fromisoformat(row["classified_at"].replace("Z", "+00:00"))
+                    ),
+                    appropriation=row["appropriation"],
+                    ct_summary=row.get("ct_summary"),
+                    ccd_mean=row.get("ccd_mean"),
+                    ccd_orphan_ratio=row.get("ccd_orphan_ratio"),
+                    cii_stability=row.get("cii_stability"),
+                    cii_evolution=row.get("cii_evolution"),
+                )
+            )
         # Sort defensivo por si el data source no garantiza orden
         points.sort(key=lambda p: p.classified_at)
         trajectories.append(StudentTrajectory(student_pseudonym=student_pseudonym, points=points))
@@ -188,9 +194,7 @@ async def build_trajectories(
     return trajectories
 
 
-def summarize_cohort(
-    comision_id: UUID, trajectories: list[StudentTrajectory]
-) -> CohortProgression:
+def summarize_cohort(comision_id: UUID, trajectories: list[StudentTrajectory]) -> CohortProgression:
     """Agrega las trayectorias en un resumen por cohorte."""
     summary = CohortProgression(
         comision_id=comision_id,
@@ -211,10 +215,10 @@ def summarize_cohort(
 
 
 __all__ = [
-    "ClassificationPoint",
-    "StudentTrajectory",
-    "CohortProgression",
     "APPROPRIATION_ORDINAL",
+    "ClassificationPoint",
+    "CohortProgression",
+    "StudentTrajectory",
     "build_trajectories",
     "summarize_cohort",
 ]

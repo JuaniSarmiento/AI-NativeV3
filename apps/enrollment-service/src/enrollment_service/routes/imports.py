@@ -1,4 +1,5 @@
 """Endpoints de importación masiva."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -59,9 +60,7 @@ async def upload_csv(file: UploadFile = File(...)) -> ImportResponse:
         total_rows=result.total_rows,
         valid_rows=result.valid_rows,
         errors=[
-            ImportErrorOut(
-                row_number=e.row_number, field=e.field, message=e.message
-            )
+            ImportErrorOut(row_number=e.row_number, field=e.field, message=e.message)
             for e in result.errors
         ],
         preview=result.preview,

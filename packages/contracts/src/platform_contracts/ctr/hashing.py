@@ -6,6 +6,7 @@ Dos funciones críticas:
 
 El prefijo de 64 ceros actúa como génesis para el primer evento del episodio.
 """
+
 from __future__ import annotations
 
 import hashlib

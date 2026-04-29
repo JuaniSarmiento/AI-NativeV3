@@ -1,4 +1,5 @@
 """Tests del endpoint de salud del integrity-attestation-service."""
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from integrity_attestation_service.main import app

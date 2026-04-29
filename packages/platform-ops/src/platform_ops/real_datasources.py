@@ -22,6 +22,7 @@ Uso:
 Los tests de este módulo usan SQLite in-memory (sin RLS real, pero
 suficiente para verificar la lógica de joins y filtros).
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,9 +52,7 @@ class RealCohortDataSource:
         self.classifier = classifier_session
         self.tenant_id = tenant_id
 
-    async def list_episodes_in_comision(
-        self, comision_id: UUID, since: datetime
-    ) -> list[dict]:
+    async def list_episodes_in_comision(self, comision_id: UUID, since: datetime) -> list[dict]:
         """Lista episodios de la comisión abiertos desde `since`.
 
         RLS filtra automáticamente por tenant; el WHERE doble es
@@ -104,9 +103,7 @@ class RealCohortDataSource:
             for ev in events
         ]
 
-    async def get_current_classification(
-        self, episode_id: UUID
-    ) -> dict | None:
+    async def get_current_classification(self, episode_id: UUID) -> dict | None:
         """Obtiene la clasificación actual (`is_current=true`) de un episodio."""
         from classifier_service.models import Classification
 
@@ -180,9 +177,7 @@ class RealLongitudinalDataSource:
             .where(Episode.tenant_id == self.tenant_id)
         )
         ep_result = await self.ctr.execute(ep_stmt)
-        ep_to_student: dict[UUID, UUID] = {
-            row.id: row.student_pseudonym for row in ep_result.all()
-        }
+        ep_to_student: dict[UUID, UUID] = {row.id: row.student_pseudonym for row in ep_result.all()}
         if not ep_to_student:
             return {}
 
@@ -209,16 +204,18 @@ class RealLongitudinalDataSource:
                 if self.pseudonymize_fn
                 else str(student_pseudo)
             )
-            grouped.setdefault(alias, []).append({
-                "episode_id": c.episode_id,
-                "classified_at": c.classified_at,
-                "appropriation": c.appropriation,
-                "ct_summary": c.ct_summary,
-                "ccd_mean": c.ccd_mean,
-                "ccd_orphan_ratio": c.ccd_orphan_ratio,
-                "cii_stability": c.cii_stability,
-                "cii_evolution": c.cii_evolution,
-            })
+            grouped.setdefault(alias, []).append(
+                {
+                    "episode_id": c.episode_id,
+                    "classified_at": c.classified_at,
+                    "appropriation": c.appropriation,
+                    "ct_summary": c.ct_summary,
+                    "ccd_mean": c.ccd_mean,
+                    "ccd_orphan_ratio": c.ccd_orphan_ratio,
+                    "cii_stability": c.cii_stability,
+                    "cii_evolution": c.cii_evolution,
+                }
+            )
 
         return grouped
 
@@ -242,9 +239,7 @@ class RealLongitudinalDataSource:
             .where(Episode.tenant_id == self.tenant_id)
         )
         ep_result = await self.ctr.execute(ep_stmt)
-        ep_to_student: dict[UUID, UUID] = {
-            row.id: row.student_pseudonym for row in ep_result.all()
-        }
+        ep_to_student: dict[UUID, UUID] = {row.id: row.student_pseudonym for row in ep_result.all()}
         if not ep_to_student:
             return []
 
@@ -269,16 +264,18 @@ class RealLongitudinalDataSource:
                 else str(student_pseudo)
             )
             payload = ev.payload or {}
-            out.append({
-                "episode_id": str(ev.episode_id),
-                "student_pseudonym": student_id,
-                "ts": ev.ts.isoformat().replace("+00:00", "Z") if ev.ts else None,
-                "category": payload.get("category", "unknown"),
-                "severity": int(payload.get("severity", 0)),
-                "pattern_id": payload.get("pattern_id", ""),
-                "matched_text": payload.get("matched_text", ""),
-                "guardrails_corpus_hash": payload.get("guardrails_corpus_hash", ""),
-            })
+            out.append(
+                {
+                    "episode_id": str(ev.episode_id),
+                    "student_pseudonym": student_id,
+                    "ts": ev.ts.isoformat().replace("+00:00", "Z") if ev.ts else None,
+                    "category": payload.get("category", "unknown"),
+                    "severity": int(payload.get("severity", 0)),
+                    "pattern_id": payload.get("pattern_id", ""),
+                    "matched_text": payload.get("matched_text", ""),
+                    "guardrails_corpus_hash": payload.get("guardrails_corpus_hash", ""),
+                }
+            )
 
         return out[:limit_recent] if limit_recent else out
 
@@ -324,7 +321,12 @@ class RealLongitudinalDataSource:
 
         # Templates (por TP)
         tp_stmt = (
-            select(TareaPractica.id, TareaPractica.template_id, TareaPractica.codigo, TareaPractica.titulo)
+            select(
+                TareaPractica.id,
+                TareaPractica.template_id,
+                TareaPractica.codigo,
+                TareaPractica.titulo,
+            )
             .where(TareaPractica.id.in_(problema_ids))
             .where(TareaPractica.tenant_id == self.tenant_id)
         )
@@ -354,22 +356,28 @@ class RealLongitudinalDataSource:
         for row in episodes_raw:
             tp = tp_by_id.get(row.problema_id, {})
             cls = cls_by_episode.get(row.id)
-            out.append({
-                "episode_id": str(row.id),
-                "problema_id": str(row.problema_id),
-                "tarea_codigo": tp.get("codigo"),
-                "tarea_titulo": tp.get("titulo"),
-                "template_id": str(tp["template_id"]) if tp.get("template_id") else None,
-                "opened_at": row.opened_at.isoformat().replace("+00:00", "Z") if row.opened_at else None,
-                "closed_at": row.closed_at.isoformat().replace("+00:00", "Z") if row.closed_at else None,
-                "events_count": row.events_count,
-                "appropriation": cls["appropriation"] if cls else None,
-                "classified_at": (
-                    cls["classified_at"].isoformat().replace("+00:00", "Z")
-                    if cls and cls["classified_at"]
-                    else None
-                ),
-            })
+            out.append(
+                {
+                    "episode_id": str(row.id),
+                    "problema_id": str(row.problema_id),
+                    "tarea_codigo": tp.get("codigo"),
+                    "tarea_titulo": tp.get("titulo"),
+                    "template_id": str(tp["template_id"]) if tp.get("template_id") else None,
+                    "opened_at": row.opened_at.isoformat().replace("+00:00", "Z")
+                    if row.opened_at
+                    else None,
+                    "closed_at": row.closed_at.isoformat().replace("+00:00", "Z")
+                    if row.closed_at
+                    else None,
+                    "events_count": row.events_count,
+                    "appropriation": cls["appropriation"] if cls else None,
+                    "classified_at": (
+                        cls["classified_at"].isoformat().replace("+00:00", "Z")
+                        if cls and cls["classified_at"]
+                        else None
+                    ),
+                }
+            )
         return out
 
     async def list_classifications_with_templates_for_student(
@@ -401,9 +409,7 @@ class RealLongitudinalDataSource:
             .where(Episode.student_pseudonym == student_pseudonym)
         )
         ep_result = await self.ctr.execute(ep_stmt)
-        ep_to_problema: dict[UUID, UUID] = {
-            row.id: row.problema_id for row in ep_result.all()
-        }
+        ep_to_problema: dict[UUID, UUID] = {row.id: row.problema_id for row in ep_result.all()}
         if not ep_to_problema:
             return []
 
@@ -435,13 +441,15 @@ class RealLongitudinalDataSource:
         for c in cls_result.scalars().all():
             problema_id = ep_to_problema.get(c.episode_id)
             template_id = tp_to_template.get(problema_id) if problema_id else None
-            out.append({
-                "episode_id": c.episode_id,
-                "problema_id": problema_id,
-                "template_id": template_id,  # None si TP huerfana → se skippea downstream
-                "classified_at": c.classified_at,
-                "appropriation": c.appropriation,
-            })
+            out.append(
+                {
+                    "episode_id": c.episode_id,
+                    "problema_id": problema_id,
+                    "template_id": template_id,  # None si TP huerfana → se skippea downstream
+                    "classified_at": c.classified_at,
+                    "appropriation": c.appropriation,
+                }
+            )
 
         return out
 
@@ -457,6 +465,7 @@ async def set_tenant_rls(session: AsyncSession, tenant_id: UUID) -> None:
     txn necesitan re-setearlo.
     """
     from sqlalchemy import text
+
     # SET LOCAL no admite bind parameters (Postgres utility statement).
     # Interpolamos literal: tenant_id es UUID validado por type hint,
     # no puede contener comillas ni caracteres que inyecten SQL.

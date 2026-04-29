@@ -1,12 +1,12 @@
 """Tests de los endpoints de cohort/export del analytics-service."""
+
 from __future__ import annotations
 
 import asyncio
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 TENANT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 USER_ID = "11111111-1111-1111-1111-111111111111"
@@ -22,6 +22,7 @@ def client():
 def _reset_store_between_tests():
     """Limpia el singleton del store entre tests."""
     from analytics_service.services.export import get_job_store
+
     get_job_store.cache_clear()
 
 
@@ -107,9 +108,7 @@ def test_export_persiste_user_id_del_header_en_requested_by(client: TestClient) 
 
 
 def test_export_status_404_si_job_no_existe(client: TestClient) -> None:
-    r = client.get(
-        "/api/v1/analytics/cohort/export/00000000-0000-0000-0000-000000000000/status"
-    )
+    r = client.get("/api/v1/analytics/cohort/export/00000000-0000-0000-0000-000000000000/status")
     assert r.status_code == 404
 
 
@@ -169,7 +168,7 @@ def test_download_200_eventualmente(client: TestClient) -> None:
 
     # En TestClient el worker async no gana tiempo de CPU automáticamente,
     # así que disparamos el procesamiento manualmente.
-    from analytics_service.services.export import get_job_store, _StubDataSource
+    from analytics_service.services.export import _StubDataSource, get_job_store
     from platform_ops import ExportWorker
 
     async def _drain() -> None:
@@ -183,7 +182,6 @@ def test_download_200_eventualmente(client: TestClient) -> None:
             if not await worker.run_once():
                 break
 
-    import asyncio
     asyncio.run(_drain())
 
     r3 = client.get(f"/api/v1/analytics/cohort/export/{job_id}/download")
@@ -195,7 +193,5 @@ def test_download_200_eventualmente(client: TestClient) -> None:
 
 
 def test_download_404_si_job_no_existe(client: TestClient) -> None:
-    r = client.get(
-        "/api/v1/analytics/cohort/export/00000000-0000-0000-0000-000000000001/download"
-    )
+    r = client.get("/api/v1/analytics/cohort/export/00000000-0000-0000-0000-000000000001/download")
     assert r.status_code == 404

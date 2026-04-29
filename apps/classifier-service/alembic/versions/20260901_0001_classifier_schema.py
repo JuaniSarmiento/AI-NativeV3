@@ -7,7 +7,9 @@ Create Date: 2026-09-01
 Agrega la tabla classifications a la base ctr_store.
 Depende de la migración del ctr-service (que crea apply_tenant_rls).
 """
+
 from __future__ import annotations
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -36,16 +38,24 @@ def upgrade() -> None:
         sa.Column("cii_stability", sa.Float, nullable=True),
         sa.Column("cii_evolution", sa.Float, nullable=True),
         sa.Column("features", postgresql.JSONB, nullable=False, server_default="{}"),
-        sa.Column("classified_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "classified_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.Column("is_current", sa.Boolean, nullable=False, server_default="true"),
         sa.PrimaryKeyConstraint("id", name="pk_classifications"),
-        sa.UniqueConstraint("episode_id", "classifier_config_hash", name="uq_classifications_episode_config"),
+        sa.UniqueConstraint(
+            "episode_id", "classifier_config_hash", name="uq_classifications_episode_config"
+        ),
     )
     op.create_index("ix_classifications_tenant_id", "classifications", ["tenant_id"])
     op.create_index("ix_classifications_episode_id", "classifications", ["episode_id"])
     op.create_index("ix_classifications_comision_id", "classifications", ["comision_id"])
-    op.create_index("ix_classifications_episode_current", "classifications",
-                    ["episode_id", "is_current"])
+    op.create_index(
+        "ix_classifications_episode_current", "classifications", ["episode_id", "is_current"]
+    )
     op.execute("SELECT apply_tenant_rls('classifications')")
 
 

@@ -11,24 +11,21 @@ Cubre:
   5. Service method publica con user_id del estudiante (no service account).
   6. Service method asigna seq consecutivo respecto a otros eventos.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
-from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import fakeredis.aioredis
 import pytest
 from fastapi.testclient import TestClient
-
 from tutor_service.services.clients import (
     PromptConfig,
     RetrievalResult,
 )
 from tutor_service.services.session import SessionManager
 from tutor_service.services.tutor_core import TUTOR_SERVICE_USER_ID, TutorCore
-
 
 # ── Mocks de los clientes externos ────────────────────────────────────
 
@@ -52,9 +49,7 @@ class FakeContentClient:
         tenant_id: UUID,
         caller_id: UUID,
     ) -> RetrievalResult:
-        return RetrievalResult(
-            chunks=[], chunks_used_hash="0" * 64, latency_ms=1.0
-        )
+        return RetrievalResult(chunks=[], chunks_used_hash="0" * 64, latency_ms=1.0)
 
 
 class FakeAIGatewayClient:
@@ -74,9 +69,7 @@ class FakeCTRClient:
         self.published_events: list[dict] = []
         self.captured_callers: list[UUID] = []
 
-    async def publish_event(
-        self, event: dict, tenant_id: UUID, caller_id: UUID
-    ) -> str:
+    async def publish_event(self, event: dict, tenant_id: UUID, caller_id: UUID) -> str:
         self.published_events.append(event)
         self.captured_callers.append(caller_id)
         return f"fake-msg-id-{len(self.published_events)}"
@@ -230,9 +223,7 @@ def _student_headers(user_id: UUID, tenant_id: UUID) -> dict[str, str]:
     }
 
 
-async def test_edicion_codigo_happy_path_returns_202(
-    http_client, fake_ctr: FakeCTRClient
-) -> None:
+async def test_edicion_codigo_happy_path_returns_202(http_client, fake_ctr: FakeCTRClient) -> None:
     """POST /events/edicion_codigo devuelve 202 con seq y publica al CTR."""
     client, tutor = http_client
     tenant_id = uuid4()
@@ -261,9 +252,7 @@ async def test_edicion_codigo_happy_path_returns_202(
     assert body["seq"] == "1"
 
     # CTR recibió el evento con payload correcto
-    edicion_events = [
-        e for e in fake_ctr.published_events if e["event_type"] == "edicion_codigo"
-    ]
+    edicion_events = [e for e in fake_ctr.published_events if e["event_type"] == "edicion_codigo"]
     assert len(edicion_events) == 1
     payload = edicion_events[0]["payload"]
     assert payload["snapshot"] == "print('hola')"
@@ -292,8 +281,10 @@ async def test_edicion_codigo_episode_closed_falla_409(http_client) -> None:
         headers=_student_headers(student_id, tenant_id),
     )
     assert response.status_code == 409
-    assert "no existe" in response.json()["detail"].lower() or \
-           "cerrado" in response.json()["detail"].lower()
+    assert (
+        "no existe" in response.json()["detail"].lower()
+        or "cerrado" in response.json()["detail"].lower()
+    )
 
 
 async def test_edicion_codigo_episode_inexistente_falla_409(http_client) -> None:
@@ -377,7 +368,8 @@ async def test_edicion_codigo_origin_se_propaga_al_payload(
         origin="pasted_external",
     )
     pasted = next(
-        e for e in fake_ctr.published_events
+        e
+        for e in fake_ctr.published_events
         if e["event_type"] == "edicion_codigo" and e["payload"].get("origin") == "pasted_external"
     )
     assert pasted["payload"]["origin"] == "pasted_external"
@@ -391,7 +383,8 @@ async def test_edicion_codigo_origin_se_propaga_al_payload(
         # origin omitido (default None) — no debe aparecer en el payload
     )
     no_origin_events = [
-        e for e in fake_ctr.published_events
+        e
+        for e in fake_ctr.published_events
         if e["event_type"] == "edicion_codigo" and "origin" not in e["payload"]
     ]
     assert len(no_origin_events) >= 1
@@ -426,7 +419,8 @@ async def test_edicion_codigo_origin_via_http_endpoint(
     )
     assert response.status_code == 202
     typed = next(
-        e for e in fake_ctr.published_events
+        e
+        for e in fake_ctr.published_events
         if e["event_type"] == "edicion_codigo" and e["payload"].get("origin") == "student_typed"
     )
     assert typed["payload"]["origin"] == "student_typed"
@@ -445,9 +439,7 @@ async def test_edicion_codigo_origin_via_http_endpoint(
     assert response.status_code == 422
 
 
-async def test_edicion_codigo_language_default_python(
-    http_client, fake_ctr: FakeCTRClient
-) -> None:
+async def test_edicion_codigo_language_default_python(http_client, fake_ctr: FakeCTRClient) -> None:
     """Si no se manda `language`, debe defaultear a 'python'."""
     client, tutor = http_client
     tenant_id = uuid4()
@@ -477,9 +469,7 @@ async def test_edicion_codigo_language_default_python(
 # episodios reflexivos quedan marcados como huérfanos de evidencia.
 
 
-async def test_anotacion_happy_path(
-    http_client, fake_ctr: FakeCTRClient
-) -> None:
+async def test_anotacion_happy_path(http_client, fake_ctr: FakeCTRClient) -> None:
     """POST /events/anotacion_creada devuelve 202 con seq y publica al CTR
     con event_type=anotacion_creada y user_id del estudiante (no service account)."""
     client, tutor = http_client
@@ -506,9 +496,7 @@ async def test_anotacion_happy_path(
     assert body["seq"] == "1"
 
     # CTR recibió el evento con payload correcto y `words` calculado
-    notas = [
-        e for e in fake_ctr.published_events if e["event_type"] == "anotacion_creada"
-    ]
+    notas = [e for e in fake_ctr.published_events if e["event_type"] == "anotacion_creada"]
     assert len(notas) == 1
     payload = notas[0]["payload"]
     assert payload["content"] == contenido
@@ -665,9 +653,7 @@ async def test_anotacion_record_service_method_publica_seq_consecutivo(
     ]
 
 
-async def test_anotacion_words_count_es_correcto(
-    tutor: TutorCore, fake_ctr: FakeCTRClient
-) -> None:
+async def test_anotacion_words_count_es_correcto(tutor: TutorCore, fake_ctr: FakeCTRClient) -> None:
     """`words` en el payload debe coincidir con len(contenido.split())."""
     episode_id = await tutor.open_episode(
         tenant_id=uuid4(),
@@ -685,9 +671,7 @@ async def test_anotacion_words_count_es_correcto(
         user_id=uuid4(),
     )
 
-    nota = next(
-        e for e in fake_ctr.published_events if e["event_type"] == "anotacion_creada"
-    )
+    nota = next(e for e in fake_ctr.published_events if e["event_type"] == "anotacion_creada")
     assert nota["payload"]["words"] == 5
     assert nota["payload"]["content"] == contenido
 
@@ -698,9 +682,7 @@ async def test_anotacion_words_count_es_correcto(
 # del enunciado. Sin esta señal, N1 queda casi sin evidencia observable.
 
 
-async def test_lectura_enunciado_happy_path(
-    http_client, fake_ctr: FakeCTRClient
-) -> None:
+async def test_lectura_enunciado_happy_path(http_client, fake_ctr: FakeCTRClient) -> None:
     """POST /events/lectura_enunciado devuelve 202 con seq, publica al CTR
     con event_type=lectura_enunciado y user_id del estudiante."""
     client, tutor = http_client
@@ -725,10 +707,7 @@ async def test_lectura_enunciado_happy_path(
     assert body["status"] == "accepted"
     assert body["seq"] == "1"
 
-    lecturas = [
-        e for e in fake_ctr.published_events
-        if e["event_type"] == "lectura_enunciado"
-    ]
+    lecturas = [e for e in fake_ctr.published_events if e["event_type"] == "lectura_enunciado"]
     assert len(lecturas) == 1
     assert lecturas[0]["payload"]["duration_seconds"] == 42.5
     # Caller debe ser el estudiante, no el service account del tutor

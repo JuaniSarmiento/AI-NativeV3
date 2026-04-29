@@ -1,4 +1,5 @@
 """Jerarquía operativa: Periodo → Comisión → Inscripción + Usuario_Comision."""
+
 from __future__ import annotations
 
 import uuid
@@ -49,9 +50,7 @@ class Periodo(Base, TenantMixin, TimestampMixin):
 
     comisiones: Mapped[list[Comision]] = relationship(back_populates="periodo")
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "codigo", name="uq_periodo_tenant_codigo"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "codigo", name="uq_periodo_tenant_codigo"),)
 
 
 class Comision(Base, TenantMixin, TimestampMixin):
@@ -82,13 +81,14 @@ class Comision(Base, TenantMixin, TimestampMixin):
     materia: Mapped[Materia] = relationship(back_populates="comisiones")
     periodo: Mapped[Periodo] = relationship(back_populates="comisiones")
     inscripciones: Mapped[list[Inscripcion]] = relationship(back_populates="comision")
-    usuarios_comision: Mapped[list[UsuarioComision]] = relationship(
-        back_populates="comision"
-    )
+    usuarios_comision: Mapped[list[UsuarioComision]] = relationship(back_populates="comision")
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "materia_id", "periodo_id", "codigo",
+            "tenant_id",
+            "materia_id",
+            "periodo_id",
+            "codigo",
             name="uq_comision_codigo",
         ),
     )
@@ -120,7 +120,9 @@ class Inscripcion(Base, TenantMixin, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "comision_id", "student_pseudonym",
+            "tenant_id",
+            "comision_id",
+            "student_pseudonym",
             name="uq_inscripcion_student",
         ),
     )
@@ -148,7 +150,10 @@ class UsuarioComision(Base, TenantMixin, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "comision_id", "user_id", "rol",
+            "tenant_id",
+            "comision_id",
+            "user_id",
+            "rol",
             name="uq_usuario_comision",
         ),
     )
@@ -175,15 +180,9 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
     enunciado: Mapped[str] = mapped_column(Text, nullable=False)
     inicial_codigo: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    fecha_inicio: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    fecha_fin: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    peso: Mapped[Decimal] = mapped_column(
-        Numeric(5, 4), nullable=False, default=Decimal("1.0")
-    )
+    fecha_inicio: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fecha_fin: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    peso: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False, default=Decimal("1.0"))
 
     rubrica: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
@@ -211,17 +210,16 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
         Boolean, nullable=False, default=False, server_default=sa.false()
     )
 
-    created_by: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
+    created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
 
-    template: Mapped[TareaPracticaTemplate | None] = relationship(
-        back_populates="instances"
-    )
+    template: Mapped[TareaPracticaTemplate | None] = relationship(back_populates="instances")
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "comision_id", "codigo", "version",
+            "tenant_id",
+            "comision_id",
+            "codigo",
+            "version",
             name="uq_tarea_codigo_version",
         ),
         CheckConstraint(
@@ -271,16 +269,10 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
     enunciado: Mapped[str] = mapped_column(Text, nullable=False)
     inicial_codigo: Mapped[str | None] = mapped_column(Text, nullable=True)
     rubrica: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    peso: Mapped[Decimal] = mapped_column(
-        Numeric(5, 4), nullable=False, default=Decimal("1.0")
-    )
+    peso: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False, default=Decimal("1.0"))
 
-    fecha_inicio: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    fecha_fin: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    fecha_inicio: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fecha_fin: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     estado: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -291,9 +283,7 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
         index=True,
     )
 
-    created_by: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
+    created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
 
     parent: Mapped[TareaPracticaTemplate | None] = relationship(
         "TareaPracticaTemplate",
@@ -304,7 +294,11 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "materia_id", "periodo_id", "codigo", "version",
+            "tenant_id",
+            "materia_id",
+            "periodo_id",
+            "codigo",
+            "version",
             name="uq_template_codigo_version",
         ),
         CheckConstraint(

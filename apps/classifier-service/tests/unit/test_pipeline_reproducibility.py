@@ -5,6 +5,7 @@ classifier_config_hash, la clasificación es 100% reproducible. Otra
 persona puede correr el mismo algoritmo sobre los mismos eventos y
 obtener exactamente el mismo resultado.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -16,9 +17,7 @@ from classifier_service.services.pipeline import (
 from classifier_service.services.tree import DEFAULT_REFERENCE_PROFILE
 
 
-def _ev(
-    seq: int, event_type: str, minutes_offset: int, payload: dict | None = None
-) -> dict:
+def _ev(seq: int, event_type: str, minutes_offset: int, payload: dict | None = None) -> dict:
     base = datetime(2026, 9, 1, 10, 0, 0, tzinfo=UTC)
     return {
         "seq": seq,
@@ -38,7 +37,12 @@ def test_clasificacion_es_completamente_reproducible() -> None:
     """
     events = [
         _ev(0, "episodio_abierto", 0),
-        _ev(1, "prompt_enviado", 1, {"content": "qué es recursión", "prompt_kind": "solicitud_directa"}),
+        _ev(
+            1,
+            "prompt_enviado",
+            1,
+            {"content": "qué es recursión", "prompt_kind": "solicitud_directa"},
+        ),
         _ev(2, "tutor_respondio", 2, {"content": "..."}),
         _ev(3, "codigo_ejecutado", 4),
         _ev(4, "anotacion_creada", 5, {"content": "ya entendí"}),
@@ -112,8 +116,14 @@ def test_escenario_copypaste_sin_reflexion_es_delegacion_pasiva() -> None:
     offsets = [2, 2, 3, 15, 15, 16, 18, 25, 25, 26]  # pausas de 12min entre bloques
     for i, m in enumerate(offsets):
         if i % 3 == 0:
-            events.append(_ev(len(events), "prompt_enviado", m,
-                              {"content": "dame la solución completa", "prompt_kind": "solicitud_directa"}))
+            events.append(
+                _ev(
+                    len(events),
+                    "prompt_enviado",
+                    m,
+                    {"content": "dame la solución completa", "prompt_kind": "solicitud_directa"},
+                )
+            )
         elif i % 3 == 1:
             events.append(_ev(len(events), "tutor_respondio", m, {"content": "..."}))
         else:
@@ -131,24 +141,52 @@ def test_escenario_trabajo_sostenido_con_reflexion_es_reflexiva() -> None:
     events = [
         _ev(0, "episodio_abierto", 0),
         # 8 iteraciones con reflexión y tema coherente
-        _ev(1, "prompt_enviado", 2,
-            {"content": "cómo estructuro la recursión para factorial", "prompt_kind": "solicitud_directa"}),
+        _ev(
+            1,
+            "prompt_enviado",
+            2,
+            {
+                "content": "cómo estructuro la recursión para factorial",
+                "prompt_kind": "solicitud_directa",
+            },
+        ),
         _ev(2, "tutor_respondio", 3, {"content": "..."}),
         _ev(3, "codigo_ejecutado", 5),
-        _ev(4, "anotacion_creada", 5,
-            {"content": "entiendo el caso base pero el caso recursivo me confunde"}),
-        _ev(5, "prompt_enviado", 8,
-            {"content": "por qué mi caso recursivo para factorial falla", "prompt_kind": "reflexion"}),
+        _ev(
+            4,
+            "anotacion_creada",
+            5,
+            {"content": "entiendo el caso base pero el caso recursivo me confunde"},
+        ),
+        _ev(
+            5,
+            "prompt_enviado",
+            8,
+            {
+                "content": "por qué mi caso recursivo para factorial falla",
+                "prompt_kind": "reflexion",
+            },
+        ),
         _ev(6, "tutor_respondio", 9, {"content": "..."}),
         _ev(7, "codigo_ejecutado", 11),
         _ev(8, "anotacion_creada", 12, {"content": "ahora sí, ya pasó el factorial"}),
-        _ev(9, "prompt_enviado", 14,
-            {"content": "cómo extiendo la recursión del factorial a fibonacci",
-             "prompt_kind": "solicitud_directa"}),
+        _ev(
+            9,
+            "prompt_enviado",
+            14,
+            {
+                "content": "cómo extiendo la recursión del factorial a fibonacci",
+                "prompt_kind": "solicitud_directa",
+            },
+        ),
         _ev(10, "tutor_respondio", 15, {"content": "..."}),
         _ev(11, "codigo_ejecutado", 17),
-        _ev(12, "anotacion_creada", 18,
-            {"content": "fibonacci es parecido pero con dos casos base y dos recursiones"}),
+        _ev(
+            12,
+            "anotacion_creada",
+            18,
+            {"content": "fibonacci es parecido pero con dos casos base y dos recursiones"},
+        ),
         _ev(13, "episodio_cerrado", 20),
     ]
     r = classify_episode_from_events(events)
@@ -166,5 +204,7 @@ def test_episodio_vacio_no_crashea() -> None:
     r = classify_episode_from_events(events)
     # Falla graceful: no crashea y devuelve una clasificación
     assert r.appropriation in {
-        "delegacion_pasiva", "apropiacion_superficial", "apropiacion_reflexiva"
+        "delegacion_pasiva",
+        "apropiacion_superficial",
+        "apropiacion_reflexiva",
     }

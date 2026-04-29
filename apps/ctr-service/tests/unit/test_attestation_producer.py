@@ -7,13 +7,13 @@ Validan que:
   semantics — el cierre del episodio NO debe revertirse por una falla en el
   stream de attestation que ocurre POST-COMMIT).
 """
+
 from __future__ import annotations
 
 import json
 from unittest.mock import AsyncMock
 
 import pytest
-
 from ctr_service.services.attestation_producer import (
     ATTESTATION_STREAM,
     ATTESTATION_STREAM_MAXLEN,

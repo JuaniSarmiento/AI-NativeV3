@@ -6,6 +6,7 @@ tutor-service empezara a emitir `prompt_kind="reflexion"` sin que
 `PromptKind` lo admita, los CTRs no validarían contra el contract y
 llegarían a CCD desalineados — este test fija la realidad presente.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -53,7 +54,9 @@ def test_prompt_solicitud_directa_de_contenido_reflexivo_cuenta_como_huerfano() 
     queda como acción huérfana — confirmando el sesgo declarado en docstring.
     """
     events = [
-        _ev(0, "codigo_ejecutado", 0, {"code": "print(x)", "duration_ms": 10, "runtime": "pyodide"}),
+        _ev(
+            0, "codigo_ejecutado", 0, {"code": "print(x)", "duration_ms": 10, "runtime": "pyodide"}
+        ),
         # Prompt con contenido reflexivo, PERO tagged 'solicitud_directa'
         # (porque tutor_core.py:201 hardcodea ese kind para todos los prompts):
         _ev(
@@ -72,8 +75,7 @@ def test_prompt_solicitud_directa_de_contenido_reflexivo_cuenta_como_huerfano() 
     # queda huérfano. El prompt "reflexivo" cuenta como acción, no como giro.
     assert r["pairs"] >= 1, "El codigo_ejecutado debe figurar como acción"
     assert r["orphans"] >= 1, (
-        "Sin reflexión correlacionada, el ejecutado queda huérfano —"
-        " confirma el sesgo del v1.0.0."
+        "Sin reflexión correlacionada, el ejecutado queda huérfano — confirma el sesgo del v1.0.0."
     )
     assert r["ccd_orphan_ratio"] == r["orphans"] / r["pairs"]
 
@@ -83,7 +85,9 @@ def test_anotacion_creada_si_se_correlaciona_como_reflexion() -> None:
     correlaciona con la acción previa dentro de la ventana de 2 min.
     """
     events = [
-        _ev(0, "codigo_ejecutado", 0, {"code": "print(x)", "duration_ms": 10, "runtime": "pyodide"}),
+        _ev(
+            0, "codigo_ejecutado", 0, {"code": "print(x)", "duration_ms": 10, "runtime": "pyodide"}
+        ),
         _ev(1, "anotacion_creada", 30, {"content": "ahora se por que falla", "words": 6}),
     ]
     r = compute_ccd(events)

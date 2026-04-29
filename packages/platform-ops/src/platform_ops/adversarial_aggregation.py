@@ -9,6 +9,7 @@ en platform-ops, testeable sin DB con mocks. El endpoint en
 analytics-service llama `RealLongitudinalDataSource.list_adversarial_events_by_comision`
 y le pasa el resultado a esta función.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -84,15 +85,17 @@ def aggregate_adversarial_events(events: list[dict[str, Any]]) -> dict[str, Any]
         matched = ev.get("matched_text", "")
         if len(matched) > _MAX_MATCHED_TEXT_OUTPUT:
             matched = matched[:_MAX_MATCHED_TEXT_OUTPUT] + "..."
-        recent.append({
-            "episode_id": ev.get("episode_id", ""),
-            "student_pseudonym": ev.get("student_pseudonym", ""),
-            "ts": ev.get("ts", ""),
-            "category": ev.get("category", "unknown"),
-            "severity": int(ev.get("severity", 0)),
-            "pattern_id": ev.get("pattern_id", ""),
-            "matched_text": matched,
-        })
+        recent.append(
+            {
+                "episode_id": ev.get("episode_id", ""),
+                "student_pseudonym": ev.get("student_pseudonym", ""),
+                "ts": ev.get("ts", ""),
+                "category": ev.get("category", "unknown"),
+                "severity": int(ev.get("severity", 0)),
+                "pattern_id": ev.get("pattern_id", ""),
+                "matched_text": matched,
+            }
+        )
 
     return {
         "n_events_total": len(events),

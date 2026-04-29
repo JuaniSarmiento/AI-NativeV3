@@ -19,6 +19,7 @@ de la instancia respecto del template. Ver ADR-016.
 
 El CTR no se toca: `Episode.problema_id` sigue apuntando a la instancia.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -67,22 +68,29 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id", name="pk_tareas_practicas_templates"),
         sa.ForeignKeyConstraint(
-            ["materia_id"], ["materias.id"],
+            ["materia_id"],
+            ["materias.id"],
             name="fk_tareas_practicas_templates_materia_id_materias",
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["periodo_id"], ["periodos.id"],
+            ["periodo_id"],
+            ["periodos.id"],
             name="fk_tareas_practicas_templates_periodo_id_periodos",
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
-            ["parent_template_id"], ["tareas_practicas_templates.id"],
+            ["parent_template_id"],
+            ["tareas_practicas_templates.id"],
             name="fk_tp_templates_parent_template_id",
             ondelete="RESTRICT",
         ),
         sa.UniqueConstraint(
-            "tenant_id", "materia_id", "periodo_id", "codigo", "version",
+            "tenant_id",
+            "materia_id",
+            "periodo_id",
+            "codigo",
+            "version",
             name="uq_template_codigo_version",
         ),
         sa.CheckConstraint(
@@ -98,9 +106,7 @@ def upgrade() -> None:
             name="ck_template_version",
         ),
     )
-    op.create_index(
-        "ix_template_tenant_id", "tareas_practicas_templates", ["tenant_id"]
-    )
+    op.create_index("ix_template_tenant_id", "tareas_practicas_templates", ["tenant_id"])
     op.create_index(
         "ix_template_materia_periodo",
         "tareas_practicas_templates",
@@ -143,9 +149,7 @@ def upgrade() -> None:
             server_default=sa.false(),
         ),
     )
-    op.create_index(
-        "ix_tareas_practicas_template_id", "tareas_practicas", ["template_id"]
-    )
+    op.create_index("ix_tareas_practicas_template_id", "tareas_practicas", ["template_id"])
     op.create_check_constraint(
         "ck_tp_drift_needs_template",
         "tareas_practicas",
@@ -158,9 +162,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Revertir cambios en `tareas_practicas` (orden inverso al upgrade)
-    op.drop_constraint(
-        "ck_tp_drift_needs_template", "tareas_practicas", type_="check"
-    )
+    op.drop_constraint("ck_tp_drift_needs_template", "tareas_practicas", type_="check")
     op.drop_index("ix_tareas_practicas_template_id", table_name="tareas_practicas")
     op.drop_column("tareas_practicas", "has_drift")
     op.drop_column("tareas_practicas", "template_id")
@@ -169,8 +171,6 @@ def downgrade() -> None:
     # el table drop; los dropeamos explícitos para que el downgrade sea claro)
     op.drop_index("ix_template_deleted_at", table_name="tareas_practicas_templates")
     op.drop_index("ix_template_parent", table_name="tareas_practicas_templates")
-    op.drop_index(
-        "ix_template_materia_periodo", table_name="tareas_practicas_templates"
-    )
+    op.drop_index("ix_template_materia_periodo", table_name="tareas_practicas_templates")
     op.drop_index("ix_template_tenant_id", table_name="tareas_practicas_templates")
     op.drop_table("tareas_practicas_templates")

@@ -1,4 +1,5 @@
 """Schemas de request/response del content-service."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +7,6 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # ── Material ──────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ class MaterialListOut(BaseModel):
 
 class ChunkOut(BaseModel):
     """Versión expuesta de un chunk, sin el embedding (irrelevante para UI)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -96,9 +97,7 @@ class IngestionStatus(BaseModel):
     """Estado de una ingesta en curso para feedback al frontend."""
 
     material_id: UUID
-    estado: Literal[
-        "uploaded", "extracting", "chunking", "embedding", "indexed", "failed"
-    ]
+    estado: Literal["uploaded", "extracting", "chunking", "embedding", "indexed", "failed"]
     progress_pct: int = Field(ge=0, le=100)
     chunks_created: int = 0
     error_message: str | None = None

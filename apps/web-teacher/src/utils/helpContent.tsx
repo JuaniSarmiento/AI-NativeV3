@@ -312,43 +312,43 @@ export const helpContent: HelpContentMap = {
 
   episodeNLevel: (
     <div className="space-y-4 text-zinc-300">
-      <p className="text-lg font-medium text-[var(--text-inverse)]">Distribucion N1-N4 por episodio</p>
+      <p className="text-lg font-medium text-[var(--text-inverse)]">
+        Distribucion N1-N4 por episodio
+      </p>
       <p>
-        Drill-down del tiempo invertido por el estudiante en cada nivel analitico de un
-        episodio especifico. Implementa el componente C3.2 de la tesis (Seccion 6.4) y
-        habilita la metrica de "proporcion de tiempo por nivel" (Seccion 15.2). Ver
-        ADR-020 para detalles.
+        Drill-down del tiempo invertido por el estudiante en cada nivel analitico de un episodio
+        especifico. Implementa el componente C3.2 de la tesis (Seccion 6.4) y habilita la metrica de
+        "proporcion de tiempo por nivel" (Seccion 15.2). Ver ADR-020 para detalles.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
         <li>
-          <strong>UUID del episodio:</strong> pega el episode_id que queres inspeccionar.
-          Lo obtenes desde Progresion (cada estudiante tiene listados sus episodios).
+          <strong>UUID del episodio:</strong> pega el episode_id que queres inspeccionar. Lo obtenes
+          desde Progresion (cada estudiante tiene listados sus episodios).
         </li>
         <li>
-          <strong>Barra apilada:</strong> proporcion del tiempo total del episodio en
-          cada nivel. Colores: verde N1 (planificacion), azul N2 (estrategia), amarillo
-          N3 (validacion), naranja N4 (interaccion IA), gris meta (apertura/cierre).
+          <strong>Barra apilada:</strong> proporcion del tiempo total del episodio en cada nivel.
+          Colores: verde N1 (planificacion), azul N2 (estrategia), amarillo N3 (validacion), naranja
+          N4 (interaccion IA), gris meta (apertura/cierre).
         </li>
         <li>
-          <strong>Tarjetas por nivel:</strong> tiempo absoluto, porcentaje, y conteo de
-          eventos.
+          <strong>Tarjetas por nivel:</strong> tiempo absoluto, porcentaje, y conteo de eventos.
         </li>
       </ul>
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
         <p className="text-blue-400 font-medium">Como leer la distribucion:</p>
         <p className="text-sm mt-1">
-          Un episodio "saludable" suele tener tiempo en N1 (entendio el problema), N2
-          (escribio codigo), N3 (lo probo), N4 (interactuo con tutor). Un episodio
-          dominado por N4 puede indicar dependencia excesiva de la IA. Un episodio sin
-          N3 puede indicar que ejecuto sin verificar.
+          Un episodio "saludable" suele tener tiempo en N1 (entendio el problema), N2 (escribio
+          codigo), N3 (lo probo), N4 (interactuo con tutor). Un episodio dominado por N4 puede
+          indicar dependencia excesiva de la IA. Un episodio sin N3 puede indicar que ejecuto sin
+          verificar.
         </p>
       </div>
       <div className="bg-zinc-800 p-4 rounded-lg mt-2">
         <p className="text-orange-400 font-medium">Limitacion v1.0.0:</p>
         <p className="text-sm mt-1">
-          `anotacion_creada` se etiqueta como N2 fijo (override por contenido es agenda
-          futura). Una `edicion_codigo` con `origin=copied_from_tutor` se reclasifica
-          a N4 automaticamente. Ver ADR-020.
+          `anotacion_creada` se etiqueta como N2 fijo (override por contenido es agenda futura). Una
+          `edicion_codigo` con `origin=copied_from_tutor` se reclasifica a N4 automaticamente. Ver
+          ADR-020.
         </p>
       </div>
     </div>
@@ -356,45 +356,47 @@ export const helpContent: HelpContentMap = {
 
   studentLongitudinal: (
     <div className="space-y-4 text-zinc-300">
-      <p className="text-lg font-medium text-[var(--text-inverse)]">Evolucion longitudinal del estudiante</p>
+      <p className="text-lg font-medium text-[var(--text-inverse)]">
+        Evolucion longitudinal del estudiante
+      </p>
       <p>
-        Calcula el slope ordinal de apropiacion del estudiante a traves de problemas
-        analogos (mismo TareaPracticaTemplate.id, ADR-016). Cumple la Seccion 15.4 de
-        la tesis (CII como observacion longitudinal). Ver ADR-018.
+        Calcula el slope ordinal de apropiacion del estudiante a traves de problemas analogos (mismo
+        TareaPracticaTemplate.id, ADR-016). Cumple la Seccion 15.4 de la tesis (CII como observacion
+        longitudinal). Ver ADR-018.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
         <li>
-          <strong>Comision:</strong> selecciona la cohorte donde queres analizar al estudiante.
-          La query esta limitada por comision para acotar el scope.
+          <strong>Comision:</strong> selecciona la cohorte donde queres analizar al estudiante. La
+          query esta limitada por comision para acotar el scope.
         </li>
         <li>
-          <strong>UUID del estudiante:</strong> pega el `student_pseudonym`. Lo obtenes
-          desde Progresion.
+          <strong>UUID del estudiante:</strong> pega el `student_pseudonym`. Lo obtenes desde
+          Progresion.
         </li>
         <li>
           <strong>Slope:</strong> regresion lineal sobre `APPROPRIATION_ORDINAL` (delegacion=0,
           superficial=1, reflexiva=2). Slope &gt;0 = mejorando. &lt;0 = empeorando. ~0 = estable.
         </li>
         <li>
-          <strong>Sparkline:</strong> trayectoria ordinal del estudiante en cada template
-          ordenada por classified_at.
+          <strong>Sparkline:</strong> trayectoria ordinal del estudiante en cada template ordenada
+          por classified_at.
         </li>
       </ul>
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
         <p className="text-blue-400 font-medium">Cuando hay "datos insuficientes":</p>
         <p className="text-sm mt-1">
           Templates con menos de 3 episodios cerrados tienen `slope=null` con flag
-          `insufficient_data`. La tesis exige longitudinalidad real — con 1-2 episodios
-          el slope es trivial o indefinido. Documentado en RN-130.
+          `insufficient_data`. La tesis exige longitudinalidad real — con 1-2 episodios el slope es
+          trivial o indefinido. Documentado en RN-130.
         </p>
       </div>
       <div className="bg-zinc-800 p-4 rounded-lg mt-2">
         <p className="text-orange-400 font-medium">Limitaciones declaradas:</p>
         <p className="text-sm mt-1">
-          TPs sin `template_id` (huerfanas pre-ADR-016) NO entran al calculo. El slope
-          cardinal sobre datos ordinales es operacionalizacion conservadora — defendible
-          pero no afirmamos que sea verdad academica. Comparativas estudiante-a-estudiante
-          (ranking) son OK; promediar la cohorte tiene sentido limitado.
+          TPs sin `template_id` (huerfanas pre-ADR-016) NO entran al calculo. El slope cardinal
+          sobre datos ordinales es operacionalizacion conservadora — defendible pero no afirmamos
+          que sea verdad academica. Comparativas estudiante-a-estudiante (ranking) son OK; promediar
+          la cohorte tiene sentido limitado.
         </p>
       </div>
     </div>
@@ -404,45 +406,42 @@ export const helpContent: HelpContentMap = {
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Intentos adversos detectados</p>
       <p>
-        Visibilidad pedagogica de los matches del corpus de guardrails (ADR-019, RN-129)
-        en los prompts de los estudiantes de una cohorte. Cumple Seccion 8.5 de la tesis;
-        habilita Seccion 17.8 (efectividad de salvaguardas).
+        Visibilidad pedagogica de los matches del corpus de guardrails (ADR-019, RN-129) en los
+        prompts de los estudiantes de una cohorte. Cumple Seccion 8.5 de la tesis; habilita Seccion
+        17.8 (efectividad de salvaguardas).
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
         <li>
-          <strong>Categorias:</strong> jailbreak indirecto/sustitucion/ficcion, persuasion
-          por urgencia, prompt injection. Cada match emite un evento CTR
-          `intento_adverso_detectado`.
+          <strong>Categorias:</strong> jailbreak indirecto/sustitucion/ficcion, persuasion por
+          urgencia, prompt injection. Cada match emite un evento CTR `intento_adverso_detectado`.
         </li>
         <li>
-          <strong>Severidad (1-5):</strong> ordinal, NO cardinal. Es ranking, no peso.
-          Severidad &gt;=3 dispara inyeccion de un system message reforzante al LLM
-          (Seccion 8.5.1).
+          <strong>Severidad (1-5):</strong> ordinal, NO cardinal. Es ranking, no peso. Severidad
+          &gt;=3 dispara inyeccion de un system message reforzante al LLM (Seccion 8.5.1).
         </li>
         <li>
-          <strong>Top estudiantes:</strong> los 10 con mas matches. Util para
-          intervencion pedagogica focalizada.
+          <strong>Top estudiantes:</strong> los 10 con mas matches. Util para intervencion
+          pedagogica focalizada.
         </li>
         <li>
-          <strong>Eventos recientes:</strong> ultimos 50 con texto matcheado truncado a
-          200 chars.
+          <strong>Eventos recientes:</strong> ultimos 50 con texto matcheado truncado a 200 chars.
         </li>
       </ul>
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
         <p className="text-blue-400 font-medium">Importante: la deteccion NO bloquea.</p>
         <p className="text-sm mt-1">
-          El prompt llega al LLM aunque triggeree un match. El evento es side-channel para
-          analisis empirico (Seccion 17.8). Los regex son fragiles — falsos positivos y
-          negativos son esperados. Ver RN-129 para limitaciones.
+          El prompt llega al LLM aunque triggeree un match. El evento es side-channel para analisis
+          empirico (Seccion 17.8). Los regex son fragiles — falsos positivos y negativos son
+          esperados. Ver RN-129 para limitaciones.
         </p>
       </div>
       <div className="bg-zinc-800 p-4 rounded-lg mt-2">
         <p className="text-orange-400 font-medium">Limitaciones v1.1.0:</p>
         <p className="text-sm mt-1">
           Evasion intra-palabra (`olvi-da tus instrucciones`) y encadenamientos sofisticados
-          (Seccion 8.5.1 tecnica 4) NO estan cubiertos por regex — requieren clasificador ML
-          (Fase B, agenda piloto-2). `overuse` (Seccion 8.5.3) requiere ventana cross-prompt
-          y queda diferido.
+          (Seccion 8.5.1 tecnica 4) NO estan cubiertos por regex — requieren clasificador ML (Fase
+          B, agenda piloto-2). `overuse` (Seccion 8.5.3) requiere ventana cross-prompt y queda
+          diferido.
         </p>
       </div>
     </div>

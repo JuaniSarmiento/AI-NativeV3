@@ -20,6 +20,7 @@ En dev local con keycloak en docker-compose:
     export LDAP_BIND_PASSWORD=dev
     python examples/unsl_onboarding.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -60,11 +61,13 @@ async def step1_keycloak_onboarding():
         logger.error("KEYCLOAK_ADMIN_PASSWORD no seteado")
         return
 
-    kc = KeycloakClient(KeycloakConfig(
-        base_url=KEYCLOAK_URL,
-        admin_user=os.environ.get("KEYCLOAK_ADMIN_USER", "admin"),
-        admin_password=kc_password,
-    ))
+    kc = KeycloakClient(
+        KeycloakConfig(
+            base_url=KEYCLOAK_URL,
+            admin_user=os.environ.get("KEYCLOAK_ADMIN_USER", "admin"),
+            admin_password=kc_password,
+        )
+    )
 
     spec = TenantSpec(
         name="Universidad Nacional de San Luis",
@@ -105,9 +108,7 @@ async def step2_ldap_federation(spec):
         tenant_uuid=spec.uuid,
         display_name="LDAP Institucional UNSL",
         ldap=LDAPConfig(
-            connection_url=os.environ.get(
-                "LDAP_URL", "ldaps://ldap.unsl.edu.ar:636"
-            ),
+            connection_url=os.environ.get("LDAP_URL", "ldaps://ldap.unsl.edu.ar:636"),
             bind_dn="cn=admin,dc=unsl,dc=edu,dc=ar",
             bind_credential=ldap_password,
             users_dn="ou=people,dc=unsl,dc=edu,dc=ar",
@@ -181,9 +182,7 @@ tenants:
     show_n4_to_students: true  # el piloto muestra N4 al estudiante
 """
 
-    flags_path = Path(os.environ.get(
-        "FEATURE_FLAGS_PATH", "/etc/platform/feature_flags.yaml"
-    ))
+    flags_path = Path(os.environ.get("FEATURE_FLAGS_PATH", "/etc/platform/feature_flags.yaml"))
     try:
         flags_path.parent.mkdir(parents=True, exist_ok=True)
         flags_path.write_text(flags_yaml)
@@ -191,7 +190,8 @@ tenants:
     except PermissionError:
         logger.warning(
             "Sin permisos para escribir en %s. Copiá el siguiente YAML manualmente:\n%s",
-            flags_path, flags_yaml,
+            flags_path,
+            flags_yaml,
         )
 
 

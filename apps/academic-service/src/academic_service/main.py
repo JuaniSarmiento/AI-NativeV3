@@ -3,8 +3,9 @@
 En F1 expone los endpoints de Universidades, Carreras, Materias,
 Periodos y Comisiones con matriz de permisos Casbin.
 """
+
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,18 @@ from sqlalchemy.exc import IntegrityError
 
 from academic_service.config import settings
 from academic_service.observability import setup_observability
-from academic_service.routes import bulk, carreras, comisiones, facultades, health, materias, planes, tareas_practicas, tareas_practicas_templates, universidades
+from academic_service.routes import (
+    bulk,
+    carreras,
+    comisiones,
+    facultades,
+    health,
+    materias,
+    planes,
+    tareas_practicas,
+    tareas_practicas_templates,
+    universidades,
+)
 
 
 @asynccontextmanager
@@ -56,7 +68,9 @@ app.include_router(bulk.router)
 async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
     msg = str(exc.orig) if exc.orig else str(exc)
     if "unique" in msg.lower() or "duplicate" in msg.lower():
-        return JSONResponse(status_code=409, content={"detail": "Ya existe un registro con esos datos únicos"})
+        return JSONResponse(
+            status_code=409, content={"detail": "Ya existe un registro con esos datos únicos"}
+        )
     return JSONResponse(status_code=409, content={"detail": "Conflicto de integridad de datos"})
 
 

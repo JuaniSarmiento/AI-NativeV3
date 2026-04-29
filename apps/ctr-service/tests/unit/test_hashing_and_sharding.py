@@ -3,12 +3,11 @@
 Estos tests son el corazón del CTR: verifican que el hashing sea
 determinista, que detecte manipulaciones, y que el sharding sea estable.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
-
-from hypothesis import given, strategies as st
 
 from ctr_service.models.base import GENESIS_HASH
 from ctr_service.services.hashing import (
@@ -18,7 +17,8 @@ from ctr_service.services.hashing import (
     verify_chain_integrity,
 )
 from ctr_service.services.producer import shard_of
-
+from hypothesis import given
+from hypothesis import strategies as st
 
 VALID_HASH = "a" * 64
 
@@ -136,10 +136,12 @@ def test_cadena_manipulada_se_detecta() -> None:
     # Manipular e1 sin actualizar hashes
     e1_tampered = {**e1, "payload": {"content": "modificado"}}
 
-    valid, failing = verify_chain_integrity([
-        (e0, sh0, ch0),
-        (e1_tampered, sh1, ch1),
-    ])
+    valid, failing = verify_chain_integrity(
+        [
+            (e0, sh0, ch0),
+            (e1_tampered, sh1, ch1),
+        ]
+    )
     assert not valid
     assert failing == 1
 
@@ -149,7 +151,7 @@ def test_cadena_con_hash_chain_incorrecto_se_detecta() -> None:
     ep = uuid4()
     e0 = _make_event(0, ep)
     sh0 = compute_self_hash(e0)
-    ch0 = compute_chain_hash(sh0, GENESIS_HASH)
+    compute_chain_hash(sh0, GENESIS_HASH)
 
     # Forjar un chain_hash incorrecto
     fake_ch0 = "f" * 64

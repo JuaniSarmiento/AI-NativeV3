@@ -1,7 +1,6 @@
 """Tests del módulo de observabilidad unificado."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from platform_observability import (
     ObservabilityConfig,
@@ -43,9 +42,8 @@ def test_get_tracer_devuelve_algo_usable() -> None:
 
 def test_get_tracer_span_puede_usarse_anidadamente() -> None:
     tracer = get_tracer("test.module")
-    with tracer.start_as_current_span("outer"):
-        with tracer.start_as_current_span("inner"):
-            pass
+    with tracer.start_as_current_span("outer"), tracer.start_as_current_span("inner"):
+        pass
 
 
 def test_setup_es_idempotente() -> None:

@@ -1,4 +1,5 @@
 """Configuración del servicio identity-service."""
+
 from functools import lru_cache
 
 from pydantic import Field

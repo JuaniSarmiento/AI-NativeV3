@@ -16,24 +16,25 @@ volumen del piloto: 1-2 exports/día por docente):
 Para volúmenes mayores se puede migrar a Celery/RQ; la interfaz
 pública del job store se mantiene.
 """
+
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import traceback
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from enum import Enum
-from typing import Any, Callable
-from uuid import UUID, uuid4
+from enum import StrEnum
+from typing import Any
+from uuid import UUID
 
-from platform_ops.academic_export import AcademicExporter, CohortDataset
+from platform_ops.academic_export import AcademicExporter
 
 logger = logging.getLogger(__name__)
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -74,8 +75,12 @@ class ExportJob:
             "include_prompts": self.include_prompts,
             "salt_hash": self.salt_hash,
             "cohort_alias": self.cohort_alias,
-            "started_at": self.started_at.isoformat().replace("+00:00", "Z") if self.started_at else None,
-            "completed_at": self.completed_at.isoformat().replace("+00:00", "Z") if self.completed_at else None,
+            "started_at": self.started_at.isoformat().replace("+00:00", "Z")
+            if self.started_at
+            else None,
+            "completed_at": self.completed_at.isoformat().replace("+00:00", "Z")
+            if self.completed_at
+            else None,
             "error": self.error,
             # No incluimos result_payload en el resumen; se descarga separado
         }
@@ -115,9 +120,7 @@ class ExportJobStore:
         async with self._lock:
             self._jobs[job.job_id] = job
 
-    async def list_recent(
-        self, tenant_id: UUID | None = None, limit: int = 20
-    ) -> list[ExportJob]:
+    async def list_recent(self, tenant_id: UUID | None = None, limit: int = 20) -> list[ExportJob]:
         async with self._lock:
             items = list(self._jobs.values())
         if tenant_id:
@@ -130,7 +133,8 @@ class ExportJobStore:
         now = datetime.now(UTC)
         async with self._lock:
             to_delete = [
-                jid for jid, j in self._jobs.items()
+                jid
+                for jid, j in self._jobs.items()
                 if j.status in (JobStatus.SUCCEEDED, JobStatus.FAILED)
                 and j.completed_at
                 and (now - j.completed_at) > ttl
@@ -176,9 +180,7 @@ class ExportWorker:
         await self.store.update(job)
 
         try:
-            logger.info(
-                "export_starting job_id=%s comision=%s", job.job_id, job.comision_id
-            )
+            logger.info("export_starting job_id=%s comision=%s", job.job_id, job.comision_id)
             data_source = self.data_source_factory(job.tenant_id)
             exporter = AcademicExporter(
                 data_source=data_source,
@@ -197,7 +199,7 @@ class ExportWorker:
             await self.store.update(job)
             logger.info("export_succeeded job_id=%s", job.job_id)
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             tb = traceback.format_exc()
             logger.error("export_failed job_id=%s: %s\n%s", job.job_id, e, tb)
             job.status = JobStatus.FAILED
@@ -224,8 +226,8 @@ class ExportWorker:
 
 
 __all__ = [
-    "JobStatus",
     "ExportJob",
     "ExportJobStore",
     "ExportWorker",
+    "JobStatus",
 ]

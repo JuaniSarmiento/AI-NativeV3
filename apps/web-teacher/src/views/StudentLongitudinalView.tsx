@@ -149,11 +149,7 @@ const QUARTILE_LABELS: Record<string, string> = {
   Q4: "Q4 — mejor 25%",
 }
 
-export function StudentLongitudinalView({
-  getToken,
-  initialComisionId,
-  initialStudentId,
-}: Props) {
+export function StudentLongitudinalView({ getToken, initialComisionId, initialStudentId }: Props) {
   const [studentId, setStudentId] = useState(initialStudentId ?? "")
   const [comisionId, setComisionId] = useState<string | null>(initialComisionId ?? null)
   const [data, setData] = useState<CIIEvolutionLongitudinal | null>(null)
@@ -253,8 +249,8 @@ export function StudentLongitudinalView({
               <div className="rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 space-y-2">
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="text-sm font-medium text-amber-900">
-                    {alertsData.n_alerts} alerta{alertsData.n_alerts !== 1 ? "s" : ""} para
-                    este estudiante
+                    {alertsData.n_alerts} alerta{alertsData.n_alerts !== 1 ? "s" : ""} para este
+                    estudiante
                   </div>
                   {alertsData.quartile && (
                     <span className="text-xs text-amber-800">
@@ -264,10 +260,7 @@ export function StudentLongitudinalView({
                 </div>
                 <ul className="space-y-1">
                   {alertsData.alerts.map((a) => (
-                    <li
-                      key={a.code}
-                      className="flex items-start gap-2 text-xs text-slate-800"
-                    >
+                    <li key={a.code} className="flex items-start gap-2 text-xs text-slate-800">
                       <span
                         className={`shrink-0 rounded px-2 py-0.5 text-[10px] uppercase font-semibold ${SEVERITY_BADGE_STYLES[a.severity] ?? ""}`}
                       >
@@ -283,13 +276,16 @@ export function StudentLongitudinalView({
                 </ul>
               </div>
             )}
-            {alertsData && alertsData.alerts.length === 0 && alertsData.cohort_stats && !alertsData.cohort_stats.insufficient_data && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                <strong>Sin alertas</strong> — el estudiante está dentro del rango esperado
-                de la cohorte
-                {alertsData.quartile && ` (${QUARTILE_LABELS[alertsData.quartile]})`}.
-              </div>
-            )}
+            {alertsData &&
+              alertsData.alerts.length === 0 &&
+              alertsData.cohort_stats &&
+              !alertsData.cohort_stats.insufficient_data && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <strong>Sin alertas</strong> — el estudiante está dentro del rango esperado de la
+                  cohorte
+                  {alertsData.quartile && ` (${QUARTILE_LABELS[alertsData.quartile]})`}.
+                </div>
+              )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
               <div className="rounded-lg border border-slate-200 bg-white p-4">

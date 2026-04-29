@@ -4,6 +4,7 @@ GET  /api/v1/active_configs            → manifest global
 GET  /api/v1/prompts/{name}/{version}  → contenido + hash del prompt
 POST /api/v1/prompts/{name}/{version}/verify → recomputa hash vs declarado
 """
+
 from __future__ import annotations
 
 from functools import lru_cache

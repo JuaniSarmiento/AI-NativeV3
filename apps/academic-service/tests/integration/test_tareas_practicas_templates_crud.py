@@ -6,6 +6,7 @@ condicional en `new_version`, y soft-delete que preserva las instancias.
 Sigue el patrón de `test_tareas_practicas_crud.py` — no usa Postgres
 real; el test de RLS a nivel DB vive en `test_rls_isolation.py`.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -135,11 +136,7 @@ def _scalars_result(values: list) -> MagicMock:
 
 
 def _audit_entries(mock_session) -> list[AuditLog]:
-    return [
-        c.args[0]
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
-    ]
+    return [c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)]
 
 
 def _audit_actions(mock_session) -> list[str]:
@@ -172,9 +169,7 @@ async def test_create_template_auto_instances_in_all_comisiones(
         ]
     )
 
-    created_template = _fake_template(
-        uuid4(), tenant_a_id, materia_id, periodo_id
-    )
+    created_template = _fake_template(uuid4(), tenant_a_id, materia_id, periodo_id)
     svc.repo.create = AsyncMock(return_value=created_template)
 
     created_instances = []
@@ -220,8 +215,7 @@ async def test_create_template_auto_instances_in_all_comisiones(
 
     # El audit del template lleva el contador correcto
     template_audit = next(
-        a for a in _audit_entries(mock_session)
-        if a.action == "tarea_practica_template.create"
+        a for a in _audit_entries(mock_session) if a.action == "tarea_practica_template.create"
     )
     assert template_audit.changes["instances_created"] == 2
 
@@ -244,14 +238,10 @@ async def test_create_template_no_conflict_with_existing_tps_different_code(
         ]
     )
 
-    created_template = _fake_template(
-        uuid4(), tenant_a_id, materia_id, periodo_id, codigo="Y"
-    )
+    created_template = _fake_template(uuid4(), tenant_a_id, materia_id, periodo_id, codigo="Y")
     svc.repo.create = AsyncMock(return_value=created_template)
     svc.tp_repo.create = AsyncMock(
-        return_value=_fake_tp_instance(
-            uuid4(), tenant_a_id, com_1, created_template.id, codigo="Y"
-        )
+        return_value=_fake_tp_instance(uuid4(), tenant_a_id, com_1, created_template.id, codigo="Y")
     )
 
     data = TareaPracticaTemplateCreate(
@@ -330,9 +320,7 @@ async def test_update_template_rejects_if_published(
     svc = TareaPracticaTemplateService(mock_session)
 
     tid = uuid4()
-    published = _fake_template(
-        tid, tenant_a_id, uuid4(), uuid4(), estado="published"
-    )
+    published = _fake_template(tid, tenant_a_id, uuid4(), uuid4(), estado="published")
     svc.repo.get_by_id = AsyncMock(return_value=published)
 
     patch = TareaPracticaTemplateUpdate(titulo="No puedo")
@@ -360,9 +348,7 @@ async def test_publish_template_does_not_publish_instances(
     svc.repo.get_by_id = AsyncMock(return_value=template)
 
     # Instancia ficticia — el service NO debería tocarla
-    instance = _fake_tp_instance(
-        uuid4(), tenant_a_id, uuid4(), tid, estado="draft"
-    )
+    instance = _fake_tp_instance(uuid4(), tenant_a_id, uuid4(), tid, estado="draft")
     svc.tp_repo.create = AsyncMock()
 
     result = await svc.publish(tid, user_docente_admin_a)
@@ -390,15 +376,24 @@ async def test_new_version_reinstance_non_drifted(
     periodo_id = uuid4()
     old_template_id = uuid4()
     parent = _fake_template(
-        old_template_id, tenant_a_id, materia_id, periodo_id,
-        estado="published", version=1,
+        old_template_id,
+        tenant_a_id,
+        materia_id,
+        periodo_id,
+        estado="published",
+        version=1,
     )
     svc.repo.get_by_id = AsyncMock(return_value=parent)
 
     new_template_id = uuid4()
     new_template = _fake_template(
-        new_template_id, tenant_a_id, materia_id, periodo_id,
-        estado="draft", version=2, parent_template_id=old_template_id,
+        new_template_id,
+        tenant_a_id,
+        materia_id,
+        periodo_id,
+        estado="draft",
+        version=2,
+        parent_template_id=old_template_id,
         titulo="v2 Titulo",
     )
     svc.repo.create = AsyncMock(return_value=new_template)
@@ -407,18 +402,26 @@ async def test_new_version_reinstance_non_drifted(
     com_a = uuid4()
     com_b = uuid4()
     inst_clean = _fake_tp_instance(
-        uuid4(), tenant_a_id, com_a, old_template_id,
-        estado="published", version=1, has_drift=False,
+        uuid4(),
+        tenant_a_id,
+        com_a,
+        old_template_id,
+        estado="published",
+        version=1,
+        has_drift=False,
     )
     inst_drift = _fake_tp_instance(
-        uuid4(), tenant_a_id, com_b, old_template_id,
-        estado="published", version=1, has_drift=True,
+        uuid4(),
+        tenant_a_id,
+        com_b,
+        old_template_id,
+        estado="published",
+        version=1,
+        has_drift=True,
     )
 
     # session.execute es llamado una vez por el service para listar las instancias
-    mock_session.execute = AsyncMock(
-        return_value=_scalars_result([inst_clean, inst_drift])
-    )
+    mock_session.execute = AsyncMock(return_value=_scalars_result([inst_clean, inst_drift]))
 
     created_tp_payloads = []
 
@@ -436,7 +439,9 @@ async def test_new_version_reinstance_non_drifted(
 
     patch = TareaPracticaTemplateUpdate(titulo="v2 Titulo")
     result = await svc.new_version(
-        old_template_id, patch, user_docente_admin_a,
+        old_template_id,
+        patch,
+        user_docente_admin_a,
         reinstance_non_drifted=True,
     )
 
@@ -454,8 +459,7 @@ async def test_new_version_reinstance_non_drifted(
 
     # Audit log del new_version con reinstanced_count=1
     nv_audit = next(
-        a for a in _audit_entries(mock_session)
-        if a.action == "tarea_practica_template.new_version"
+        a for a in _audit_entries(mock_session) if a.action == "tarea_practica_template.new_version"
     )
     assert nv_audit.changes["reinstanced_count"] == 1
     assert nv_audit.changes["old_id"] == str(old_template_id)
@@ -474,9 +478,7 @@ async def test_soft_delete_does_not_delete_instances(
     svc = TareaPracticaTemplateService(mock_session)
 
     tid = uuid4()
-    template = _fake_template(
-        tid, tenant_a_id, uuid4(), uuid4(), estado="draft"
-    )
+    template = _fake_template(tid, tenant_a_id, uuid4(), uuid4(), estado="draft")
     svc.repo.get_by_id = AsyncMock(return_value=template)
 
     # Dos instancias vivas — el service las usa solo para contar
@@ -502,8 +504,7 @@ async def test_soft_delete_does_not_delete_instances(
 
     # Audit log con instances_remaining=2
     delete_audit = next(
-        a for a in _audit_entries(mock_session)
-        if a.action == "tarea_practica_template.delete"
+        a for a in _audit_entries(mock_session) if a.action == "tarea_practica_template.delete"
     )
     assert delete_audit.changes["instances_remaining"] == 2
     assert delete_audit.changes["template_id"] == str(tid)

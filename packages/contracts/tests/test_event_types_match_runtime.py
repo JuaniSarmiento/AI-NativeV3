@@ -11,6 +11,7 @@ en contracts vs snake_case en runtime).
 Nota: NO valida los payloads — solo el conjunto de strings de event_type.
 La validación de payload contra el contract es tema de F8/G3.
 """
+
 from __future__ import annotations
 
 import re
@@ -32,13 +33,7 @@ from platform_contracts.ctr.events import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _TUTOR_CORE = (
-    _REPO_ROOT
-    / "apps"
-    / "tutor-service"
-    / "src"
-    / "tutor_service"
-    / "services"
-    / "tutor_core.py"
+    _REPO_ROOT / "apps" / "tutor-service" / "src" / "tutor_service" / "services" / "tutor_core.py"
 )
 
 
@@ -106,9 +101,7 @@ def test_contract_event_types_are_snake_case() -> None:
         ),
     ],
 )
-def test_runtime_emits_only_contract_event_types(
-    subset_label: str, subset: set[str]
-) -> None:
+def test_runtime_emits_only_contract_event_types(subset_label: str, subset: set[str]) -> None:
     """Lo que emite tutor_core.py existe en los contracts (no inventos)."""
     contract = _contract_event_types()
     runtime = _runtime_event_types()
@@ -119,6 +112,4 @@ def test_runtime_emits_only_contract_event_types(
     )
     # Y dentro del subset esperado, los esperados están presentes en runtime.
     missing = subset - runtime
-    assert not missing, (
-        f"tutor_core.py NO emite event_types esperados ({subset_label}): {missing}."
-    )
+    assert not missing, f"tutor_core.py NO emite event_types esperados ({subset_label}): {missing}."

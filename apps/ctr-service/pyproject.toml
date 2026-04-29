@@ -44,6 +44,7 @@ packages = ["src/ctr_service"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--import-mode=importlib"
 markers = [
     "integration: requiere testcontainers",
 ]

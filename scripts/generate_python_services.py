@@ -10,6 +10,7 @@ Cada servicio tiene:
 - tests/ con test_health.py
 - README.md específico
 """
+
 from pathlib import Path
 from textwrap import dedent
 
@@ -95,7 +96,12 @@ SERVICES = [
         "module": "content_service",
         "description": "Ingesta multi-formato, chunking, embeddings, retrieval RAG",
         "port": 8009,
-        "extra_deps": ["unstructured[pdf]>=0.14", "sentence-transformers>=3.0", "tree-sitter>=0.22", "pgvector>=0.3"],
+        "extra_deps": [
+            "unstructured[pdf]>=0.14",
+            "sentence-transformers>=3.0",
+            "tree-sitter>=0.22",
+            "pgvector>=0.3",
+        ],
         "features": ["db", "events", "ai"],
     },
     {
@@ -219,7 +225,7 @@ def main_py_content(svc: dict) -> str:
     ]
 
     lifespan_body = [
-        "    \"\"\"Startup y shutdown del servicio.\"\"\"",
+        '    """Startup y shutdown del servicio."""',
         "    # Startup",
         "    setup_observability(app)",
     ]
@@ -236,14 +242,19 @@ def main_py_content(svc: dict) -> str:
     if has_db:
         lifespan_body.append("    # await db.disconnect()")
 
-    return dedent(f'''\
+    return (
+        dedent(f'''\
         """Servicio {svc["name"]}: {svc["description"]}"""
-        ''') + "\n".join(imports) + dedent(f'''
+        ''')
+        + "\n".join(imports)
+        + dedent("""
 
 
         @asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        ''') + "\n".join(lifespan_body) + dedent(f'''
+        """)
+        + "\n".join(lifespan_body)
+        + dedent(f'''
 
 
         app = FastAPI(
@@ -274,6 +285,7 @@ def main_py_content(svc: dict) -> str:
                 "status": "operational",
             }}
     ''')
+    )
 
 
 def config_py_content(svc: dict) -> str:
@@ -458,7 +470,7 @@ def test_health_content(svc: dict) -> str:
 
 def service_readme_content(svc: dict) -> str:
     features = ", ".join(svc["features"]) or "core"
-    return dedent(f'''\
+    return dedent(f"""\
         # {svc["name"]}
 
         {svc["description"]}
@@ -506,7 +518,7 @@ def service_readme_content(svc: dict) -> str:
 
         Esta es la versión F0 (esqueleto). La lógica se desarrolla en fases siguientes
         según [docs/plan-detallado-fases.md](../../docs/plan-detallado-fases.md).
-    ''')
+    """)
 
 
 def main() -> None:

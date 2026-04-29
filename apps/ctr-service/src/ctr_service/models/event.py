@@ -5,6 +5,7 @@ Un Episodio agrupa una sesión completa del estudiante con el tutor
 interacción durante ese episodio es un Evento con su par
 (self_hash, chain_hash) que forma la cadena criptográfica.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -21,7 +22,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ctr_service.models.base import Base, TenantMixin, utc_now, uuid_pk
@@ -34,9 +36,7 @@ class Episode(Base, TenantMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
-    student_pseudonym: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
+    student_pseudonym: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
     problema_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
 
     # Hashes de configuración en el momento de apertura del episodio
@@ -52,18 +52,14 @@ class Episode(Base, TenantMixin):
     opened_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
-    closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Evento count: cuántos eventos se han persistido en este episodio
     # (útil como sequence en el worker para el próximo seq esperado)
     events_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Último chain_hash computado — para verificar continuidad al agregar el próximo
-    last_chain_hash: Mapped[str] = mapped_column(
-        String(64), default="0" * 64, nullable=False
-    )
+    last_chain_hash: Mapped[str] = mapped_column(String(64), default="0" * 64, nullable=False)
 
     # Flag si la cadena se detecta rota por un consumer (p. ej. un evento
     # del stream falló y fue al DLQ con `integrity_compromised=true`).
@@ -72,9 +68,7 @@ class Episode(Base, TenantMixin):
     # Metadata (cantidad de prompts enviados, tiempo activo, etc.)
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
-    events: Mapped[list[Event]] = relationship(
-        back_populates="episode", cascade="all"
-    )
+    events: Mapped[list[Event]] = relationship(back_populates="episode", cascade="all")
 
 
 class Event(Base, TenantMixin):
@@ -89,9 +83,7 @@ class Event(Base, TenantMixin):
 
     # id autoincremental; el UUID lógico del evento es `event_uuid`
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    event_uuid: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
+    event_uuid: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
     # UUID producido por el emisor — sirve para deduplicación idempotente
     # en el consumer (si llega el mismo event_uuid dos veces, se ignora).
 
@@ -159,9 +151,7 @@ class DeadLetter(Base, TenantMixin):
     raw_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     error_reason: Mapped[str] = mapped_column(Text, nullable=False)
     failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     moved_to_dlq_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )

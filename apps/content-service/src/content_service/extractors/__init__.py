@@ -1,4 +1,5 @@
 """Extractores por formato."""
+
 from content_service.extractors.base import (
     BaseExtractor,
     ExtractedSection,
@@ -26,9 +27,9 @@ def get_extractor(format_name: str) -> BaseExtractor:
 
 __all__ = [
     "BaseExtractor",
+    "CodeArchiveExtractor",
     "ExtractedSection",
     "ExtractionResult",
-    "CodeArchiveExtractor",
     "MarkdownExtractor",
     "PDFExtractor",
     "TextExtractor",

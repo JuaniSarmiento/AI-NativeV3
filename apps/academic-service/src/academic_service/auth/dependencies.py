@@ -4,6 +4,7 @@ En F1 el JWT se valida contra Keycloak. Para tests, se inyecta un User
 mock. La validación real con firma de JWT se completa en F3 cuando el
 api-gateway toma ese rol.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

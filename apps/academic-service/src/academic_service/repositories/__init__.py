@@ -1,4 +1,5 @@
 """Repositorios específicos por entidad del dominio."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -138,9 +139,7 @@ class TareaPracticaTemplateRepository:
         )
         if estado is not None:
             stmt = stmt.where(TareaPracticaTemplate.estado == estado)
-        stmt = stmt.order_by(
-            TareaPracticaTemplate.codigo, TareaPracticaTemplate.version
-        )
+        stmt = stmt.order_by(TareaPracticaTemplate.codigo, TareaPracticaTemplate.version)
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
@@ -157,9 +156,7 @@ class TareaPracticaTemplateRepository:
         await session.refresh(template)
         return template
 
-    async def soft_delete(
-        self, session: AsyncSession, template: TareaPracticaTemplate
-    ) -> None:
+    async def soft_delete(self, session: AsyncSession, template: TareaPracticaTemplate) -> None:
         template.deleted_at = utc_now()
         await session.flush()
 

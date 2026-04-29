@@ -1,4 +1,5 @@
 """Tests de exportación académica anonimizada."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,8 +7,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-
-from platform_ops.academic_export import AcademicExporter, CohortDataset
+from platform_ops.academic_export import AcademicExporter
 
 
 @dataclass
@@ -69,8 +69,12 @@ def _build_sample_cohort():
     events_by_episode = {
         str(ep1): [
             {"seq": 0, "event_type": "episodio_abierto", "ts": ts_open, "payload": {}},
-            {"seq": 1, "event_type": "prompt_enviado", "ts": ts_open,
-             "payload": {"content": "qué es recursión", "prompt_kind": "solicitud_directa"}},
+            {
+                "seq": 1,
+                "event_type": "prompt_enviado",
+                "ts": ts_open,
+                "payload": {"content": "qué es recursión", "prompt_kind": "solicitud_directa"},
+            },
             {"seq": 2, "event_type": "tutor_respondio", "ts": ts_open, "payload": {}},
             {"seq": 3, "event_type": "codigo_ejecutado", "ts": ts_open, "payload": {}},
             {"seq": 4, "event_type": "anotacion_creada", "ts": ts_open, "payload": {}},
@@ -97,20 +101,29 @@ def _build_sample_cohort():
         str(ep1): {
             "appropiation": "apropiacion_reflexiva",
             "classifier_config_hash": "d" * 64,
-            "ct_summary": 0.82, "ccd_mean": 0.78, "ccd_orphan_ratio": 0.10,
-            "cii_stability": 0.65, "cii_evolution": 0.70,
+            "ct_summary": 0.82,
+            "ccd_mean": 0.78,
+            "ccd_orphan_ratio": 0.10,
+            "cii_stability": 0.65,
+            "cii_evolution": 0.70,
         },
         str(ep2): {
             "appropiation": "apropiacion_superficial",
             "classifier_config_hash": "d" * 64,
-            "ct_summary": 0.45, "ccd_mean": 0.40, "ccd_orphan_ratio": 0.50,
-            "cii_stability": 0.30, "cii_evolution": 0.30,
+            "ct_summary": 0.45,
+            "ccd_mean": 0.40,
+            "ccd_orphan_ratio": 0.50,
+            "cii_stability": 0.30,
+            "cii_evolution": 0.30,
         },
         str(ep3): {
             "appropiation": "delegacion_pasiva",
             "classifier_config_hash": "d" * 64,
-            "ct_summary": 0.20, "ccd_mean": 0.10, "ccd_orphan_ratio": 0.95,
-            "cii_stability": 0.15, "cii_evolution": 0.10,
+            "ct_summary": 0.20,
+            "ccd_mean": 0.10,
+            "ccd_orphan_ratio": 0.95,
+            "cii_stability": 0.15,
+            "cii_evolution": 0.10,
         },
         # ep4: sin clasificar
     }
@@ -224,7 +237,11 @@ async def test_include_prompts_true_incluye_texto() -> None:
     dataset = await exporter.export_cohort(comision_id, include_prompts=True)
 
     # El episodio 1 tiene 1 prompt con content
-    ep1 = next(e for e in dataset.episodes if e.prompt_count > 0 and e.appropriation == "apropiacion_reflexiva")
+    ep1 = next(
+        e
+        for e in dataset.episodes
+        if e.prompt_count > 0 and e.appropriation == "apropiacion_reflexiva"
+    )
     assert len(ep1.prompts) == 1
     assert ep1.prompts[0]["content"] == "qué es recursión"
 
@@ -232,6 +249,7 @@ async def test_include_prompts_true_incluye_texto() -> None:
 async def test_dataset_serializable_a_json() -> None:
     """El to_dict debe producir un dict serializable."""
     import json
+
     ds, comision_id = _build_sample_cohort()
     exporter = AcademicExporter(ds, salt="research_salt_analysis_2026")
     dataset = await exporter.export_cohort(comision_id)

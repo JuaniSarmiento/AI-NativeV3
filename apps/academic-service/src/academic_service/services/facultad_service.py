@@ -1,4 +1,5 @@
 """Service de Facultad."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -28,14 +29,16 @@ class FacultadService:
             )
 
         new_id = uuid4()
-        facultad = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "universidad_id": universidad.id,
-            "nombre": data.nombre,
-            "codigo": data.codigo,
-            "decano_user_id": data.decano_user_id,
-        })
+        facultad = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "universidad_id": universidad.id,
+                "nombre": data.nombre,
+                "codigo": data.codigo,
+                "decano_user_id": data.decano_user_id,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -49,9 +52,7 @@ class FacultadService:
         await self.session.flush()
         return facultad
 
-    async def update(
-        self, id_: UUID, data: FacultadUpdate, user: User
-    ) -> Facultad:
+    async def update(self, id_: UUID, data: FacultadUpdate, user: User) -> Facultad:
         obj = await self.repo.get_or_404(id_)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
         for k, v in changes.items():

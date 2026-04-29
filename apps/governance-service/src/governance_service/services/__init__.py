@@ -1,4 +1,5 @@
 """Lógica del governance-service."""
+
 from governance_service.services.prompt_loader import (
     PromptConfig,
     PromptLoader,

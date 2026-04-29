@@ -25,9 +25,9 @@ Resolución: tenant override → default → raise si la feature no existe.
 El objetivo es tener todas las features declaradas en `default` para que
 nunca haya "feature no declarada" silenciosamente.
 """
+
 from __future__ import annotations
 
-import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -70,7 +70,9 @@ class FeatureFlags:
 
     def _maybe_reload(self) -> None:
         now = time.time()
-        if (now - self._snapshot.loaded_at) < self.reload_interval_seconds and self._snapshot.loaded_at > 0:
+        if (
+            now - self._snapshot.loaded_at
+        ) < self.reload_interval_seconds and self._snapshot.loaded_at > 0:
             return
 
         if not self.config_path.exists():
@@ -81,6 +83,7 @@ class FeatureFlags:
 
         raw = self.config_path.read_text()
         import hashlib
+
         source_hash = hashlib.sha256(raw.encode()).hexdigest()
 
         if source_hash == self._snapshot.source_hash:
@@ -99,7 +102,8 @@ class FeatureFlags:
 
         logger.info(
             "feature_flags reloaded: defaults=%d tenants=%d",
-            len(defaults), len(tenants),
+            len(defaults),
+            len(tenants),
         )
         self._snapshot = FlagsSnapshot(
             defaults=defaults,
@@ -112,9 +116,7 @@ class FeatureFlags:
         """Atajo para flags booleanas."""
         val = self.get_value(tenant_id, feature)
         if not isinstance(val, bool):
-            raise TypeError(
-                f"Feature '{feature}' no es booleana (tipo={type(val).__name__})"
-            )
+            raise TypeError(f"Feature '{feature}' no es booleana (tipo={type(val).__name__})")
         return val
 
     def get_value(self, tenant_id: UUID, feature: str) -> Any:
@@ -198,7 +200,7 @@ def _parse_value(s: str) -> Any:
         return True
     if s == "false":
         return False
-    if s == "null" or s == "":
+    if s in {"null", ""}:
         return None
     # int
     try:

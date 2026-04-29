@@ -20,6 +20,7 @@ ad-hoc con psql.
 La cadena criptográfica del CTR se mantiene intacta — RLS solo filtra
 qué filas son visibles, no modifica los hashes.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

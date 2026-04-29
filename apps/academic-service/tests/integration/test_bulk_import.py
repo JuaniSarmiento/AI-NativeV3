@@ -4,6 +4,7 @@ Mock-based: cubre parseo CSV (UTF-8 + BOM), dry-run con validación + FK,
 commit atómico (rollback si alguna fila falla), entidades no soportadas y
 errores de FK. Sigue el estilo de test_facultades_crud.py.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -11,8 +12,6 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import HTTPException
-
 from academic_service.auth.dependencies import User
 from academic_service.models import AuditLog, Comision, Facultad, TareaPractica, Universidad
 from academic_service.services.bulk_import import (
@@ -21,6 +20,7 @@ from academic_service.services.bulk_import import (
     BulkImportReport,
     BulkImportService,
 )
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -74,11 +74,13 @@ def _patch_universidad_repo(monkeypatch, exists: bool, tenant_id: UUID) -> None:
     from academic_service.repositories import UniversidadRepository
 
     if exists:
+
         async def _ok(self, _id):
             return _fake_universidad(tenant_id)
 
         monkeypatch.setattr(UniversidadRepository, "get_or_404", _ok)
     else:
+
         async def _missing(self, _id):
             raise HTTPException(status_code=404, detail="Universidad no encontrada")
 
@@ -178,9 +180,7 @@ async def test_bulk_import_facultades_commit_happy_path(
 
     # 1 audit log por cada fila confirmada (RN-016)
     audit_calls = [
-        c.args[0]
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 2
     assert all(a.action == "facultad.create" for a in audit_calls)
@@ -233,9 +233,7 @@ async def test_bulk_import_facultades_commit_rolls_back_on_any_error(
     # CRÍTICO: ninguna fila se creó (rollback total)
     assert create_calls == []
     audit_calls = [
-        c.args[0]
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert audit_calls == []
 
@@ -243,9 +241,7 @@ async def test_bulk_import_facultades_commit_rolls_back_on_any_error(
 # ── validaciones de entrada ──────────────────────────────
 
 
-async def test_bulk_import_unsupported_entity_400(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_bulk_import_unsupported_entity_400(mock_session, user_docente_admin_a: User) -> None:
     """Entidad fuera de la lista soportada → HTTPException 400."""
     svc = BulkImportService(mock_session)
     with pytest.raises(HTTPException) as exc_info:
@@ -254,9 +250,7 @@ async def test_bulk_import_unsupported_entity_400(
     assert "no soportada" in str(exc_info.value.detail).lower()
 
 
-async def test_bulk_import_csv_malformed_400(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_bulk_import_csv_malformed_400(mock_session, user_docente_admin_a: User) -> None:
     """CSV con bytes no UTF-8 → HTTPException 400."""
     svc = BulkImportService(mock_session)
     bad_bytes = b"\xff\xfe\x00\x00not utf8 at all \xc3\x28"
@@ -265,9 +259,7 @@ async def test_bulk_import_csv_malformed_400(
     assert exc_info.value.status_code == 400
 
 
-async def test_bulk_import_csv_too_large_413(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_bulk_import_csv_too_large_413(mock_session, user_docente_admin_a: User) -> None:
     """CSV > MAX_CSV_BYTES (5 MB) → HTTPException 413 sin parsearlo en memoria."""
     svc = BulkImportService(mock_session)
     oversized = b"x" * (MAX_CSV_BYTES + 1)
@@ -335,11 +327,13 @@ def _patch_comision_repo(monkeypatch, exists: bool, tenant_id: UUID) -> None:
     from academic_service.repositories import ComisionRepository
 
     if exists:
+
         async def _ok(self, _id):
             return _fake_comision(_id, tenant_id)
 
         monkeypatch.setattr(ComisionRepository, "get_or_404", _ok)
     else:
+
         async def _missing(self, _id):
             raise HTTPException(status_code=404, detail="Comisión no encontrada")
 
@@ -357,7 +351,7 @@ async def test_bulk_import_tareas_practicas_dry_run_happy_path(
         "comision_id,codigo,titulo,enunciado,peso\n"
         f"{comision_id},TP01,Tarea 1,Resolver ejercicio 1,0.3\n"
         f"{comision_id},TP02,Tarea 2,Resolver ejercicio 2,0.3\n"
-        f"{comision_id},TP03,Tarea 3,\"Resolver, con coma\",0.4\n"
+        f'{comision_id},TP03,Tarea 3,"Resolver, con coma",0.4\n'
     )
     svc = BulkImportService(mock_session)
     rows = svc.parse_csv(csv_text.encode("utf-8"), "tareas_practicas")
@@ -381,7 +375,7 @@ async def test_bulk_import_tareas_practicas_dry_run_with_invalid_rubrica(
 
     csv_text = (
         "comision_id,codigo,titulo,enunciado,rubrica\n"
-        f"{comision_id},TP01,Tarea 1,Enunciado,\"{{not valid json}}\"\n"
+        f'{comision_id},TP01,Tarea 1,Enunciado,"{{not valid json}}"\n'
     )
     svc = BulkImportService(mock_session)
     rows = svc.parse_csv(csv_text.encode("utf-8"), "tareas_practicas")
@@ -441,9 +435,7 @@ async def test_bulk_import_tareas_practicas_commit_happy_path(
     assert all(p["parent_tarea_id"] is None for p in create_payloads)
 
     audit_calls = [
-        c.args[0]
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 2
     assert all(a.action == "tarea_practica.create" for a in audit_calls)

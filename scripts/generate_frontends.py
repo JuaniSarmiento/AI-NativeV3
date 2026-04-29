@@ -10,6 +10,7 @@ Cada frontend tiene:
 - src/config.ts con lectura de env
 - tailwind setup
 """
+
 from pathlib import Path
 from textwrap import dedent
 
@@ -40,7 +41,7 @@ FRONTENDS = [
 
 def package_json(app: dict) -> str:
     name = app["name"]
-    return dedent(f'''\
+    return dedent(f"""\
         {{
           "name": "@platform/{name}",
           "version": "0.1.0",
@@ -88,11 +89,11 @@ def package_json(app: dict) -> str:
             "jsdom": "^25.0.0"
           }}
         }}
-    ''')
+    """)
 
 
 def vite_config() -> str:
-    return dedent('''\
+    return dedent("""\
         import { defineConfig } from "vite"
         import react from "@vitejs/plugin-react"
         import tailwindcss from "@tailwindcss/vite"
@@ -128,11 +129,11 @@ def vite_config() -> str:
             globals: true,
           },
         })
-    ''')
+    """)
 
 
 def tsconfig_json() -> str:
-    return dedent('''\
+    return dedent("""\
         {
           "compilerOptions": {
             "target": "ES2023",
@@ -164,7 +165,7 @@ def tsconfig_json() -> str:
           },
           "include": ["src", "vite.config.ts"]
         }
-    ''')
+    """)
 
 
 def index_html(app: dict) -> str:
@@ -187,37 +188,37 @@ def index_html(app: dict) -> str:
 
 
 def main_tsx(app: dict) -> str:
-    return dedent(f'''\
-        import {{ StrictMode }} from "react"
-        import {{ createRoot }} from "react-dom/client"
-        import {{ QueryClient, QueryClientProvider }} from "@tanstack/react-query"
+    return dedent("""\
+        import { StrictMode } from "react"
+        import { createRoot } from "react-dom/client"
+        import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
         import App from "./App"
         import "./index.css"
 
-        const queryClient = new QueryClient({{
-          defaultOptions: {{
-            queries: {{
+        const queryClient = new QueryClient({
+          defaultOptions: {
+            queries: {
               staleTime: 60_000,
               retry: 1,
-            }},
-          }},
-        }})
+            },
+          },
+        })
 
         const rootElement = document.getElementById("root")
         if (!rootElement) throw new Error("Missing #root element")
 
         createRoot(rootElement).render(
           <StrictMode>
-            <QueryClientProvider client={{queryClient}}>
+            <QueryClientProvider client={queryClient}>
               <App />
             </QueryClientProvider>
           </StrictMode>,
         )
-    ''')
+    """)
 
 
 def app_tsx(app: dict) -> str:
-    return dedent(f'''\
+    return dedent(f"""\
         import {{ useEffect, useState }} from "react"
 
         interface HealthResponse {{
@@ -277,11 +278,11 @@ def app_tsx(app: dict) -> str:
             </div>
           )
         }}
-    ''')
+    """)
 
 
 def index_css() -> str:
-    return dedent('''\
+    return dedent("""\
         @import "tailwindcss";
 
         @theme {
@@ -297,11 +298,11 @@ def index_css() -> str:
         code, pre {
           font-family: var(--font-mono);
         }
-    ''')
+    """)
 
 
 def biome_json() -> str:
-    return dedent('''\
+    return dedent("""\
         {
           "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
           "organizeImports": { "enabled": true },
@@ -335,17 +336,17 @@ def biome_json() -> str:
             }
           }
         }
-    ''')
+    """)
 
 
 def vitest_setup() -> str:
-    return dedent('''\
+    return dedent("""\
         import "@testing-library/jest-dom/vitest"
-    ''')
+    """)
 
 
 def readme(app: dict) -> str:
-    return dedent(f'''\
+    return dedent(f"""\
         # {app["name"]}
 
         {app["description"]}
@@ -383,7 +384,7 @@ def readme(app: dict) -> str:
         - Keycloak.js para autenticación
         - Biome para lint/format
         - Vitest + Testing Library para tests unitarios
-    ''')
+    """)
 
 
 def main() -> None:
@@ -411,7 +412,7 @@ def main() -> None:
         (public_dir / "favicon.svg").write_text(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#185FA5">'
             '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>'
-            '</svg>\n'
+            "</svg>\n"
         )
 
         print(f"✓ {app['name']} generado")

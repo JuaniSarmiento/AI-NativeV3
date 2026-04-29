@@ -96,10 +96,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
   // nueva referencia y dispara refetch → setState → re-render → loop infinito
   // (rate-limiter lo corta en 429). Las deps son solo los primitivos que
   // realmente invalidan el fetch (IDs + getToken).
-  const fetchUniversidades = useCallback(
-    () => catalogoApi.universidades(getToken),
-    [getToken],
-  )
+  const fetchUniversidades = useCallback(() => catalogoApi.universidades(getToken), [getToken])
   const universidades = useCascadeLevel<Universidad>(fetchUniversidades)
 
   const fetchFacultades = useCallback(

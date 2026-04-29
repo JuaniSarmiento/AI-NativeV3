@@ -6,6 +6,7 @@ cerrado, el periodo queda frozen. `abierto → cerrado` es one-way.
 Mock-based, sigue el pattern de `test_facultades_crud.py` y
 `test_comision_periodo_cerrado.py`.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -60,9 +61,7 @@ def _fake_periodo(
     return p
 
 
-async def test_update_nombre_ok_cuando_abierto(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_update_nombre_ok_cuando_abierto(mock_session, user_docente_admin_a: User) -> None:
     """PATCH de `nombre` OK cuando estado=abierto + audit log escrito (RN-016)."""
     svc = PeriodoService(mock_session)
     pid = uuid4()
@@ -77,9 +76,7 @@ async def test_update_nombre_ok_cuando_abierto(
 
     # Audit log emitido en la misma tx
     audit_calls = [
-        c.args[0]
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "periodo.update"
@@ -87,9 +84,7 @@ async def test_update_nombre_ok_cuando_abierto(
     assert audit_calls[0].resource_id == pid
 
 
-async def test_transicion_abierto_a_cerrado_ok(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_transicion_abierto_a_cerrado_ok(mock_session, user_docente_admin_a: User) -> None:
     """`abierto → cerrado` es la transición válida (one-way)."""
     svc = PeriodoService(mock_session)
     pid = uuid4()
@@ -103,9 +98,7 @@ async def test_transicion_abierto_a_cerrado_ok(
     assert fake.estado == "cerrado"
 
 
-async def test_rechaza_reabrir_periodo_cerrado(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_rechaza_reabrir_periodo_cerrado(mock_session, user_docente_admin_a: User) -> None:
     """`cerrado → abierto` NO permitido — devuelve 409 Conflict.
 
     Protege el invariante CTR: el CTR se sella al cierre del ciclo. Si
@@ -124,10 +117,7 @@ async def test_rechaza_reabrir_periodo_cerrado(
     assert exc_info.value.status_code == 409
     # El primer check que hit es "periodo cerrado, no se puede modificar"
     # — igualmente relevante (no se puede cambiar NADA estando cerrado).
-    assert (
-        "cerrado" in exc_info.value.detail.lower()
-        or "reabrir" in exc_info.value.detail.lower()
-    )
+    assert "cerrado" in exc_info.value.detail.lower() or "reabrir" in exc_info.value.detail.lower()
 
 
 async def test_rechaza_modificar_campos_cuando_cerrado(
@@ -184,9 +174,7 @@ async def test_rechaza_fecha_fin_antes_de_inicio_en_patch(
 # (día compartido es aceptable — cierre de uno coincide con inicio de otro).
 
 
-async def test_periodo_create_rejects_overlap(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_periodo_create_rejects_overlap(mock_session, user_docente_admin_a: User) -> None:
     """Crear P2 (Apr-Jul) cuando ya existe P1 (Feb-Jun) falla con 409.
 
     El mensaje de error incluye el código del periodo con el que se
@@ -222,9 +210,7 @@ async def test_periodo_create_rejects_overlap(
     svc.repo.create.assert_not_awaited()
 
 
-async def test_periodo_create_adjacent_ok(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_periodo_create_adjacent_ok(mock_session, user_docente_admin_a: User) -> None:
     """P1 (Feb-Jun) + P2 (Jun-Dic, inicio == fin de P1) → 201 OK.
 
     Adyacencia NO es overlap: el día de cierre puede coincidir con el
@@ -259,9 +245,7 @@ async def test_periodo_create_adjacent_ok(
     svc.repo.create.assert_awaited_once()
 
 
-async def test_periodo_update_rejects_overlap(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_periodo_update_rejects_overlap(mock_session, user_docente_admin_a: User) -> None:
     """PATCH de P2 que lo mete adentro del rango de P1 → 409.
 
     Contexto: P1=[Feb, Jun], P2=[Jul, Dic]. El docente intenta mover

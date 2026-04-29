@@ -1,4 +1,5 @@
 """Endpoint de importación bulk vía CSV."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -43,8 +44,7 @@ async def bulk_import(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Entidad '{entity}' no soportada. "
-                f"Soportadas: {', '.join(SUPPORTED_ENTITIES)}"
+                f"Entidad '{entity}' no soportada. Soportadas: {', '.join(SUPPORTED_ENTITIES)}"
             ),
         )
 

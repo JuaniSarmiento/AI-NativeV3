@@ -37,12 +37,12 @@ a partir del contenido— es scope del Eje B (clasificador semántico) y
 se aborda en el cambio grande G9. Hoy, la única fuente activa de
 verbalización reflexiva es `anotacion_creada`.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
-
 
 CORRELATION_WINDOW = timedelta(minutes=2)
 # Tiempo máximo entre acción y verbalización para considerarlas correlacionadas
@@ -70,7 +70,8 @@ def compute_ccd(events: list[dict]) -> dict[str, Any]:
 
     # Acciones: prompt_enviado (no-reflexion) + codigo_ejecutado
     actions = [
-        e for e in sorted_events
+        e
+        for e in sorted_events
         if e["event_type"] == "codigo_ejecutado"
         or (
             e["event_type"] == "prompt_enviado"
@@ -80,7 +81,8 @@ def compute_ccd(events: list[dict]) -> dict[str, Any]:
 
     # Verbalizaciones reflexivas: anotacion_creada O prompt con kind=reflexion
     reflections = [
-        e for e in sorted_events
+        e
+        for e in sorted_events
         if e["event_type"] == "anotacion_creada"
         or (
             e["event_type"] == "prompt_enviado"
@@ -110,19 +112,23 @@ def compute_ccd(events: list[dict]) -> dict[str, Any]:
         ]
         if candidates:
             gap = min(candidates)
-            pairs.append(AlignmentPair(
-                action_ts=a_ts,
-                action_type=action["event_type"],
-                has_reflection=True,
-                gap_seconds=gap,
-            ))
+            pairs.append(
+                AlignmentPair(
+                    action_ts=a_ts,
+                    action_type=action["event_type"],
+                    has_reflection=True,
+                    gap_seconds=gap,
+                )
+            )
         else:
-            pairs.append(AlignmentPair(
-                action_ts=a_ts,
-                action_type=action["event_type"],
-                has_reflection=False,
-                gap_seconds=None,
-            ))
+            pairs.append(
+                AlignmentPair(
+                    action_ts=a_ts,
+                    action_type=action["event_type"],
+                    has_reflection=False,
+                    gap_seconds=None,
+                )
+            )
 
     orphans = sum(1 for p in pairs if not p.has_reflection)
     orphan_ratio = orphans / len(pairs)

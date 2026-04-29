@@ -1,12 +1,11 @@
 """Tests de soft-delete con validación de cascadas para los 4 entities."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-
 from academic_service.auth.dependencies import User
 from academic_service.services.comision_service import (
     ComisionService,
@@ -14,6 +13,7 @@ from academic_service.services.comision_service import (
 )
 from academic_service.services.materia_service import MateriaService
 from academic_service.services.universidad_service import UniversidadService
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -50,9 +50,7 @@ def docente_admin_user():
 # ── Universidad ──────────────────────────────────────────────────
 
 
-async def test_universidad_soft_delete_happy_path(
-    mock_session, superadmin_user
-) -> None:
+async def test_universidad_soft_delete_happy_path(mock_session, superadmin_user) -> None:
     svc = UniversidadService(mock_session)
     universidad_id = uuid4()
 
@@ -87,9 +85,7 @@ async def test_universidad_soft_delete_rejects_with_active_children(
 # ── Materia ──────────────────────────────────────────────────────
 
 
-async def test_materia_soft_delete_happy_path(
-    mock_session, docente_admin_user
-) -> None:
+async def test_materia_soft_delete_happy_path(mock_session, docente_admin_user) -> None:
     svc = MateriaService(mock_session)
     materia_id = uuid4()
 
@@ -124,9 +120,7 @@ async def test_materia_soft_delete_rejects_with_active_children(
 # ── Comisión ─────────────────────────────────────────────────────
 
 
-async def test_comision_soft_delete_happy_path(
-    mock_session, docente_admin_user
-) -> None:
+async def test_comision_soft_delete_happy_path(mock_session, docente_admin_user) -> None:
     svc = ComisionService(mock_session)
     comision_id = uuid4()
 
@@ -161,9 +155,7 @@ async def test_comision_soft_delete_rejects_with_active_children(
 # ── Periodo ──────────────────────────────────────────────────────
 
 
-async def test_periodo_soft_delete_happy_path(
-    mock_session, docente_admin_user
-) -> None:
+async def test_periodo_soft_delete_happy_path(mock_session, docente_admin_user) -> None:
     svc = PeriodoService(mock_session)
     periodo_id = uuid4()
 

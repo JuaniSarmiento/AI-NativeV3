@@ -7,6 +7,7 @@ test_facultades_crud.py.
 
 El test de RLS multi-tenant a nivel DB vive en test_rls_isolation.py.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -14,9 +15,6 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import HTTPException
-from pydantic import ValidationError
-
 from academic_service.auth.dependencies import User
 from academic_service.models import AuditLog, Comision, TareaPractica
 from academic_service.schemas.tarea_practica import (
@@ -24,6 +22,8 @@ from academic_service.schemas.tarea_practica import (
     TareaPracticaUpdate,
 )
 from academic_service.services.tarea_practica_service import TareaPracticaService
+from fastapi import HTTPException
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -104,8 +104,7 @@ async def test_create_happy_path(
     assert create_payload["tenant_id"] == tenant_a_id
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     audit = audit_calls[0]
@@ -114,9 +113,7 @@ async def test_create_happy_path(
     assert audit.tenant_id == tenant_a_id
 
 
-async def test_create_comision_inexistente_404(
-    mock_session, user_docente_admin_a: User
-) -> None:
+async def test_create_comision_inexistente_404(mock_session, user_docente_admin_a: User) -> None:
     """Si la comisión no existe, propaga HTTPException 404."""
     svc = TareaPracticaService(mock_session)
 
@@ -183,9 +180,7 @@ async def test_list_filtra_por_comision(
     )
 
 
-async def test_list_filtra_por_estado(
-    mock_session, tenant_a_id: UUID
-) -> None:
+async def test_list_filtra_por_estado(mock_session, tenant_a_id: UUID) -> None:
     """list(estado=draft) propaga el filtro."""
     svc = TareaPracticaService(mock_session)
 
@@ -195,9 +190,7 @@ async def test_list_filtra_por_estado(
     result = await svc.list(estado="draft", limit=50)
 
     assert result == fake
-    svc.repo.list.assert_called_once_with(
-        limit=50, cursor=None, filters={"estado": "draft"}
-    )
+    svc.repo.list.assert_called_once_with(limit=50, cursor=None, filters={"estado": "draft"})
 
 
 async def test_get_one_404(mock_session) -> None:
@@ -230,8 +223,7 @@ async def test_update_happy_path_solo_si_draft(
     assert result.titulo == "Nueva versión"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "tarea_practica.update"
@@ -256,15 +248,14 @@ async def test_update_published_falla_409(
     assert exc_info.value.status_code == 409
     # No debe haber audit log de update sobre published
     audit_updates = [
-        c.args[0] for c in mock_session.add.call_args_list
+        c.args[0]
+        for c in mock_session.add.call_args_list
         if isinstance(c.args[0], AuditLog) and c.args[0].action == "tarea_practica.update"
     ]
     assert len(audit_updates) == 0
 
 
-async def test_soft_delete(
-    mock_session, user_docente_admin_a: User, tenant_a_id: UUID
-) -> None:
+async def test_soft_delete(mock_session, user_docente_admin_a: User, tenant_a_id: UUID) -> None:
     """DELETE invoca repo.soft_delete y registra audit log."""
     svc = TareaPracticaService(mock_session)
 
@@ -278,8 +269,7 @@ async def test_soft_delete(
     svc.repo.soft_delete.assert_called_once_with(tid)
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "tarea_practica.delete"
@@ -303,9 +293,7 @@ async def test_rls_isolation(
     comision_a_id = uuid4()
     comision_a = _fake_comision(comision_a_id, tenant_a_id)
     svc_a.comisiones.get_or_404 = AsyncMock(return_value=comision_a)
-    svc_a.repo.create = AsyncMock(
-        return_value=_fake_tarea(uuid4(), tenant_a_id, comision_a_id)
-    )
+    svc_a.repo.create = AsyncMock(return_value=_fake_tarea(uuid4(), tenant_a_id, comision_a_id))
 
     await svc_a.create(
         TareaPracticaCreate(
@@ -325,8 +313,7 @@ async def test_rls_isolation(
     assert result == []
 
     audit_logs = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert all(a.tenant_id == tenant_a_id for a in audit_logs)
     assert not any(a.tenant_id == tenant_b_id for a in audit_logs)
@@ -339,9 +326,7 @@ async def test_rls_isolation(
 
 def _audit_actions(mock_session) -> list[str]:
     return [
-        c.args[0].action
-        for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0].action for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
 
 
@@ -458,16 +443,26 @@ async def test_new_version_de_published_crea_nuevo_draft(
     parent_id = uuid4()
     comision_id = uuid4()
     parent = _fake_tarea(
-        parent_id, tenant_a_id, comision_id,
-        estado="published", version=1,
-        codigo="TP1", titulo="Original", enunciado="enunciado v1",
+        parent_id,
+        tenant_a_id,
+        comision_id,
+        estado="published",
+        version=1,
+        codigo="TP1",
+        titulo="Original",
+        enunciado="enunciado v1",
     )
     svc.repo.get_or_404 = AsyncMock(return_value=parent)
 
     new_tarea_mock = _fake_tarea(
-        uuid4(), tenant_a_id, comision_id,
-        estado="draft", version=2, parent_tarea_id=parent_id,
-        codigo="TP1", titulo="Nueva v2",
+        uuid4(),
+        tenant_a_id,
+        comision_id,
+        estado="draft",
+        version=2,
+        parent_tarea_id=parent_id,
+        codigo="TP1",
+        titulo="Nueva v2",
     )
     svc.repo.create = AsyncMock(return_value=new_tarea_mock)
 
@@ -500,14 +495,21 @@ async def test_new_version_de_archived_crea_nuevo_draft(
     parent_id = uuid4()
     comision_id = uuid4()
     parent = _fake_tarea(
-        parent_id, tenant_a_id, comision_id,
-        estado="archived", version=3,
+        parent_id,
+        tenant_a_id,
+        comision_id,
+        estado="archived",
+        version=3,
     )
     svc.repo.get_or_404 = AsyncMock(return_value=parent)
 
     new_mock = _fake_tarea(
-        uuid4(), tenant_a_id, comision_id,
-        estado="draft", version=4, parent_tarea_id=parent_id,
+        uuid4(),
+        tenant_a_id,
+        comision_id,
+        estado="draft",
+        version=4,
+        parent_tarea_id=parent_id,
     )
     svc.repo.create = AsyncMock(return_value=new_mock)
 
@@ -541,9 +543,7 @@ async def test_new_version_de_draft_falla_409(
     assert _audit_actions(mock_session) == []
 
 
-async def test_get_versions_devuelve_cadena_ordenada(
-    mock_session, tenant_a_id: UUID
-) -> None:
+async def test_get_versions_devuelve_cadena_ordenada(mock_session, tenant_a_id: UUID) -> None:
     """list_versions() devuelve la cadena completa ordenada por version asc.
 
     Setup: v1 (archived) ← v2 (published) ← v3 (draft). El query parte
@@ -558,16 +558,28 @@ async def test_get_versions_devuelve_cadena_ordenada(
     v2_id = uuid4()
     v3_id = uuid4()
     v1 = _fake_tarea(
-        v1_id, tenant_a_id, comision_id,
-        estado="archived", version=1, parent_tarea_id=None,
+        v1_id,
+        tenant_a_id,
+        comision_id,
+        estado="archived",
+        version=1,
+        parent_tarea_id=None,
     )
     v2 = _fake_tarea(
-        v2_id, tenant_a_id, comision_id,
-        estado="published", version=2, parent_tarea_id=v1_id,
+        v2_id,
+        tenant_a_id,
+        comision_id,
+        estado="published",
+        version=2,
+        parent_tarea_id=v1_id,
     )
     v3 = _fake_tarea(
-        v3_id, tenant_a_id, comision_id,
-        estado="draft", version=3, parent_tarea_id=v2_id,
+        v3_id,
+        tenant_a_id,
+        comision_id,
+        estado="draft",
+        version=3,
+        parent_tarea_id=v2_id,
     )
 
     # El service primero pide get_or_404(v3) — devolvemos v3 ahí.
@@ -629,9 +641,7 @@ async def test_create_with_inicial_codigo(
     svc.comisiones.get_or_404 = AsyncMock(return_value=comision)
 
     template = "def factorial(n):\n    pass\n"
-    fake_tarea = _fake_tarea(
-        uuid4(), tenant_a_id, comision_id, inicial_codigo=template
-    )
+    fake_tarea = _fake_tarea(uuid4(), tenant_a_id, comision_id, inicial_codigo=template)
     svc.repo.create = AsyncMock(return_value=fake_tarea)
 
     data = TareaPracticaCreate(
@@ -683,9 +693,7 @@ async def test_update_inicial_codigo(
     svc = TareaPracticaService(mock_session)
 
     tid = uuid4()
-    obj = _fake_tarea(
-        tid, tenant_a_id, uuid4(), estado="draft", inicial_codigo=None
-    )
+    obj = _fake_tarea(tid, tenant_a_id, uuid4(), estado="draft", inicial_codigo=None)
     svc.repo.get_or_404 = AsyncMock(return_value=obj)
 
     nuevo_template = "# TODO: completar\nresultado = None\n"
@@ -695,8 +703,7 @@ async def test_update_inicial_codigo(
     assert result.inicial_codigo == nuevo_template
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "tarea_practica.update"
@@ -718,8 +725,8 @@ def test_inicial_codigo_demasiado_grande_falla_422() -> None:
 
     errors = exc_info.value.errors()
     assert any(
-        e["loc"] == ("inicial_codigo",) and "5000" in str(e).lower() or
-        e["loc"] == ("inicial_codigo",) and e["type"] == "string_too_long"
+        (e["loc"] == ("inicial_codigo",) and "5000" in str(e).lower())
+        or (e["loc"] == ("inicial_codigo",) and e["type"] == "string_too_long")
         for e in errors
     )
 
@@ -754,7 +761,9 @@ async def test_update_instance_with_template_sets_drift_when_canonical_field_cha
     tid = uuid4()
     template_id = uuid4()
     obj = _fake_tarea(
-        tid, tenant_a_id, uuid4(),
+        tid,
+        tenant_a_id,
+        uuid4(),
         estado="draft",
         template_id=template_id,
         has_drift=False,
@@ -769,15 +778,14 @@ async def test_update_instance_with_template_sets_drift_when_canonical_field_cha
     assert obj.enunciado == "Enunciado divergente por comisión"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert audit_calls[0].action == "tarea_practica.update"
     assert audit_calls[0].changes.get("drift_triggered") is True
 
 
-async def test_update_instance_with_template_does_NOT_set_drift_on_non_canonical_change(  # noqa: N802
+async def test_update_instance_with_template_does_NOT_set_drift_on_non_canonical_change(
     mock_session, user_docente_admin_a: User, tenant_a_id: UUID
 ) -> None:
     """PATCH que solo cambia un campo canónico a su MISMO valor no dispara
@@ -790,7 +798,9 @@ async def test_update_instance_with_template_does_NOT_set_drift_on_non_canonical
     template_id = uuid4()
     titulo_original = "Título original del template"
     obj = _fake_tarea(
-        tid, tenant_a_id, uuid4(),
+        tid,
+        tenant_a_id,
+        uuid4(),
         estado="draft",
         template_id=template_id,
         has_drift=False,
@@ -805,8 +815,7 @@ async def test_update_instance_with_template_does_NOT_set_drift_on_non_canonical
     assert obj.has_drift is False
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     assert "drift_triggered" not in audit_calls[0].changes
@@ -821,7 +830,9 @@ async def test_update_instance_without_template_does_not_set_drift(
 
     tid = uuid4()
     obj = _fake_tarea(
-        tid, tenant_a_id, uuid4(),
+        tid,
+        tenant_a_id,
+        uuid4(),
         estado="draft",
         template_id=None,
         has_drift=False,
@@ -836,8 +847,7 @@ async def test_update_instance_without_template_does_not_set_drift(
     assert obj.enunciado == "Cambio en TP huérfana"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert "drift_triggered" not in audit_calls[0].changes
 
@@ -852,7 +862,9 @@ async def test_update_drifted_instance_stays_drifted(
     tid = uuid4()
     template_id = uuid4()
     obj = _fake_tarea(
-        tid, tenant_a_id, uuid4(),
+        tid,
+        tenant_a_id,
+        uuid4(),
         estado="draft",
         template_id=template_id,
         has_drift=True,
@@ -867,8 +879,7 @@ async def test_update_drifted_instance_stays_drifted(
     assert obj.enunciado == "Otro cambio más"
 
     audit_calls = [
-        c.args[0] for c in mock_session.add.call_args_list
-        if isinstance(c.args[0], AuditLog)
+        c.args[0] for c in mock_session.add.call_args_list if isinstance(c.args[0], AuditLog)
     ]
     assert len(audit_calls) == 1
     # No hay "drift_triggered" porque ya estaba drifteada al entrar.
@@ -886,17 +897,25 @@ async def test_new_version_inherits_drift_from_parent(
     template_id = uuid4()
     comision_id = uuid4()
     parent = _fake_tarea(
-        parent_id, tenant_a_id, comision_id,
-        estado="published", version=1,
+        parent_id,
+        tenant_a_id,
+        comision_id,
+        estado="published",
+        version=1,
         template_id=template_id,
         has_drift=True,
     )
     svc.repo.get_or_404 = AsyncMock(return_value=parent)
 
     new_mock = _fake_tarea(
-        uuid4(), tenant_a_id, comision_id,
-        estado="draft", version=2, parent_tarea_id=parent_id,
-        template_id=template_id, has_drift=True,
+        uuid4(),
+        tenant_a_id,
+        comision_id,
+        estado="draft",
+        version=2,
+        parent_tarea_id=parent_id,
+        template_id=template_id,
+        has_drift=True,
     )
     svc.repo.create = AsyncMock(return_value=new_mock)
 

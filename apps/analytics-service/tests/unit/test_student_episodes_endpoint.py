@@ -3,14 +3,14 @@
 - GET /cohort/{id}/cii-quartiles (cuartiles agregados privacidad-safe)
 - GET /student/{id}/alerts (alertas vs cohorte, audit G7)
 """
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from analytics_service.main import app
+from fastapi.testclient import TestClient
 
 _TENANT = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 _USER = "11111111-1111-1111-1111-111111111111"
@@ -101,7 +101,13 @@ def test_quartiles_response_shape_es_estable(client: TestClient) -> None:
         "min_students_for_quartiles",
         "n_students_evaluated",
         "insufficient_data",
-        "q1", "median", "q3", "min", "max", "mean", "stdev",
+        "q1",
+        "median",
+        "q3",
+        "min",
+        "max",
+        "mean",
+        "stdev",
     }
 
 

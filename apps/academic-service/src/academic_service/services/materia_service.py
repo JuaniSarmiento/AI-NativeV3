@@ -1,4 +1,5 @@
 """Services de Materia y PlanEstudios."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -7,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth.dependencies import User
-from academic_service.models import AuditLog, Materia, PlanEstudios
+from academic_service.models import AuditLog, Materia
 from academic_service.repositories import (
     ComisionRepository,
     MateriaRepository,
@@ -23,9 +24,7 @@ class MateriaService:
         self.planes = PlanEstudiosRepository(session)
         self.comisiones = ComisionRepository(session)
 
-    async def _validate_correlativas(
-        self, correlativas: list[UUID], tenant_id: UUID
-    ) -> None:
+    async def _validate_correlativas(self, correlativas: list[UUID], tenant_id: UUID) -> None:
         """Valida que las correlativas existan y estén en el mismo tenant."""
         for corr_id in correlativas:
             corr = await self.repo.get(corr_id)
@@ -42,18 +41,20 @@ class MateriaService:
         await self._validate_correlativas(data.correlativas_rendir, user.tenant_id)
 
         new_id = uuid4()
-        materia = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "plan_id": plan.id,
-            "nombre": data.nombre,
-            "codigo": data.codigo,
-            "horas_totales": data.horas_totales,
-            "cuatrimestre_sugerido": data.cuatrimestre_sugerido,
-            "objetivos": data.objetivos,
-            "correlativas_cursar": [str(c) for c in data.correlativas_cursar],
-            "correlativas_rendir": [str(c) for c in data.correlativas_rendir],
-        })
+        materia = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "plan_id": plan.id,
+                "nombre": data.nombre,
+                "codigo": data.codigo,
+                "horas_totales": data.horas_totales,
+                "cuatrimestre_sugerido": data.cuatrimestre_sugerido,
+                "objetivos": data.objetivos,
+                "correlativas_cursar": [str(c) for c in data.correlativas_cursar],
+                "correlativas_rendir": [str(c) for c in data.correlativas_rendir],
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -67,27 +68,17 @@ class MateriaService:
         await self.session.flush()
         return materia
 
-    async def update(
-        self, id_: UUID, data: MateriaUpdate, user: User
-    ) -> Materia:
+    async def update(self, id_: UUID, data: MateriaUpdate, user: User) -> Materia:
         obj = await self.repo.get_or_404(id_)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
 
         # UUID a str para JSONB
         if "correlativas_cursar" in changes:
-            await self._validate_correlativas(
-                changes["correlativas_cursar"], user.tenant_id
-            )
-            changes["correlativas_cursar"] = [
-                str(c) for c in changes["correlativas_cursar"]
-            ]
+            await self._validate_correlativas(changes["correlativas_cursar"], user.tenant_id)
+            changes["correlativas_cursar"] = [str(c) for c in changes["correlativas_cursar"]]
         if "correlativas_rendir" in changes:
-            await self._validate_correlativas(
-                changes["correlativas_rendir"], user.tenant_id
-            )
-            changes["correlativas_rendir"] = [
-                str(c) for c in changes["correlativas_rendir"]
-            ]
+            await self._validate_correlativas(changes["correlativas_rendir"], user.tenant_id)
+            changes["correlativas_rendir"] = [str(c) for c in changes["correlativas_rendir"]]
 
         for k, v in changes.items():
             setattr(obj, k, v)
@@ -106,9 +97,7 @@ class MateriaService:
         return obj
 
     async def soft_delete(self, id_: UUID, user: User) -> Materia:
-        comisiones_activas = await self.comisiones.count(
-            filters={"materia_id": id_}
-        )
+        comisiones_activas = await self.comisiones.count(filters={"materia_id": id_})
         if comisiones_activas > 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

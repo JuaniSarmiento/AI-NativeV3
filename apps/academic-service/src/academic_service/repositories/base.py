@@ -3,21 +3,21 @@
 Los repos son la única capa que habla con SQLAlchemy directamente.
 Los services consumen repos; los routers consumen services.
 """
+
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import DeclarativeBase
 
 from academic_service.models.base import Base
 
 ModelT = TypeVar("ModelT", bound=Base)
 
 
-class BaseRepository(Generic[ModelT]):
+class BaseRepository[ModelT: Base]:
     """CRUD genérico sobre un modelo SQLAlchemy."""
 
     model: type[ModelT]
@@ -37,6 +37,7 @@ class BaseRepository(Generic[ModelT]):
         obj = await self.get(id_)
         if obj is None:
             from fastapi import HTTPException, status
+
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"{self.model.__name__} {id_} no encontrado",
@@ -63,8 +64,12 @@ class BaseRepository(Generic[ModelT]):
         return list(result.scalars().all())
 
     async def count(self, filters: dict[str, Any] | None = None) -> int:
-        stmt = select(func.count()).select_from(self.model).where(
-            self.model.deleted_at.is_(None),  # type: ignore[attr-defined]
+        stmt = (
+            select(func.count())
+            .select_from(self.model)
+            .where(
+                self.model.deleted_at.is_(None),  # type: ignore[attr-defined]
+            )
         )
         if filters:
             for col, val in filters.items():
@@ -91,6 +96,7 @@ class BaseRepository(Generic[ModelT]):
 
     async def soft_delete(self, id_: UUID) -> ModelT:
         from academic_service.models.base import utc_now
+
         obj = await self.get_or_404(id_)
         obj.deleted_at = utc_now()  # type: ignore[attr-defined]
         await self.session.flush()

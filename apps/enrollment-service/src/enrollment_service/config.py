@@ -1,4 +1,5 @@
 """Configuración del servicio enrollment-service."""
+
 from functools import lru_cache
 
 from pydantic import Field

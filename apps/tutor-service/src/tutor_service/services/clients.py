@@ -6,6 +6,7 @@ El tutor depende de 4 servicios:
   - ai-gateway: invocación al LLM con budget
   - ctr-service: emisión de eventos de la cadena criptográfica
 """
+
 from __future__ import annotations
 
 import json
@@ -49,9 +50,7 @@ class GovernanceClient:
 
     async def get_prompt(self, name: str, version: str) -> PromptConfig:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            r = await client.get(
-                f"{self.base_url}/api/v1/prompts/{name}/{version}"
-            )
+            r = await client.get(f"{self.base_url}/api/v1/prompts/{name}/{version}")
             r.raise_for_status()
             data = r.json()
         return PromptConfig(
@@ -137,31 +136,37 @@ class AIGatewayClient:
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
         }
-        body = json.dumps({
-            "messages": messages,
-            "model": model,
-            "feature": "tutor",
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        })
+        body = json.dumps(
+            {
+                "messages": messages,
+                "model": model,
+                "feature": "tutor",
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        )
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            async with client.stream(
-                "POST", f"{self.base_url}/api/v1/stream",
-                content=body, headers=headers,
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    try:
-                        event = json.loads(line[6:])
-                    except json.JSONDecodeError:
-                        continue
-                    if event.get("type") == "token":
-                        yield event.get("content", "")
-                    elif event.get("type") == "error":
-                        raise RuntimeError(event.get("message", "unknown error"))
+        async with (
+            httpx.AsyncClient(timeout=self.timeout) as client,
+            client.stream(
+                "POST",
+                f"{self.base_url}/api/v1/stream",
+                content=body,
+                headers=headers,
+            ) as response,
+        ):
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    event = json.loads(line[6:])
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") == "token":
+                    yield event.get("content", "")
+                elif event.get("type") == "error":
+                    raise RuntimeError(event.get("message", "unknown error"))
 
 
 class CTRClient:
@@ -169,9 +174,7 @@ class CTRClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    async def publish_event(
-        self, event: dict, tenant_id: UUID, caller_id: UUID
-    ) -> str:
+    async def publish_event(self, event: dict, tenant_id: UUID, caller_id: UUID) -> str:
         headers = {
             "X-User-Id": str(caller_id),
             "X-Tenant-Id": str(tenant_id),
@@ -181,15 +184,14 @@ class CTRClient:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             r = await client.post(
                 f"{self.base_url}/api/v1/events",
-                json=event, headers=headers,
+                json=event,
+                headers=headers,
             )
             r.raise_for_status()
             data = r.json()
         return data["message_id"]
 
-    async def get_episode(
-        self, episode_id: UUID, tenant_id: UUID, caller_id: UUID
-    ) -> dict | None:
+    async def get_episode(self, episode_id: UUID, tenant_id: UUID, caller_id: UUID) -> dict | None:
         """Lee el episodio + sus eventos desde el ctr-service.
 
         Returns:

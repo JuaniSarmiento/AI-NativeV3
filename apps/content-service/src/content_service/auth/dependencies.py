@@ -3,6 +3,7 @@
 Reutiliza el patrón del academic-service: headers X-* en F1/F2, JWT real
 en F3 cuando el api-gateway valide firma.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

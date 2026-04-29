@@ -1,4 +1,5 @@
 """Tests de Coherencia Código-Discurso."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -85,7 +86,12 @@ def test_prompt_reflexion_cuenta_como_verbalizacion() -> None:
 def test_prompt_solicitud_directa_es_accion() -> None:
     """Un prompt con kind='solicitud_directa' sin reflexión posterior es huérfano."""
     events = [
-        _ev(0, "prompt_enviado", 0, {"prompt_kind": "solicitud_directa", "content": "dame la respuesta"}),
+        _ev(
+            0,
+            "prompt_enviado",
+            0,
+            {"prompt_kind": "solicitud_directa", "content": "dame la respuesta"},
+        ),
     ]
     r = compute_ccd(events)
     assert r["orphans"] == 1

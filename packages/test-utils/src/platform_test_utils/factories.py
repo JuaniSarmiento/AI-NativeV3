@@ -1,4 +1,5 @@
 """Factories para generar IDs y datos de test deterministas cuando se necesita."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4

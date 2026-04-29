@@ -1,26 +1,27 @@
 """Lógica del tutor-service."""
+
 from tutor_service.services.clients import (
     AIGatewayClient,
-    CTRClient,
     ContentClient,
+    CTRClient,
     GovernanceClient,
     PromptConfig,
-    RetrievedChunk,
     RetrievalResult,
+    RetrievedChunk,
 )
 from tutor_service.services.session import SessionManager, SessionState
 from tutor_service.services.tutor_core import TUTOR_SERVICE_USER_ID, TutorCore
 
 __all__ = [
-    "GovernanceClient",
-    "ContentClient",
+    "TUTOR_SERVICE_USER_ID",
     "AIGatewayClient",
     "CTRClient",
+    "ContentClient",
+    "GovernanceClient",
     "PromptConfig",
-    "RetrievedChunk",
     "RetrievalResult",
+    "RetrievedChunk",
     "SessionManager",
     "SessionState",
     "TutorCore",
-    "TUTOR_SERVICE_USER_ID",
 ]

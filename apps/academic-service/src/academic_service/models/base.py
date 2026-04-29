@@ -4,16 +4,16 @@ Todos los modelos del dominio académico heredan de Base. Los que son
 multi-tenant además mezclan TenantMixin (agrega tenant_id + policy RLS
 al momento de crearse la tabla).
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, MetaData, String, text
+from sqlalchemy import DateTime, ForeignKey, MetaData, text
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
-
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Naming convention determinista para que las migraciones Alembic no
 # generen nombres aleatorios de constraints.
@@ -62,9 +62,7 @@ class TenantMixin:
     en tests y en migraciones manuales.
     """
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
 
 
 def uuid_pk() -> Mapped[uuid.UUID]:

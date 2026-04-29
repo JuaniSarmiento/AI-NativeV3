@@ -14,6 +14,7 @@ Principal de rate limit:
   - Si hay X-User-Id → rate limit por usuario
   - Si no → por IP (fallback, menos efectivo contra abuso)
 """
+
 from __future__ import annotations
 
 import logging
@@ -80,9 +81,7 @@ class RateLimiter:
     def _key(self, principal: str, window_start: int) -> str:
         return f"{self.key_prefix}:{principal}:{window_start}"
 
-    async def check(
-        self, principal: str, config: RateLimitConfig
-    ) -> RateLimitResult:
+    async def check(self, principal: str, config: RateLimitConfig) -> RateLimitResult:
         """Consume un slot. Devuelve si está permitido."""
         window_start = int(time.time()) // config.window_seconds * config.window_seconds
         key = self._key(principal, window_start)

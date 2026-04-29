@@ -16,6 +16,7 @@ Corrida CI:
     export CTR_STORE_URL_FOR_RLS_TESTS="postgresql+asyncpg://test:test@localhost:5433/ctr_test"
     pytest packages/platform-ops/tests/test_rls_postgres.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -36,13 +37,13 @@ pytestmark = pytest.mark.skipif(
 ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(ROOT / "apps/ctr-service/src"))
 
+from platform_ops.real_datasources import set_tenant_rls
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
-    AsyncSession, async_sessionmaker, create_async_engine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
-
-from platform_ops.real_datasources import set_tenant_rls
-
 
 TENANT_A = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 TENANT_B = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
@@ -58,18 +59,24 @@ async def session():
 
 
 async def _insert_episode(session, tenant_id: UUID) -> UUID:
-    from ctr_service.models import Episode
     from datetime import UTC, datetime
+
+    from ctr_service.models import Episode
 
     ep_id = uuid4()
     ep = Episode(
-        id=ep_id, tenant_id=tenant_id,
-        comision_id=uuid4(), student_pseudonym=uuid4(),
+        id=ep_id,
+        tenant_id=tenant_id,
+        comision_id=uuid4(),
+        student_pseudonym=uuid4(),
         problema_id=uuid4(),
         opened_at=datetime.now(UTC),
-        prompt_system_hash="p" * 64, prompt_system_version="v1.0.0",
-        classifier_config_hash="c" * 64, curso_config_hash="d" * 64,
-        events_count=0, last_chain_hash="0" * 64,
+        prompt_system_hash="p" * 64,
+        prompt_system_version="v1.0.0",
+        classifier_config_hash="c" * 64,
+        curso_config_hash="d" * 64,
+        events_count=0,
+        last_chain_hash="0" * 64,
     )
     session.add(ep)
     await session.commit()

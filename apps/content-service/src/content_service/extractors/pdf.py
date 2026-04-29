@@ -7,6 +7,7 @@ Para el entorno de tests o entornos sin unstructured (que es una
 dependencia pesada), incluimos un fallback con pypdf que extrae texto
 plano página por página.
 """
+
 from __future__ import annotations
 
 import io
@@ -26,6 +27,7 @@ class PDFExtractor(BaseExtractor):
         # listas, OCR automático para escaneados)
         try:
             from unstructured.partition.pdf import partition_pdf
+
             return await self._extract_with_unstructured(content, filename, partition_pdf)
         except ImportError:
             return await self._extract_with_pypdf(content, filename)
@@ -69,9 +71,7 @@ class PDFExtractor(BaseExtractor):
             },
         )
 
-    async def _extract_with_pypdf(
-        self, content: bytes, filename: str
-    ) -> ExtractionResult:
+    async def _extract_with_pypdf(self, content: bytes, filename: str) -> ExtractionResult:
         """Fallback: extracción simple por página."""
         try:
             from pypdf import PdfReader

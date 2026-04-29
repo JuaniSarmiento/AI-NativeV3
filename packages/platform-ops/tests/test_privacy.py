@@ -2,12 +2,11 @@
 
 Usa un `FakeDataSource` en memoria para verificar la lógica sin DB.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
-
-import pytest
 
 from platform_ops.privacy import (
     anonymize_student,
@@ -53,10 +52,18 @@ def _sample_student_data():
     episode2_id = uuid4()
     ds = FakeDataSource(
         episodes=[
-            {"id": str(episode1_id), "student_pseudonym": str(student),
-             "comision_id": str(uuid4()), "estado": "closed"},
-            {"id": str(episode2_id), "student_pseudonym": str(student),
-             "comision_id": str(uuid4()), "estado": "closed"},
+            {
+                "id": str(episode1_id),
+                "student_pseudonym": str(student),
+                "comision_id": str(uuid4()),
+                "estado": "closed",
+            },
+            {
+                "id": str(episode2_id),
+                "student_pseudonym": str(student),
+                "comision_id": str(uuid4()),
+                "estado": "closed",
+            },
         ],
         events=[
             {"episode_id": str(episode1_id), "seq": 0, "event_type": "episodio_abierto"},

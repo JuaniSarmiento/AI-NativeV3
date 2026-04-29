@@ -17,6 +17,7 @@ var y restart.
 Para K8s, el patrón recomendado es mount de Secret con archivos por
 tenant bajo /etc/platform/llm-keys/{tenant_id}/{provider}.key.
 """
+
 from __future__ import annotations
 
 import logging
@@ -44,7 +45,8 @@ class TenantSecretConfig:
     def __post_init__(self) -> None:
         if self.env_global_var_by_provider is None:
             object.__setattr__(
-                self, "env_global_var_by_provider",
+                self,
+                "env_global_var_by_provider",
                 {
                     "anthropic": "ANTHROPIC_API_KEY",
                     "openai": "OPENAI_API_KEY",
@@ -62,9 +64,7 @@ class TenantSecretResolver:
     def __init__(self, config: TenantSecretConfig | None = None) -> None:
         self.config = config or TenantSecretConfig()
 
-    def get_llm_api_key(
-        self, tenant_id: UUID, provider: str = "anthropic"
-    ) -> str:
+    def get_llm_api_key(self, tenant_id: UUID, provider: str = "anthropic") -> str:
         """Devuelve la API key para el tenant + provider dados.
 
         Raises:
@@ -79,7 +79,8 @@ class TenantSecretResolver:
             if content:
                 logger.debug(
                     "llm_key_source=tenant_mount tenant=%s provider=%s",
-                    tenant_id, provider,
+                    tenant_id,
+                    provider,
                 )
                 return content
 
@@ -89,7 +90,8 @@ class TenantSecretResolver:
         if val:
             logger.debug(
                 "llm_key_source=tenant_env tenant=%s provider=%s",
-                tenant_id, provider,
+                tenant_id,
+                provider,
             )
             return val
 
@@ -100,7 +102,8 @@ class TenantSecretResolver:
             if val:
                 logger.debug(
                     "llm_key_source=global_fallback tenant=%s provider=%s",
-                    tenant_id, provider,
+                    tenant_id,
+                    provider,
                 )
                 return val
 
@@ -109,9 +112,7 @@ class TenantSecretResolver:
             f"Configurar {env_per_tenant} o {global_var} o montar {key_path}."
         )
 
-    def has_tenant_specific_key(
-        self, tenant_id: UUID, provider: str = "anthropic"
-    ) -> bool:
+    def has_tenant_specific_key(self, tenant_id: UUID, provider: str = "anthropic") -> bool:
         """True si el tenant tiene key propia (no fallback global)."""
         key_path = Path(self.config.secrets_dir) / str(tenant_id) / f"{provider}.key"
         if key_path.exists() and key_path.read_text().strip():

@@ -15,7 +15,9 @@ import { vi } from "vitest"
 
 type Handler = () => unknown
 
-export function setupFetchMock(handlers: Record<string, Handler | { ok: boolean; status: number; body: () => unknown }>) {
+export function setupFetchMock(
+  handlers: Record<string, Handler | { ok: boolean; status: number; body: () => unknown }>,
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url: string | URL | Request) => {

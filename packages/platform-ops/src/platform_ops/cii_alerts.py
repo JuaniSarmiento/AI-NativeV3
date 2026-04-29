@@ -14,6 +14,7 @@ Privacidad (RN-094): los cuartiles agregados NO exponen slopes individuales.
 El docente ve la **posición** del estudiante (Q1/Q2/Q3/Q4), pero no los
 slopes de los demás estudiantes.
 """
+
 from __future__ import annotations
 
 import math
@@ -121,58 +122,66 @@ def compute_student_alerts(
     if stdev > 0:
         z_score = (student_slope - mean) / stdev
         if z_score < -2.0:
-            alerts.append({
-                "code": "regresion_vs_cohorte",
-                "severity": "high",
-                "title": "Regresión severa vs. cohorte",
-                "detail": (
-                    f"Slope del estudiante ({student_slope:+.3f}) está más de 2σ "
-                    f"debajo de la media de cohorte ({mean:+.3f}, σ={stdev:.3f}, "
-                    f"z={z_score:+.2f}). Sugerir intervención pedagógica focalizada."
-                ),
-                "threshold_used": "-2σ",
-                "z_score": round(z_score, 3),
-            })
+            alerts.append(
+                {
+                    "code": "regresion_vs_cohorte",
+                    "severity": "high",
+                    "title": "Regresión severa vs. cohorte",
+                    "detail": (
+                        f"Slope del estudiante ({student_slope:+.3f}) está más de 2σ "
+                        f"debajo de la media de cohorte ({mean:+.3f}, σ={stdev:.3f}, "
+                        f"z={z_score:+.2f}). Sugerir intervención pedagógica focalizada."
+                    ),
+                    "threshold_used": "-2σ",
+                    "z_score": round(z_score, 3),
+                }
+            )
         elif z_score < -1.0:
-            alerts.append({
-                "code": "regresion_vs_cohorte",
-                "severity": "medium",
-                "title": "Por debajo de la media de cohorte",
-                "detail": (
-                    f"Slope del estudiante ({student_slope:+.3f}) está más de 1σ "
-                    f"debajo de la media de cohorte ({mean:+.3f}, σ={stdev:.3f}, "
-                    f"z={z_score:+.2f}). Considerar contacto pedagógico."
-                ),
-                "threshold_used": "-1σ",
-                "z_score": round(z_score, 3),
-            })
+            alerts.append(
+                {
+                    "code": "regresion_vs_cohorte",
+                    "severity": "medium",
+                    "title": "Por debajo de la media de cohorte",
+                    "detail": (
+                        f"Slope del estudiante ({student_slope:+.3f}) está más de 1σ "
+                        f"debajo de la media de cohorte ({mean:+.3f}, σ={stdev:.3f}, "
+                        f"z={z_score:+.2f}). Considerar contacto pedagógico."
+                    ),
+                    "threshold_used": "-1σ",
+                    "z_score": round(z_score, 3),
+                }
+            )
 
     # 2. Cuartil bajo (informativa)
     quartile = position_in_quartiles(student_slope, cohort_stats)
     if quartile == "Q1":
-        alerts.append({
-            "code": "bottom_quartile",
-            "severity": "low",
-            "title": "Cuartil inferior de la cohorte",
-            "detail": (
-                f"El estudiante está en Q1 (peor 25%) — slope {student_slope:+.3f}, "
-                f"Q1 ≤ {cohort_stats['q1']:+.3f}. Informativo; no toda Q1 requiere intervención."
-            ),
-            "threshold_used": "Q1",
-        })
+        alerts.append(
+            {
+                "code": "bottom_quartile",
+                "severity": "low",
+                "title": "Cuartil inferior de la cohorte",
+                "detail": (
+                    f"El estudiante está en Q1 (peor 25%) — slope {student_slope:+.3f}, "
+                    f"Q1 ≤ {cohort_stats['q1']:+.3f}. Informativo; no toda Q1 requiere intervención."
+                ),
+                "threshold_used": "Q1",
+            }
+        )
 
     # 3. Slope negativo significativo (independiente de cohorte)
     if student_slope < -0.3:
-        alerts.append({
-            "code": "slope_negativo_significativo",
-            "severity": "medium",
-            "title": "Empeoramiento sostenido",
-            "detail": (
-                f"Slope absoluto {student_slope:+.3f} indica retroceso de "
-                f">0.3 categorías ordinales por episodio. Revisar trayectoria."
-            ),
-            "threshold_used": "slope < -0.3",
-        })
+        alerts.append(
+            {
+                "code": "slope_negativo_significativo",
+                "severity": "medium",
+                "title": "Empeoramiento sostenido",
+                "detail": (
+                    f"Slope absoluto {student_slope:+.3f} indica retroceso de "
+                    f">0.3 categorías ordinales por episodio. Revisar trayectoria."
+                ),
+                "threshold_used": "slope < -0.3",
+            }
+        )
 
     return alerts
 
@@ -196,9 +205,7 @@ def compute_alerts_payload(
     """Helper de alto nivel — output del endpoint `/student/{id}/alerts`."""
     alerts = compute_student_alerts(student_slope, cohort_stats)
     quartile = (
-        position_in_quartiles(student_slope, cohort_stats)
-        if student_slope is not None
-        else None
+        position_in_quartiles(student_slope, cohort_stats) if student_slope is not None else None
     )
     return {
         "labeler_version": ALERTS_VERSION,

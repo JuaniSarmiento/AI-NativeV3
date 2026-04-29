@@ -8,6 +8,7 @@ Caché: para requests con `temperature=0` (determinista), guardamos el
 resultado bajo `hash(input + model + params)`. En clasificación esto
 ahorra ~40% de invocaciones.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -44,9 +45,7 @@ class BudgetTracker:
     def _key(self, tenant_id: UUID, feature: str, month: str) -> str:
         return f"aigw:budget:{tenant_id}:{feature}:{month}"
 
-    async def check(
-        self, tenant_id: UUID, feature: str, limit_usd: float
-    ) -> BudgetStatus:
+    async def check(self, tenant_id: UUID, feature: str, limit_usd: float) -> BudgetStatus:
         from datetime import UTC, datetime
 
         month = datetime.now(UTC).strftime("%Y-%m")
@@ -111,12 +110,10 @@ class ResponseCache:
         try:
             data = json.loads(raw)
             return CompletionResponse(**data, cache_hit=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
-    async def set(
-        self, request: CompletionRequest, response: CompletionResponse
-    ) -> None:
+    async def set(self, request: CompletionRequest, response: CompletionResponse) -> None:
         if not self._is_cacheable(request):
             return
         # No guardar cache_hit en el blob (se setea al leer)

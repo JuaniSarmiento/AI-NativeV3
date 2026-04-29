@@ -7,6 +7,7 @@ que los filtros aplicativos por tenant funcionan correctamente.
 Compat hack: SQLite no entiende JSONB/UUID de Postgres. Usamos @compiles
 para que JSONB se compile como JSON en SQLite.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,7 +15,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
-import pytest
 import pytest_asyncio
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -36,7 +36,6 @@ from platform_ops.real_datasources import (
     RealCohortDataSource,
     RealLongitudinalDataSource,
 )
-
 
 TENANT_A = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 TENANT_B = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
@@ -81,8 +80,8 @@ async def _add_episode(
     tenant_id: UUID,
     comision_id: UUID,
     student_pseudonym: UUID,
-    problema_id: UUID = None,
-    opened_at: datetime = None,
+    problema_id: UUID | None = None,
+    opened_at: datetime | None = None,
 ) -> UUID:
     from ctr_service.models import Episode
 
@@ -112,12 +111,14 @@ async def _add_event(
     episode_id: UUID,
     seq: int,
     event_type: str,
-    payload: dict = None,
+    payload: dict | None = None,
 ) -> None:
     from ctr_service.models import Event
+    from sqlalchemy import func
 
     # SQLite no autoincrementa BigInteger PKs como Postgres; asignamos id manual
-    from sqlalchemy import select as _select, func
+    from sqlalchemy import select as _select
+
     max_id_result = await session.execute(_select(func.max(Event.id)))
     max_id = max_id_result.scalar() or 0
 
@@ -148,14 +149,16 @@ async def _add_classification(
     comision_id: UUID,
     appropriation: str,
     is_current: bool = True,
-    classified_at: datetime = None,
+    classified_at: datetime | None = None,
     coherences: dict | None = None,
     config_hash: str = "c" * 64,
 ) -> None:
     from classifier_service.models import Classification
+    from sqlalchemy import func
 
     # SQLite: id manual
-    from sqlalchemy import select as _select, func
+    from sqlalchemy import select as _select
+
     max_id_result = await session.execute(_select(func.max(Classification.id)))
     max_id = max_id_result.scalar() or 0
 
@@ -267,16 +270,24 @@ async def test_get_current_classification_devuelve_is_current(
 
     # Vieja clasificación (no current) con hash antiguo
     await _add_classification(
-        classifier_session, TENANT_A, ep_id, comision_id,
-        "apropiacion_superficial", is_current=False,
+        classifier_session,
+        TENANT_A,
+        ep_id,
+        comision_id,
+        "apropiacion_superficial",
+        is_current=False,
         classified_at=datetime.now(UTC) - timedelta(hours=2),
         config_hash="old_" + "c" * 60,
     )
     # Nueva clasificación (current) con hash nuevo (reflejando ADR-010:
     # reclasificar con config nuevo → hash distinto)
     await _add_classification(
-        classifier_session, TENANT_A, ep_id, comision_id,
-        "apropiacion_reflexiva", is_current=True,
+        classifier_session,
+        TENANT_A,
+        ep_id,
+        comision_id,
+        "apropiacion_reflexiva",
+        is_current=True,
         coherences={"ct_summary": 0.85, "ccd_mean": 0.80},
         config_hash="new_" + "c" * 60,
     )
@@ -317,22 +328,36 @@ async def test_longitudinal_agrupa_por_estudiante(
 
     base_time = datetime(2026, 3, 1, tzinfo=UTC)
     await _add_classification(
-        classifier_session, TENANT_A, ep_a1, comision_id,
-        "delegacion_pasiva", classified_at=base_time,
+        classifier_session,
+        TENANT_A,
+        ep_a1,
+        comision_id,
+        "delegacion_pasiva",
+        classified_at=base_time,
     )
     await _add_classification(
-        classifier_session, TENANT_A, ep_a2, comision_id,
+        classifier_session,
+        TENANT_A,
+        ep_a2,
+        comision_id,
         "apropiacion_superficial",
         classified_at=base_time + timedelta(days=10),
     )
     await _add_classification(
-        classifier_session, TENANT_A, ep_a3, comision_id,
+        classifier_session,
+        TENANT_A,
+        ep_a3,
+        comision_id,
         "apropiacion_reflexiva",
         classified_at=base_time + timedelta(days=20),
     )
     await _add_classification(
-        classifier_session, TENANT_A, ep_b1, comision_id,
-        "apropiacion_reflexiva", classified_at=base_time,
+        classifier_session,
+        TENANT_A,
+        ep_b1,
+        comision_id,
+        "apropiacion_reflexiva",
+        classified_at=base_time,
     )
 
     ds = RealLongitudinalDataSource(ctr_session, classifier_session, TENANT_A)
@@ -364,13 +389,21 @@ async def test_longitudinal_respeta_is_current(
 
     # Vieja (no current, hash antiguo) + current (hash nuevo) → solo current
     await _add_classification(
-        classifier_session, TENANT_A, ep_id, comision_id,
-        "delegacion_pasiva", is_current=False,
+        classifier_session,
+        TENANT_A,
+        ep_id,
+        comision_id,
+        "delegacion_pasiva",
+        is_current=False,
         config_hash="old_" + "c" * 60,
     )
     await _add_classification(
-        classifier_session, TENANT_A, ep_id, comision_id,
-        "apropiacion_reflexiva", is_current=True,
+        classifier_session,
+        TENANT_A,
+        ep_id,
+        comision_id,
+        "apropiacion_reflexiva",
+        is_current=True,
         config_hash="new_" + "c" * 60,
     )
 
@@ -388,12 +421,17 @@ async def test_longitudinal_con_pseudonymize_fn(
     student = uuid4()
     ep_id = await _add_episode(ctr_session, TENANT_A, comision_id, student)
     await _add_classification(
-        classifier_session, TENANT_A, ep_id, comision_id,
+        classifier_session,
+        TENANT_A,
+        ep_id,
+        comision_id,
         "apropiacion_reflexiva",
     )
 
     ds = RealLongitudinalDataSource(
-        ctr_session, classifier_session, TENANT_A,
+        ctr_session,
+        classifier_session,
+        TENANT_A,
         pseudonymize_fn=lambda u: f"alias_{str(u)[:8]}",
     )
     grouped = await ds.list_classifications_grouped_by_student(comision_id)
@@ -415,10 +453,18 @@ async def test_longitudinal_respeta_tenant_isolation(
     ep_b = await _add_episode(ctr_session, TENANT_B, comision_id, student_b)
 
     await _add_classification(
-        classifier_session, TENANT_A, ep_a, comision_id, "apropiacion_reflexiva",
+        classifier_session,
+        TENANT_A,
+        ep_a,
+        comision_id,
+        "apropiacion_reflexiva",
     )
     await _add_classification(
-        classifier_session, TENANT_B, ep_b, comision_id, "delegacion_pasiva",
+        classifier_session,
+        TENANT_B,
+        ep_b,
+        comision_id,
+        "delegacion_pasiva",
     )
 
     ds_a = RealLongitudinalDataSource(ctr_session, classifier_session, TENANT_A)

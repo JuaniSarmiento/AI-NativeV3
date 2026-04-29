@@ -1,4 +1,5 @@
 """Lógica de enrollment-service."""
+
 from enrollment_service.services.csv_import import (
     ImportError,
     ImportValidationResult,

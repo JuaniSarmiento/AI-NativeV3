@@ -1,4 +1,5 @@
 """Lógica de dominio."""
+
 from academic_service.services.carrera_service import CarreraService
 from academic_service.services.comision_service import (
     ComisionService,
@@ -11,12 +12,12 @@ from academic_service.services.tarea_practica_service import TareaPracticaServic
 from academic_service.services.universidad_service import UniversidadService
 
 __all__ = [
-    "UniversidadService",
-    "FacultadService",
     "CarreraService",
-    "PlanService",
+    "ComisionService",
+    "FacultadService",
     "MateriaService",
     "PeriodoService",
-    "ComisionService",
+    "PlanService",
     "TareaPracticaService",
+    "UniversidadService",
 ]

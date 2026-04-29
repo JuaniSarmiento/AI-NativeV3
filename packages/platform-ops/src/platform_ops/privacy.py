@@ -19,6 +19,7 @@ con la append-only del CTR. En su lugar ofrecemos disociación, que es
 lo que permite la regulación cuando hay interés legítimo en preservar
 el registro auditable de una interacción (art. 17.3.e GDPR).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -90,9 +91,7 @@ class _DataSource:
     async def list_materials_by_uploader(self, user_id: UUID) -> list[dict]:
         raise NotImplementedError
 
-    async def update_episodes_pseudonym(
-        self, original: UUID, new: UUID
-    ) -> int:
+    async def update_episodes_pseudonym(self, original: UUID, new: UUID) -> int:
         """Actualiza el pseudónimo en los episodios y devuelve cuántos cambió."""
         raise NotImplementedError
 
@@ -170,9 +169,7 @@ async def anonymize_student(
 
     # 1. Contar episodios asociados
     episodes = await data_source.list_episodes_by_student(student_pseudonym)
-    episode_ids = [
-        UUID(e["id"]) if isinstance(e["id"], str) else e["id"] for e in episodes
-    ]
+    episode_ids = [UUID(e["id"]) if isinstance(e["id"], str) else e["id"] for e in episodes]
 
     # 2. Actualizar el pseudónimo en esos episodios
     updated = await data_source.update_episodes_pseudonym(

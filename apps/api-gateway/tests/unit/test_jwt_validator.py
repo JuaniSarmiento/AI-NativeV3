@@ -7,26 +7,23 @@ Verifica:
   - JWKS cache con rotación
   - Claims custom (tenant_id, realm_access.roles)
 """
+
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass
 from typing import Any
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-
 from api_gateway.services.jwt_validator import (
-    JWKSCache,
     JWTValidationError,
     JWTValidator,
     JWTValidatorConfig,
     extract_bearer_token,
 )
-
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 # ── Fixtures de crypto ─────────────────────────────────────────────────
 
@@ -35,10 +32,14 @@ from api_gateway.services.jwt_validator import (
 def rsa_key_pair():
     """Generan un par RSA 2048 para firma/verificación."""
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
@@ -72,9 +73,7 @@ def _make_token(
     if tenant_id:
         payload["tenant_id"] = tenant_id
 
-    return jwt.encode(
-        payload, private_pem, algorithm=alg, headers={"kid": kid}
-    )
+    return jwt.encode(payload, private_pem, algorithm=alg, headers={"kid": kid})
 
 
 @dataclass
@@ -85,6 +84,7 @@ class FakeJWKSCache:
 
     async def get_key(self, kid: str):
         from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
         if kid == "unknown-kid":
             raise JWTValidationError(f"Firmado con kid desconocido: {kid}")
         return load_pem_public_key(self.public_pem.encode())
@@ -166,9 +166,14 @@ async def test_token_con_firma_invalida_falla(validator, rsa_key_pair) -> None:
 async def test_algoritmo_hs256_se_rechaza(validator) -> None:
     """Protección contra 'alg: none' y simétricos: solo RS256."""
     token = jwt.encode(
-        {"sub": "x", "iss": "http://keycloak/realms/demo_uni",
-         "aud": "platform-backend", "exp": int(time.time()) + 60,
-         "iat": int(time.time()), "tenant_id": "t"},
+        {
+            "sub": "x",
+            "iss": "http://keycloak/realms/demo_uni",
+            "aud": "platform-backend",
+            "exp": int(time.time()) + 60,
+            "iat": int(time.time()),
+            "tenant_id": "t",
+        },
         "secret",
         algorithm="HS256",
         headers={"kid": "test-kid"},

@@ -12,6 +12,7 @@ Todos los endpoints exigen `X-Tenant-Id` + `X-User-Id` inyectados por
 api-gateway (o por los vite proxies en dev_trust_headers). El permiso
 Casbin `tarea_practica_template:<action>` se verifica en `require_permission`.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -113,9 +114,7 @@ async def delete_template(
     await svc.soft_delete(template_id, user)
 
 
-@router.post(
-    "/{template_id}/publish", response_model=TareaPracticaTemplateOut
-)
+@router.post("/{template_id}/publish", response_model=TareaPracticaTemplateOut)
 async def publish_template(
     template_id: UUID,
     user: User = Depends(require_permission("tarea_practica_template", "update")),
@@ -126,9 +125,7 @@ async def publish_template(
     return TareaPracticaTemplateOut.model_validate(obj)
 
 
-@router.post(
-    "/{template_id}/archive", response_model=TareaPracticaTemplateOut
-)
+@router.post("/{template_id}/archive", response_model=TareaPracticaTemplateOut)
 async def archive_template(
     template_id: UUID,
     user: User = Depends(require_permission("tarea_practica_template", "update")),

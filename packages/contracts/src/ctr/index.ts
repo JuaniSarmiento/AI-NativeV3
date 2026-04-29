@@ -130,11 +130,7 @@ export type IntentoAdversoDetectado = z.infer<typeof IntentoAdversoDetectado>
 //
 // El event_labeler (ADR-020) reconoce los tres valores y aplica override a N4
 // para los dos no-typed.
-export const EdicionCodigoOrigin = z.enum([
-  "student_typed",
-  "copied_from_tutor",
-  "pasted_external",
-])
+export const EdicionCodigoOrigin = z.enum(["student_typed", "copied_from_tutor", "pasted_external"])
 export type EdicionCodigoOrigin = z.infer<typeof EdicionCodigoOrigin>
 
 export const EdicionCodigo = CTRBase.extend({

@@ -5,6 +5,7 @@ Los schemas de los EVENTOS como tales viven en packages/contracts
 de la API HTTP del servicio (publicar, leer episodio completo,
 verificar integridad).
 """
+
 from __future__ import annotations
 
 from datetime import datetime

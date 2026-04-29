@@ -9,6 +9,7 @@ Para F2, el approach de regex es suficiente — la mayoría de
 materiales de cátedra son archivos Python cortos con funciones bien
 delimitadas.
 """
+
 from __future__ import annotations
 
 import io
@@ -21,7 +22,6 @@ from content_service.extractors.base import (
     ExtractedSection,
     ExtractionResult,
 )
-
 
 LANG_BY_EXT: dict[str, str] = {
     ".py": "python",
@@ -43,8 +43,12 @@ LANG_BY_EXT: dict[str, str] = {
 # Simple, no perfecto — suficiente para la mayoría de archivos docentes.
 FUNCTION_START_PATTERNS: dict[str, re.Pattern] = {
     "python": re.compile(r"^(def |class |async def )", re.MULTILINE),
-    "javascript": re.compile(r"^(function |class |export |const \w+ = (?:async )?\()", re.MULTILINE),
-    "typescript": re.compile(r"^(function |class |export |const \w+ = (?:async )?\()", re.MULTILINE),
+    "javascript": re.compile(
+        r"^(function |class |export |const \w+ = (?:async )?\()", re.MULTILINE
+    ),
+    "typescript": re.compile(
+        r"^(function |class |export |const \w+ = (?:async )?\()", re.MULTILINE
+    ),
     "java": re.compile(r"^\s*(public|private|protected|class |interface )", re.MULTILINE),
     "go": re.compile(r"^(func |type )", re.MULTILINE),
     "rust": re.compile(r"^(fn |pub fn |struct |impl |trait )", re.MULTILINE),
@@ -86,9 +90,7 @@ class CodeArchiveExtractor(BaseExtractor):
             },
         )
 
-    def _split_code_file(
-        self, code: str, filepath: str, lang: str
-    ) -> list[ExtractedSection]:
+    def _split_code_file(self, code: str, filepath: str, lang: str) -> list[ExtractedSection]:
         """Divide un archivo en secciones por función/clase si se puede."""
         pattern = FUNCTION_START_PATTERNS.get(lang)
         if pattern is None:

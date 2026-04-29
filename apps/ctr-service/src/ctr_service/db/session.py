@@ -1,4 +1,5 @@
 """DB session del ctr-service con tenant context + RLS."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

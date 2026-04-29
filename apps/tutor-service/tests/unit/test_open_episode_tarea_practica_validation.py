@@ -8,27 +8,24 @@ episodio normalmente.
 Todas las llamadas al academic-service están mockeadas con AsyncMock —
 no toca red.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import fakeredis.aioredis
 import pytest
 from fastapi import HTTPException
-
 from tutor_service.services.academic_client import TareaPracticaResponse
 from tutor_service.services.clients import (
     PromptConfig,
     RetrievalResult,
-    RetrievedChunk,
 )
 from tutor_service.services.session import SessionManager
 from tutor_service.services.tutor_core import TutorCore
-
 
 # ── Fakes mínimos (mismos que test_tutor_core) ────────────────────────
 
@@ -36,7 +33,8 @@ from tutor_service.services.tutor_core import TutorCore
 class FakeGovernanceClient:
     async def get_prompt(self, name: str, version: str) -> PromptConfig:
         return PromptConfig(
-            name=name, version=version,
+            name=name,
+            version=version,
             content="Eres un tutor.",
             hash="a" * 64,
         )
@@ -44,16 +42,24 @@ class FakeGovernanceClient:
 
 class FakeContentClient:
     async def retrieve(
-        self, query: str, comision_id: UUID, top_k: int,
-        tenant_id: UUID, caller_id: UUID,
+        self,
+        query: str,
+        comision_id: UUID,
+        top_k: int,
+        tenant_id: UUID,
+        caller_id: UUID,
     ) -> RetrievalResult:
         return RetrievalResult(chunks=[], chunks_used_hash="0" * 64, latency_ms=1.0)
 
 
 class FakeAIGatewayClient:
     async def stream(
-        self, messages: list[dict], model: str, tenant_id: UUID,
-        temperature: float = 0.7, max_tokens: int = 2048,
+        self,
+        messages: list[dict],
+        model: str,
+        tenant_id: UUID,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
     ) -> AsyncIterator[str]:
         yield "ok"
 
@@ -62,9 +68,7 @@ class FakeCTRClient:
     def __init__(self) -> None:
         self.published_events: list[dict] = []
 
-    async def publish_event(
-        self, event: dict, tenant_id: UUID, caller_id: UUID
-    ) -> str:
+    async def publish_event(self, event: dict, tenant_id: UUID, caller_id: UUID) -> str:
         self.published_events.append(event)
         return f"msg-{len(self.published_events)}"
 
@@ -144,7 +148,9 @@ async def _open(
 
 
 async def test_open_episode_tarea_no_existe_404(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     academic_mock.get_tarea_practica.return_value = None
 
@@ -158,13 +164,13 @@ async def test_open_episode_tarea_no_existe_404(
 
 
 async def test_open_episode_tarea_draft_falla_409(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     tenant_id = uuid4()
     comision_id = uuid4()
-    academic_mock.get_tarea_practica.return_value = _make_tp(
-        tenant_id, comision_id, estado="draft"
-    )
+    academic_mock.get_tarea_practica.return_value = _make_tp(tenant_id, comision_id, estado="draft")
 
     with pytest.raises(HTTPException) as exc_info:
         await _open(tutor, tenant_id, comision_id, uuid4())
@@ -175,7 +181,9 @@ async def test_open_episode_tarea_draft_falla_409(
 
 
 async def test_open_episode_tarea_archived_falla_409(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     tenant_id = uuid4()
     comision_id = uuid4()
@@ -192,7 +200,9 @@ async def test_open_episode_tarea_archived_falla_409(
 
 
 async def test_open_episode_tarea_otra_comision_falla_400(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     tenant_id = uuid4()
     request_comision = uuid4()
@@ -210,7 +220,9 @@ async def test_open_episode_tarea_otra_comision_falla_400(
 
 
 async def test_open_episode_tarea_antes_de_inicio_falla_403(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     tenant_id = uuid4()
     comision_id = uuid4()
@@ -228,7 +240,9 @@ async def test_open_episode_tarea_antes_de_inicio_falla_403(
 
 
 async def test_open_episode_tarea_post_deadline_falla_403(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     tenant_id = uuid4()
     comision_id = uuid4()
@@ -246,7 +260,9 @@ async def test_open_episode_tarea_post_deadline_falla_403(
 
 
 async def test_open_episode_tarea_otra_tenant_falla_403(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     request_tenant = uuid4()
     tp_tenant = uuid4()  # diferente
@@ -264,7 +280,9 @@ async def test_open_episode_tarea_otra_tenant_falla_403(
 
 
 async def test_open_episode_tarea_published_y_en_plazo_ok(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """Happy path: TP published, comision/tenant matchean, dentro del
     plazo → episodio se abre y se publica `episodio_abierto` al CTR."""
@@ -273,7 +291,8 @@ async def test_open_episode_tarea_published_y_en_plazo_ok(
     problema_id = uuid4()
     now = datetime.now(UTC)
     academic_mock.get_tarea_practica.return_value = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),
@@ -295,7 +314,9 @@ async def test_open_episode_tarea_published_y_en_plazo_ok(
 
 
 async def test_open_episode_recheck_detecta_archive_durante_creacion(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """Race: la TP estaba published al validar, pero fue archivada antes
     de persistir el episodio. El recheck debe detectarlo y abortar con
@@ -304,13 +325,15 @@ async def test_open_episode_recheck_detecta_archive_durante_creacion(
     comision_id = uuid4()
     now = datetime.now(UTC)
     tp_published = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),
     )
     tp_archived = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="archived",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),
@@ -328,7 +351,9 @@ async def test_open_episode_recheck_detecta_archive_durante_creacion(
 
 
 async def test_open_episode_recheck_detecta_deadline_pasado_durante_creacion(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """Race: la TP estaba en plazo al validar, pero el deadline pasó
     antes de persistir el episodio. El recheck debe detectarlo y abortar
@@ -337,19 +362,22 @@ async def test_open_episode_recheck_detecta_deadline_pasado_durante_creacion(
     comision_id = uuid4()
     now = datetime.now(UTC)
     tp_in_window = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),
     )
     tp_deadline_passed = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=2),
         fecha_fin=now - timedelta(seconds=1),
     )
     academic_mock.get_tarea_practica.side_effect = [
-        tp_in_window, tp_deadline_passed,
+        tp_in_window,
+        tp_deadline_passed,
     ]
 
     with pytest.raises(HTTPException) as exc_info:
@@ -362,7 +390,9 @@ async def test_open_episode_recheck_detecta_deadline_pasado_durante_creacion(
 
 
 async def test_open_episode_recheck_pasa_si_TP_sigue_valido(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """Happy path con doble validación: ambas llamadas devuelven la
     misma TP válida → episodio se abre normalmente y el evento
@@ -372,7 +402,8 @@ async def test_open_episode_recheck_pasa_si_TP_sigue_valido(
     problema_id = uuid4()
     now = datetime.now(UTC)
     tp = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),
@@ -388,7 +419,8 @@ async def test_open_episode_recheck_pasa_si_TP_sigue_valido(
 
 
 async def test_open_episode_sin_academic_client_no_valida(
-    redis_client, fake_ctr: FakeCTRClient,
+    redis_client,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """Backwards-compat: si TutorCore se construye sin academic client
     (tests legacy), open_episode no falla por la TP."""
@@ -406,7 +438,9 @@ async def test_open_episode_sin_academic_client_no_valida(
 
 
 async def test_open_episode_succeeds_with_tarea_practica_linked_to_template(
-    tutor: TutorCore, academic_mock: AsyncMock, fake_ctr: FakeCTRClient,
+    tutor: TutorCore,
+    academic_mock: AsyncMock,
+    fake_ctr: FakeCTRClient,
 ) -> None:
     """ADR-016: TP instanciada desde un `TareaPracticaTemplate` (con
     `template_id != null` y `has_drift=true` a nivel academic-service) no
@@ -425,7 +459,8 @@ async def test_open_episode_succeeds_with_tarea_practica_linked_to_template(
     # tiene con template_id=<uuid> y has_drift=True, pero el tutor
     # consume solo los 6 campos de validación.
     tp_from_template = _make_tp(
-        tenant_id, comision_id,
+        tenant_id,
+        comision_id,
         estado="published",
         fecha_inicio=now - timedelta(days=1),
         fecha_fin=now + timedelta(days=7),

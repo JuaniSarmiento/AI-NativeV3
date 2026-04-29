@@ -1,4 +1,5 @@
 """Endpoints de liveness y readiness."""
+
 from fastapi import APIRouter, status
 from pydantic import BaseModel
 

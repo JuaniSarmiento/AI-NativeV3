@@ -1,4 +1,5 @@
 """Tests de Coherencia Inter-Iteración."""
+
 from __future__ import annotations
 
 from classifier_service.services.cii import compute_cii
@@ -40,7 +41,9 @@ def test_estabilidad_mayor_con_overlap_que_sin() -> None:
         _prompt(0, "alpha beta gamma"),
         _prompt(1, "delta epsilon zeta"),
     ]
-    assert compute_cii(with_overlap)["cii_stability"] > compute_cii(without_overlap)["cii_stability"]
+    assert (
+        compute_cii(with_overlap)["cii_stability"] > compute_cii(without_overlap)["cii_stability"]
+    )
 
 
 def test_prompts_cambiantes_baja_estabilidad() -> None:

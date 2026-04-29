@@ -8,6 +8,7 @@ Crea las tablas del ctr-service en la base ctr_store con RLS activo.
 Las tablas son append-only por diseño — no hay UPDATE/DELETE excepto en
 `episodes` (que se actualiza con cada nuevo evento del stream).
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -28,8 +29,12 @@ def upgrade() -> None:
     # ── Episodes ──────────────────────────────────────────────────────
     op.create_table(
         "episodes",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False,
-                  server_default=sa.text("uuid_generate_v4()")),
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("uuid_generate_v4()"),
+        ),
         sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("comision_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("student_pseudonym", postgresql.UUID(as_uuid=True), nullable=False),
@@ -39,14 +44,13 @@ def upgrade() -> None:
         sa.Column("classifier_config_hash", sa.String(64), nullable=False),
         sa.Column("curso_config_hash", sa.String(64), nullable=False),
         sa.Column("estado", sa.String(30), nullable=False, server_default="open"),
-        sa.Column("opened_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.func.now()),
+        sa.Column(
+            "opened_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("closed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("events_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("last_chain_hash", sa.String(64), nullable=False,
-                  server_default="0" * 64),
-        sa.Column("integrity_compromised", sa.Boolean, nullable=False,
-                  server_default="false"),
+        sa.Column("last_chain_hash", sa.String(64), nullable=False, server_default="0" * 64),
+        sa.Column("integrity_compromised", sa.Boolean, nullable=False, server_default="false"),
         sa.Column("meta", postgresql.JSONB, nullable=False, server_default="{}"),
         sa.PrimaryKeyConstraint("id", name="pk_episodes"),
     )
@@ -72,11 +76,13 @@ def upgrade() -> None:
         sa.Column("prompt_system_hash", sa.String(64), nullable=False),
         sa.Column("prompt_system_version", sa.String(30), nullable=False),
         sa.Column("classifier_config_hash", sa.String(64), nullable=False),
-        sa.Column("persisted_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.func.now()),
+        sa.Column(
+            "persisted_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_events"),
         sa.ForeignKeyConstraint(
-            ["episode_id"], ["episodes.id"],
+            ["episode_id"],
+            ["episodes.id"],
             name="fk_events_episode_id_episodes",
             ondelete="RESTRICT",
         ),
@@ -100,8 +106,12 @@ def upgrade() -> None:
         sa.Column("error_reason", sa.Text, nullable=False),
         sa.Column("failed_attempts", sa.Integer, nullable=False),
         sa.Column("first_seen_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("moved_to_dlq_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.func.now()),
+        sa.Column(
+            "moved_to_dlq_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_dead_letters"),
     )
     op.create_index("ix_dead_letters_tenant_id", "dead_letters", ["tenant_id"])

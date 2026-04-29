@@ -29,6 +29,7 @@ Verificación
         -H "X-Tenant-Id: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" \
         -H "X-User-Roles: docente"
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -46,16 +47,14 @@ sys.path.insert(0, str(ROOT / "apps" / "ctr-service" / "src"))
 sys.path.insert(0, str(ROOT / "apps" / "classifier-service" / "src"))
 sys.path.insert(0, str(ROOT / "apps" / "academic-service" / "src"))
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 # Hashing helpers del proyecto (source of truth)
-from ctr_service.services.hashing import (  # noqa: E402
+from ctr_service.services.hashing import (
     GENESIS_HASH,
-    canonicalize,
     compute_chain_hash,
     compute_self_hash,
 )
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ── Constantes del piloto ─────────────────────────────────────────────
 
@@ -420,18 +419,12 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, datetime]]:
             ):
                 for ep_idx in range(len(pattern)):
                     # Cada episodio espaciado ~5 días
-                    opened_at = base_time + timedelta(
-                        days=(student_idx * 0.2) + (ep_idx * 5)
-                    )
+                    opened_at = base_time + timedelta(days=(student_idx * 0.2) + (ep_idx * 5))
                     closed_at = opened_at + timedelta(minutes=45)
 
                     # Episode id determinístico (facilita idempotencia)
                     episode_id = UUID(
-                        int=(
-                            (student_idx + 1) * 10_000
-                            + (ep_idx + 1) * 100
-                        )
-                        | (1 << 127)
+                        int=((student_idx + 1) * 10_000 + (ep_idx + 1) * 100) | (1 << 127)
                     )
 
                     # Construir 5 eventos con cadena válida
@@ -587,9 +580,7 @@ def _build_events_for_episode(
     results: list[dict] = []
     prev_chain = GENESIS_HASH
     for seq, spec in enumerate(specs):
-        event_uuid = UUID(
-            int=(episode_id.int ^ (seq + 1) * 0x9E3779B97F4A7C15) & ((1 << 128) - 1)
-        )
+        event_uuid = UUID(int=(episode_id.int ^ (seq + 1) * 0x9E3779B97F4A7C15) & ((1 << 128) - 1))
 
         canonical = build_event_canonical(
             event_uuid=event_uuid,
@@ -603,16 +594,18 @@ def _build_events_for_episode(
         self_hash = compute_self_hash(canonical)
         chain_hash = compute_chain_hash(self_hash, prev_chain)
 
-        results.append({
-            "event_uuid": event_uuid,
-            "seq": seq,
-            "event_type": spec["event_type"],
-            "ts_dt": spec["ts"],
-            "payload": spec["payload"],
-            "self_hash": self_hash,
-            "chain_hash": chain_hash,
-            "prev_chain_hash": prev_chain,
-        })
+        results.append(
+            {
+                "event_uuid": event_uuid,
+                "seq": seq,
+                "event_type": spec["event_type"],
+                "ts_dt": spec["ts"],
+                "payload": spec["payload"],
+                "self_hash": self_hash,
+                "chain_hash": chain_hash,
+                "prev_chain_hash": prev_chain,
+            }
+        )
         prev_chain = chain_hash
 
     return results
@@ -643,7 +636,7 @@ async def seed_classifications(
             idx = 0
             for student_idx, pattern in enumerate(PROGRESION_PATTERNS):
                 for ep_idx, appropriation in enumerate(pattern):
-                    episode_id, pseudo, classified_at = episode_refs[idx]
+                    episode_id, _pseudo, classified_at = episode_refs[idx]
                     idx += 1
 
                     # Coherencias sintéticas pero consistentes con la label
@@ -657,8 +650,8 @@ async def seed_classifications(
                     reason = (
                         f"Árbol N4 — patrón {appropriation}: "
                         f"CT={ct:.2f}, CCD={ccd:.2f}, orph={orph:.2f}, "
-                        f"stab={stab:.2f}, evo={evo:+.2f} (episodio {ep_idx+1} "
-                        f"de estudiante #{student_idx+1})"
+                        f"stab={stab:.2f}, evo={evo:+.2f} (episodio {ep_idx + 1} "
+                        f"de estudiante #{student_idx + 1})"
                     )
 
                     await session.execute(
