@@ -1,4 +1,5 @@
 """Tests del endpoint /api/v1/analytics/episode/{id}/n-level-distribution (ADR-020)."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -10,6 +11,21 @@ from fastapi.testclient import TestClient
 _TENANT_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 _USER_ID = "11111111-1111-1111-1111-111111111111"
 _VALID_HEADERS = {"X-Tenant-Id": _TENANT_ID, "X-User-Id": _USER_ID}
+
+
+@pytest.fixture(autouse=True)
+def _force_dev_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aísla los tests del `.env` del repo (que puede declarar CTR_STORE_URL
+    y CLASSIFIER_DB_URL para soporte de make migrate).
+
+    Los tests `test_modo_dev_*` asumen modo dev (`_real_data_source_enabled()`
+    retorna False). Sin este fixture, si el dev tiene un `.env` con esas vars
+    los tests fallan con 404 en vez de 200.
+    """
+    from analytics_service.config import settings
+
+    monkeypatch.setattr(settings, "ctr_store_url", "")
+    monkeypatch.setattr(settings, "classifier_db_url", "")
 
 
 @pytest.fixture

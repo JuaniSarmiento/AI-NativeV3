@@ -18,16 +18,15 @@ export function ComisionSelectorRouted() {
   const search = useRouterState({
     select: (s) => s.location.search as Record<string, unknown>,
   })
-  const currentComisionId =
-    typeof search.comisionId === "string" ? search.comisionId : null
+  const currentComisionId = typeof search.comisionId === "string" ? search.comisionId : null
 
   const handleChange = useCallback(
     (newId: string | null) => {
       navigate({
-        // biome-ignore lint/suspicious/noExplicitAny: search update dinámico — el tipo es por-ruta
         search: ((prev: Record<string, unknown>) => ({
           ...prev,
           comisionId: newId ?? undefined,
+          // biome-ignore lint/suspicious/noExplicitAny: search update dinámico — el tipo es por-ruta
         })) as any,
       })
     },
