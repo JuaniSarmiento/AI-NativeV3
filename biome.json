@@ -47,7 +47,9 @@
       "**/.turbo",
       "**/.vite",
       "**/coverage",
-      "**/playwright-report"
+      "**/playwright-report",
+      "**/vite.config.ts.timestamp-*.mjs",
+      "**/routeTree.gen.ts"
     ]
   }
 }
