@@ -9,6 +9,7 @@ Estrategia:
 El modelo default es `intfloat/multilingual-e5-large` (1024 dims, excelente
 para español, benchmarks superiores a ada-002).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -16,7 +17,7 @@ import os
 import struct
 from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -82,12 +83,12 @@ class SentenceTransformerEmbedder(BaseEmbedder):
     model_name = "intfloat/multilingual-e5-large"
 
     def __init__(self) -> None:
-        self._model = None
+        self._model: Any = None
 
-    def _ensure_model(self):
+    def _ensure_model(self) -> Any:
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
             import torch
+            from sentence_transformers import SentenceTransformer
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
             self._model = SentenceTransformer(self.model_name, device=device)
@@ -108,9 +109,7 @@ class SentenceTransformerEmbedder(BaseEmbedder):
     async def embed_query(self, text: str) -> list[float]:
         # e5 convention: prefijo "query: " para queries
         model = self._ensure_model()
-        vec = model.encode(
-            [f"query: {text}"], normalize_embeddings=True, convert_to_numpy=True
-        )
+        vec = model.encode([f"query: {text}"], normalize_embeddings=True, convert_to_numpy=True)
         return vec[0].tolist()
 
 
@@ -130,6 +129,7 @@ def get_embedder() -> BaseEmbedder:
     try:
         import sentence_transformers  # noqa: F401
         import torch  # noqa: F401
+
         return SentenceTransformerEmbedder()
     except ImportError:
         return MockEmbedder()

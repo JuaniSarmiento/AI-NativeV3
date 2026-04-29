@@ -5,6 +5,7 @@ GET  /api/v1/episodes/{id}         estado del episodio (recovery del frontend)
 POST /api/v1/episodes/{id}/message SSE con la respuesta del tutor
 POST /api/v1/episodes/{id}/close   cerrar episodio (emite evento cierre)
 """
+
 from __future__ import annotations
 
 import json
@@ -22,8 +23,8 @@ from tutor_service.config import settings
 from tutor_service.services.academic_client import AcademicClient
 from tutor_service.services.clients import (
     AIGatewayClient,
-    CTRClient,
     ContentClient,
+    CTRClient,
     GovernanceClient,
 )
 from tutor_service.services.session import SessionManager
@@ -141,8 +142,9 @@ async def open_episode(
       - Enforcement de `max_episodes_per_day` (deferred a F7 cuando tengamos
         contador en Redis; por ahora solo log)
     """
-    from tutor_service.services.features import get_flags
     from platform_ops import FeatureNotDeclaredError
+
+    from tutor_service.services.features import get_flags
 
     tutor = _get_tutor()
 
@@ -166,9 +168,7 @@ async def open_episode(
     return OpenEpisodeResponse(episode_id=episode_id)
 
 
-def _build_episode_state(
-    episode_id: UUID, ep: dict[str, Any]
-) -> EpisodeStateResponse:
+def _build_episode_state(episode_id: UUID, ep: dict[str, Any]) -> EpisodeStateResponse:
     """Reduce el `EpisodeWithEvents` del CTR al subset que la UI necesita.
 
     Reglas de extracción:
@@ -205,9 +205,7 @@ def _build_episode_state(
         elif et == "tutor_respondio":
             content = payload.get("content")
             if isinstance(content, str):
-                messages.append(
-                    {"role": "assistant", "content": content, "ts": ts}
-                )
+                messages.append({"role": "assistant", "content": content, "ts": ts})
         elif et in ("nota_personal", "nota_estudiante"):
             contenido = payload.get("contenido") or payload.get("content")
             if isinstance(contenido, str):
@@ -219,7 +217,7 @@ def _build_episode_state(
         comision_id=UUID(str(ep["comision_id"])),
         estado=ep["estado"],
         opened_at=_parse_dt(ep["opened_at"]),
-        closed_at=_parse_dt(ep.get("closed_at")) if ep.get("closed_at") else None,
+        closed_at=_parse_dt(closed) if (closed := ep.get("closed_at")) else None,
         last_code_snapshot=last_code,
         messages=messages,
         notes=notes,
@@ -238,9 +236,7 @@ def _parse_dt(value: str | datetime) -> datetime:
 @router.get("/{episode_id}", response_model=EpisodeStateResponse)
 async def get_episode_state(
     episode_id: UUID,
-    user: User = Depends(
-        require_role("estudiante", "docente", "docente_admin", "superadmin")
-    ),
+    user: User = Depends(require_role("estudiante", "docente", "docente_admin", "superadmin")),
 ) -> EpisodeStateResponse:
     """Devuelve el estado reconstruído del episodio para recovery del UI.
 
@@ -292,7 +288,7 @@ async def send_message(
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except ValueError as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': f'Internal error: {e}'})}\n\n"
 
     return StreamingResponse(
@@ -386,9 +382,7 @@ class EdicionCodigoRequest(BaseModel):
         ..., ge=0, description="Cantidad de caracteres cambiados desde evento anterior"
     )
     language: str = Field(default="python", min_length=1, max_length=32)
-    origin: (
-        Literal["student_typed", "copied_from_tutor", "pasted_external"] | None
-    ) = Field(
+    origin: Literal["student_typed", "copied_from_tutor", "pasted_external"] | None = Field(
         default=None,
         description=(
             "Procedencia del cambio. None = legacy/desconocido. "

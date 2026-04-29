@@ -26,6 +26,7 @@ Uso:
         period_days=90,
     )
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -125,9 +126,7 @@ class CohortDataset:
 class _CohortDataSource:
     """Interface mínima. En producción lo implementa un adaptador sobre SQLA."""
 
-    async def list_episodes_in_comision(
-        self, comision_id: UUID, since: datetime
-    ) -> list[dict]:
+    async def list_episodes_in_comision(self, comision_id: UUID, since: datetime) -> list[dict]:
         raise NotImplementedError
 
     async def list_events_for_episode(self, episode_id: UUID) -> list[dict]:
@@ -177,9 +176,7 @@ class AcademicExporter:
         now = datetime.now(UTC)
         since = now - timedelta(days=period_days)
 
-        episodes_raw = await self.data_source.list_episodes_in_comision(
-            comision_id, since
-        )
+        episodes_raw = await self.data_source.list_episodes_in_comision(comision_id, since)
 
         records: list[EpisodeRecord] = []
         students_seen: set[str] = set()
@@ -192,7 +189,11 @@ class AcademicExporter:
 
         for ep in episodes_raw:
             ep_id = UUID(ep["id"]) if isinstance(ep["id"], str) else ep["id"]
-            student_pseudo = UUID(ep["student_pseudonym"]) if isinstance(ep["student_pseudonym"], str) else ep["student_pseudonym"]
+            student_pseudo = (
+                UUID(ep["student_pseudonym"])
+                if isinstance(ep["student_pseudonym"], str)
+                else ep["student_pseudonym"]
+            )
 
             # Contar eventos por tipo + recolectar prompts si corresponde
             events = await self.data_source.list_events_for_episode(ep_id)
@@ -209,12 +210,14 @@ class AcademicExporter:
                 if et == "prompt_enviado":
                     prompt_count += 1
                     if include_prompts:
-                        prompt_records.append({
-                            "seq": ev["seq"],
-                            "ts": ev["ts"],
-                            "content": ev.get("payload", {}).get("content", ""),
-                            "prompt_kind": ev.get("payload", {}).get("prompt_kind"),
-                        })
+                        prompt_records.append(
+                            {
+                                "seq": ev["seq"],
+                                "ts": ev["ts"],
+                                "content": ev.get("payload", {}).get("content", ""),
+                                "prompt_kind": ev.get("payload", {}).get("prompt_kind"),
+                            }
+                        )
                 elif et == "codigo_ejecutado":
                     code_execution_count += 1
                 elif et == "anotacion_creada":
@@ -228,6 +231,7 @@ class AcademicExporter:
             duration = None
             if opened_at and closed_at:
                 from datetime import datetime as dt
+
                 try:
                     o = dt.fromisoformat(opened_at.replace("Z", "+00:00"))
                     c = dt.fromisoformat(closed_at.replace("Z", "+00:00"))
@@ -241,12 +245,13 @@ class AcademicExporter:
             student_alias = self._pseudonymize(student_pseudo, prefix="s_")
             students_seen.add(student_alias)
 
-            appropriation = None
+            appropriation: str | None = None
             if classification:
-                appropriation = classification.get("appropiation") or classification.get("appropriation")
-                distribution[appropriation] = distribution.get(appropriation, 0) + 1
-            else:
-                distribution["sin_clasificar"] += 1
+                appropriation = classification.get("appropiation") or classification.get(
+                    "appropriation"
+                )
+            key = appropriation if appropriation else "sin_clasificar"
+            distribution[key] = distribution.get(key, 0) + 1
 
             record = EpisodeRecord(
                 episode_alias=self._pseudonymize(ep_id, prefix="e_"),
@@ -256,9 +261,7 @@ class AcademicExporter:
                 closed_at=closed_at,
                 duration_seconds=duration,
                 total_events=len(events),
-                classifier_config_hash=(classification or {}).get(
-                    "classifier_config_hash", ""
-                ),
+                classifier_config_hash=(classification or {}).get("classifier_config_hash", ""),
                 appropriation=appropriation,
                 ct_summary=(classification or {}).get("ct_summary"),
                 ccd_mean=(classification or {}).get("ccd_mean"),

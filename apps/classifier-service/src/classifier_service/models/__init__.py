@@ -4,6 +4,7 @@ Clasificaciones son append-only con flag `is_current`. Reclasificar con
 nuevo `classifier_config_hash` produce nueva fila; la anterior se marca
 `is_current=false` pero no se borra.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,11 +21,10 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
 
 NAMING_CONVENTION: dict[str, str] = {
     "ix": "ix_%(column_0_label)s",
@@ -42,13 +42,12 @@ class Base(DeclarativeBase):
 
 def utc_now_f() -> datetime:
     from datetime import UTC
+
     return datetime.now(UTC)
 
 
 class TenantMixin:
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
 
 
 class Classification(Base, TenantMixin):
@@ -71,12 +70,8 @@ class Classification(Base, TenantMixin):
     __tablename__ = "classifications"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    episode_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
-    comision_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False, index=True
-    )
+    episode_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
+    comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     classifier_config_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     appropriation: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -98,7 +93,8 @@ class Classification(Base, TenantMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "episode_id", "classifier_config_hash",
+            "episode_id",
+            "classifier_config_hash",
             name="uq_classifications_episode_config",
         ),
         Index("ix_classifications_episode_current", "episode_id", "is_current"),

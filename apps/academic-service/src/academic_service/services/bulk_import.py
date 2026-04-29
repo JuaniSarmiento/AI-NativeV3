@@ -22,6 +22,7 @@ schema Pydantic correspondiente):
   fecha_inicio (opcional), fecha_fin (opcional), peso (opcional),
   rubrica (JSON, opcional)
 """
+
 from __future__ import annotations
 
 import csv
@@ -84,18 +85,16 @@ _BOOL_COLUMNS: dict[str, tuple[str, ...]] = {
 }
 
 
-def _entity_registry() -> dict[
-    str, tuple[type[BaseModel], Any]
-]:
+def _entity_registry() -> dict[str, tuple[type[BaseModel], Any]]:
     """entity_name → (schema_class, service_factory(session))."""
     return {
-        "facultades": (FacultadCreate, lambda s: FacultadService(s)),
-        "carreras": (CarreraCreate, lambda s: CarreraService(s)),
-        "planes": (PlanCreate, lambda s: PlanService(s)),
-        "materias": (MateriaCreate, lambda s: MateriaService(s)),
-        "periodos": (PeriodoCreate, lambda s: PeriodoService(s)),
-        "comisiones": (ComisionCreate, lambda s: ComisionService(s)),
-        "tareas_practicas": (TareaPracticaCreate, lambda s: TareaPracticaService(s)),
+        "facultades": (FacultadCreate, FacultadService),
+        "carreras": (CarreraCreate, CarreraService),
+        "planes": (PlanCreate, PlanService),
+        "materias": (MateriaCreate, MateriaService),
+        "periodos": (PeriodoCreate, PeriodoService),
+        "comisiones": (ComisionCreate, ComisionService),
+        "tareas_practicas": (TareaPracticaCreate, TareaPracticaService),
     }
 
 
@@ -136,9 +135,7 @@ def _coerce_row(entity: str, row: dict[str, str]) -> dict[str, Any]:
         if stripped == "":
             continue
 
-        if clean_key in json_lists:
-            coerced[clean_key] = json.loads(stripped)
-        elif clean_key in json_objects:
+        if clean_key in json_lists or clean_key in json_objects:
             coerced[clean_key] = json.loads(stripped)
         elif clean_key in bools:
             coerced[clean_key] = stripped.lower() in ("true", "1", "yes", "si", "sí")
@@ -255,6 +252,7 @@ class BulkImportService:
                 )
                 continue
 
+            assert instance is not None  # narrowing: si no hay error, hay instance
             fk_error = await self._check_fk_existence(entity, instance, user)
             if fk_error is not None:
                 errors.append(
@@ -285,9 +283,7 @@ class BulkImportService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
-                    "message": (
-                        f"Bulk import abortado: {report.invalid_rows} fila(s) inválida(s)"
-                    ),
+                    "message": (f"Bulk import abortado: {report.invalid_rows} fila(s) inválida(s)"),
                     "report": report.model_dump(mode="json"),
                 },
             )
@@ -302,9 +298,7 @@ class BulkImportService:
             obj = await service.create(instance, user)
             created_ids.append(obj.id)
 
-        return BulkImportCommitResult(
-            created_count=len(created_ids), created_ids=created_ids
-        )
+        return BulkImportCommitResult(created_count=len(created_ids), created_ids=created_ids)
 
     async def _check_fk_existence(
         self, entity: str, instance: BaseModel, user: User
@@ -313,21 +307,25 @@ class BulkImportService:
         try:
             if entity == "facultades":
                 from academic_service.repositories import UniversidadRepository
+
                 await UniversidadRepository(self.session).get_or_404(
                     instance.universidad_id  # type: ignore[attr-defined]
                 )
             elif entity == "carreras":
                 from academic_service.repositories import FacultadRepository
+
                 await FacultadRepository(self.session).get_or_404(
                     instance.facultad_id  # type: ignore[attr-defined]
                 )
             elif entity == "planes":
                 from academic_service.repositories import CarreraRepository
+
                 await CarreraRepository(self.session).get_or_404(
                     instance.carrera_id  # type: ignore[attr-defined]
                 )
             elif entity == "materias":
                 from academic_service.repositories import PlanEstudiosRepository
+
                 await PlanEstudiosRepository(self.session).get_or_404(
                     instance.plan_id  # type: ignore[attr-defined]
                 )
@@ -336,6 +334,7 @@ class BulkImportService:
                     MateriaRepository,
                     PeriodoRepository,
                 )
+
                 await MateriaRepository(self.session).get_or_404(
                     instance.materia_id  # type: ignore[attr-defined]
                 )
@@ -350,6 +349,7 @@ class BulkImportService:
                     )
             elif entity == "tareas_practicas":
                 from academic_service.repositories import ComisionRepository
+
                 await ComisionRepository(self.session).get_or_404(
                     instance.comision_id  # type: ignore[attr-defined]
                 )

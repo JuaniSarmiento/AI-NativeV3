@@ -16,6 +16,7 @@ Decisión arquitectónica: LDAP se configura POR REALM (por tenant), no
 global. Cada universidad tiene su propio LDAP y se conecta a su realm
 Keycloak independientemente.
 """
+
 from __future__ import annotations
 
 import logging
@@ -61,6 +62,7 @@ class LDAPGroupMapping:
           realm_role="docente",
       )
     """
+
     ldap_group_dn: str
     realm_role: str
 
@@ -97,7 +99,7 @@ class LDAPFederator:
             "Content-Type": "application/json",
         }
 
-    async def configure(self, spec: LDAPFederationSpec) -> dict[str, str]:
+    async def configure(self, spec: LDAPFederationSpec) -> dict[str, str | list[str]]:
         """Setup completo: provider + mappers básicos + group mappings.
 
         Idempotente: si el provider ya existe con el mismo nombre, lo
@@ -128,9 +130,7 @@ class LDAPFederator:
                 actions.append(f"Mappers estándar: {', '.join(mappers_added)}")
 
             # 3. Mapper de tenant_id (hardcoded)
-            await self._ensure_tenant_id_mapper(
-                client, spec.realm_name, provider_id, spec
-            )
+            await self._ensure_tenant_id_mapper(client, spec.realm_name, provider_id, spec)
             actions.append("Mapper tenant_id asegurado")
 
             # 4. Group mappings (grupo LDAP → rol Keycloak)
@@ -139,9 +139,7 @@ class LDAPFederator:
                     client, spec.realm_name, provider_id, mapping
                 )
             if spec.group_mappings:
-                actions.append(
-                    f"Group→Role mappings: {len(spec.group_mappings)} configurados"
-                )
+                actions.append(f"Group→Role mappings: {len(spec.group_mappings)} configurados")
 
         return {"provider_id": provider_id, "actions": actions}
 
@@ -159,9 +157,7 @@ class LDAPFederator:
                 return comp["id"]
         return None
 
-    async def _create_provider(
-        self, client: httpx.AsyncClient, spec: LDAPFederationSpec
-    ) -> str:
+    async def _create_provider(self, client: httpx.AsyncClient, spec: LDAPFederationSpec) -> str:
         body = {
             "name": spec.display_name,
             "providerId": "ldap",
@@ -174,9 +170,7 @@ class LDAPFederator:
             json=body,
         )
         if r.status_code not in (201, 204):
-            raise LDAPFederationError(
-                f"No se pudo crear LDAP provider: {r.status_code} {r.text}"
-            )
+            raise LDAPFederationError(f"No se pudo crear LDAP provider: {r.status_code} {r.text}")
         location = r.headers.get("location", "")
         return location.rstrip("/").split("/")[-1]
 
@@ -222,9 +216,7 @@ class LDAPFederator:
             "startTls": ["true" if ldap.use_tls else "false"],
             "importEnabled": ["true"],
             "batchSizeForSync": ["1000"],
-            "fullSyncPeriod": [
-                str(ldap.sync_period_seconds) if ldap.periodic_full_sync else "-1"
-            ],
+            "fullSyncPeriod": [str(ldap.sync_period_seconds) if ldap.periodic_full_sync else "-1"],
             "changedSyncPeriod": ["-1"],
             "priority": [str(ldap.priority)],
         }
@@ -330,7 +322,6 @@ class LDAPFederator:
                 "role.object.classes": ["groupOfNames"],
                 "roles.dn": [mapping.ldap_group_dn],
                 "role.name.ldap.attribute": ["cn"],
-                "role.object.classes": ["groupOfNames"],
                 "membership.ldap.attribute": ["member"],
                 "membership.user.ldap.attribute": ["uid"],
                 "mode": ["READ_ONLY"],
@@ -372,15 +363,13 @@ class LDAPFederator:
             json=body,
         )
         if r.status_code not in (201, 204):
-            raise LDAPFederationError(
-                f"Mapper '{name}' falló: {r.status_code} {r.text}"
-            )
+            raise LDAPFederationError(f"Mapper '{name}' falló: {r.status_code} {r.text}")
 
 
 __all__ = [
     "LDAPConfig",
-    "LDAPGroupMapping",
+    "LDAPFederationError",
     "LDAPFederationSpec",
     "LDAPFederator",
-    "LDAPFederationError",
+    "LDAPGroupMapping",
 ]

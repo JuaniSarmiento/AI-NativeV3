@@ -4,6 +4,7 @@ POST /api/v1/complete    → completion (sync, JSON)
 POST /api/v1/stream      → SSE de completion streaming
 GET  /api/v1/budget      → estado actual del budget del tenant
 """
+
 from __future__ import annotations
 
 import json
@@ -133,7 +134,9 @@ async def complete(
     if cached:
         logger.info(
             "cache_hit tenant=%s feature=%s model=%s",
-            caller.tenant_id, req.feature, req.model,
+            caller.tenant_id,
+            req.feature,
+            req.model,
         )
         return CompleteResponse(
             content=cached.content,
@@ -155,7 +158,7 @@ async def complete(
     provider = get_provider()
     try:
         response = await provider.complete(internal_req)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.exception("provider_error")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -202,7 +205,7 @@ async def stream_complete(
     if status_info.exceeded:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Budget excedido",
+            detail="Budget excedido",
         )
 
     internal_req = CompletionRequest(
@@ -226,7 +229,7 @@ async def stream_complete(
             est_cost = total_chars / 4 / 1_000_000 * 5.0  # ~$5/M output tokens
             await tracker.charge(caller.tenant_id, req.feature, est_cost)
             yield f"data: {json.dumps({'type': 'done', 'estimated_cost_usd': est_cost})}\n\n"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(

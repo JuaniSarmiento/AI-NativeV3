@@ -4,9 +4,11 @@
 - /health/ready → 200 si dependencias están OK (DB, Redis); 503 si alguna falla
 - /health      → alias de readiness por compatibilidad
 """
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
 import redis.asyncio as redis
@@ -49,17 +51,17 @@ async def _check_redis() -> str:
     client: redis.Redis | None = None
     try:
         client = redis.from_url(settings.redis_url, socket_connect_timeout=_DEP_TIMEOUT_SEC)
-        await asyncio.wait_for(client.ping(), timeout=_DEP_TIMEOUT_SEC)
+        # redis-py async ping() devuelve Awaitable[bool]; el stub a veces lo
+        # tipa como `Awaitable[bool] | bool` cuando el cliente es sync.
+        await asyncio.wait_for(client.ping(), timeout=_DEP_TIMEOUT_SEC)  # type: ignore[arg-type]
         return "ok"
     except Exception as exc:
         logger.warning("readiness_redis_check_failed", exc_info=exc)
         return f"fail: {type(exc).__name__}"
     finally:
         if client is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await client.aclose()
-            except Exception:
-                pass
 
 
 @router.get("", response_model=HealthResponse)

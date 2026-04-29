@@ -13,6 +13,7 @@ Ejecución:
 En K8s corre como StatefulSet con 8 pods; cada pod toma una partición
 por su ordinal (ctr-worker-0 toma p0, ctr-worker-1 toma p1, ...).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -95,7 +96,9 @@ class PartitionWorker:
         await self.ensure_consumer_group()
         logger.info(
             "Worker partition=%d stream=%s consumer=%s iniciado",
-            self.cfg.partition, self.stream_key, self.consumer_name,
+            self.cfg.partition,
+            self.stream_key,
+            self.consumer_name,
         )
 
         while not self._stop.is_set():
@@ -152,7 +155,9 @@ class PartitionWorker:
             if attempts >= MAX_ATTEMPTS:
                 logger.error(
                     "Mensaje %s falló %d veces; moviendo a DLQ",
-                    message_id, attempts, exc_info=exc,
+                    message_id,
+                    attempts,
+                    exc_info=exc,
                 )
                 await self._move_to_dlq(message_id, fields, str(exc), attempts)
                 await self._ack(message_id)
@@ -160,7 +165,10 @@ class PartitionWorker:
                 # Dejar sin ACK para que vuelva a entregarse al próximo XCLAIM/XREADGROUP
                 logger.warning(
                     "Mensaje %s falló intento %d/%d; será reintentado",
-                    message_id, attempts, MAX_ATTEMPTS, exc_info=exc,
+                    message_id,
+                    attempts,
+                    MAX_ATTEMPTS,
+                    exc_info=exc,
                 )
 
     async def _persist_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
@@ -203,7 +211,7 @@ class PartitionWorker:
                     )
                 )
                 if existing.scalar_one_or_none() is not None:
-                    return  # duplicado — ack sin hacer nada
+                    return None  # duplicado — ack sin hacer nada
                 raise ValueError(
                     f"Seq inesperado: recibido={seq} esperado={expected_seq} "
                     f"para episodio {episode_id}"
@@ -212,7 +220,8 @@ class PartitionWorker:
             # 3. Calcular hashes
             # Copia del evento sin los campos computados
             event_for_hash = {
-                k: v for k, v in event.items()
+                k: v
+                for k, v in event.items()
                 if k not in {"self_hash", "chain_hash", "prev_chain_hash"}
             }
             self_hash = compute_self_hash(event_for_hash)
@@ -222,27 +231,31 @@ class PartitionWorker:
 
             # 4. Insertar evento (INSERT ... ON CONFLICT DO NOTHING para idempotencia)
             ts = datetime.fromisoformat(event["ts"].replace("Z", "+00:00"))
-            stmt = insert(Event).values(
-                tenant_id=tenant_id,
-                event_uuid=event_uuid,
-                episode_id=episode_id,
-                seq=seq,
-                event_type=event["event_type"],
-                ts=ts,
-                payload=event.get("payload", {}),
-                self_hash=self_hash,
-                chain_hash=chain_hash,
-                prev_chain_hash=prev_chain,
-                prompt_system_hash=event["prompt_system_hash"],
-                prompt_system_version=event["prompt_system_version"],
-                classifier_config_hash=event["classifier_config_hash"],
-            ).on_conflict_do_nothing(
-                index_elements=["tenant_id", "event_uuid"]
+            stmt = (
+                insert(Event)
+                .values(
+                    tenant_id=tenant_id,
+                    event_uuid=event_uuid,
+                    episode_id=episode_id,
+                    seq=seq,
+                    event_type=event["event_type"],
+                    ts=ts,
+                    payload=event.get("payload", {}),
+                    self_hash=self_hash,
+                    chain_hash=chain_hash,
+                    prev_chain_hash=prev_chain,
+                    prompt_system_hash=event["prompt_system_hash"],
+                    prompt_system_version=event["prompt_system_version"],
+                    classifier_config_hash=event["classifier_config_hash"],
+                )
+                .on_conflict_do_nothing(index_elements=["tenant_id", "event_uuid"])
             )
             result = await session.execute(stmt)
-            if result.rowcount == 0:
+            # SQLAlchemy 2.0 async: Result tiene rowcount para DML statements
+            # pero el typed stub no lo expone explícitamente.
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # Conflicto: evento duplicado, skip silencioso
-                return
+                return None
 
             # 5. Actualizar el episodio
             ep.events_count = expected_seq + 1
@@ -266,9 +279,7 @@ class PartitionWorker:
         # excepcion, attestation_payload sigue siendo None (no se emite).
         return attestation_payload
 
-    async def _create_episode(
-        self, session: AsyncSession, event: dict[str, Any]
-    ) -> Episode:
+    async def _create_episode(self, session: AsyncSession, event: dict[str, Any]) -> Episode:
         """Crea el episodio al recibir el primer evento (episodio_abierto)."""
         payload = event.get("payload", {})
         ep = Episode(
@@ -340,7 +351,9 @@ class PartitionWorker:
                 async with tenant_session(tenant_id) as session:
                     dl = DeadLetter(
                         tenant_id=tenant_id,
-                        event_uuid=UUID(event_data.get("event_uuid", "0" * 8 + "-0000-0000-0000-000000000000")),
+                        event_uuid=UUID(
+                            event_data.get("event_uuid", "0" * 8 + "-0000-0000-0000-000000000000")
+                        ),
                         episode_id=episode_id,
                         seq=int(event_data.get("seq", 0)),
                         raw_payload=event_data,
@@ -364,9 +377,7 @@ class PartitionWorker:
 
     async def _ack(self, message_id: str) -> None:
         """ACK al stream para que Redis lo quite del pending."""
-        await self.redis.xack(
-            self.stream_key, self.cfg.consumer_group, message_id
-        )
+        await self.redis.xack(self.stream_key, self.cfg.consumer_group, message_id)
 
 
 async def run_worker(partition: int) -> None:

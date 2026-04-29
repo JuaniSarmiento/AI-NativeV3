@@ -3,8 +3,10 @@
 Valida que el período esté abierto antes de crear, que la materia
 pertenezca al tenant del user, y emite ComisionCreada al bus.
 """
+
 from __future__ import annotations
 
+import builtins
 from datetime import date
 from uuid import UUID, uuid4
 
@@ -65,28 +67,26 @@ class PeriodoService:
         return list(result.scalars().all())
 
     async def create(self, data: PeriodoCreate, user: User) -> Periodo:
-        overlapping = await self._find_overlapping(
-            data.fecha_inicio, data.fecha_fin
-        )
+        overlapping = await self._find_overlapping(data.fecha_inicio, data.fecha_fin)
         if overlapping:
             codigos = ", ".join(p.codigo for p in overlapping)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"Las fechas solapan con periodo(s) existente(s): [{codigos}]"
-                ),
+                detail=(f"Las fechas solapan con periodo(s) existente(s): [{codigos}]"),
             )
 
         new_id = uuid4()
-        periodo = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "codigo": data.codigo,
-            "nombre": data.nombre,
-            "fecha_inicio": data.fecha_inicio,
-            "fecha_fin": data.fecha_fin,
-            "estado": data.estado,
-        })
+        periodo = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "codigo": data.codigo,
+                "nombre": data.nombre,
+                "fecha_inicio": data.fecha_inicio,
+                "fecha_fin": data.fecha_fin,
+                "estado": data.estado,
+            }
+        )
         audit = AuditLog(
             tenant_id=user.tenant_id,
             user_id=user.id,
@@ -99,17 +99,13 @@ class PeriodoService:
         await self.session.flush()
         return periodo
 
-    async def list(
-        self, limit: int = 50, cursor: UUID | None = None
-    ) -> list[Periodo]:
+    async def list(self, limit: int = 50, cursor: UUID | None = None) -> list[Periodo]:
         return await self.repo.list(limit=limit, cursor=cursor)
 
     async def get(self, id_: UUID) -> Periodo:
         return await self.repo.get_or_404(id_)
 
-    async def update(
-        self, id_: UUID, data: PeriodoUpdate, user: User
-    ) -> Periodo:
+    async def update(self, id_: UUID, data: PeriodoUpdate, user: User) -> Periodo:
         """Update parcial de periodo.
 
         Reglas:
@@ -162,17 +158,12 @@ class PeriodoService:
         # Overlap check: si el PATCH toca fechas, verificar que no pisen
         # a otros periodos del tenant (excluyendo el propio).
         if "fecha_inicio" in changes or "fecha_fin" in changes:
-            overlapping = await self._find_overlapping(
-                new_inicio, new_fin, exclude_id=obj.id
-            )
+            overlapping = await self._find_overlapping(new_inicio, new_fin, exclude_id=obj.id)
             if overlapping:
                 codigos = ", ".join(p.codigo for p in overlapping)
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "Las fechas solapan con periodo(s) existente(s): "
-                        f"[{codigos}]"
-                    ),
+                    detail=(f"Las fechas solapan con periodo(s) existente(s): [{codigos}]"),
                 )
 
         for k, v in changes.items():
@@ -192,9 +183,7 @@ class PeriodoService:
         return obj
 
     async def soft_delete(self, id_: UUID, user: User) -> Periodo:
-        comisiones_activas = await self.comisiones.count(
-            filters={"periodo_id": id_}
-        )
+        comisiones_activas = await self.comisiones.count(filters={"periodo_id": id_})
         if comisiones_activas > 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -237,16 +226,18 @@ class ComisionService:
 
         # 3. Crear
         new_id = uuid4()
-        comision = await self.repo.create({
-            "id": new_id,
-            "tenant_id": user.tenant_id,
-            "materia_id": materia.id,
-            "periodo_id": periodo.id,
-            "codigo": data.codigo,
-            "cupo_maximo": data.cupo_maximo,
-            "horario": data.horario,
-            "ai_budget_monthly_usd": data.ai_budget_monthly_usd,
-        })
+        comision = await self.repo.create(
+            {
+                "id": new_id,
+                "tenant_id": user.tenant_id,
+                "materia_id": materia.id,
+                "periodo_id": periodo.id,
+                "codigo": data.codigo,
+                "cupo_maximo": data.cupo_maximo,
+                "horario": data.horario,
+                "ai_budget_monthly_usd": data.ai_budget_monthly_usd,
+            }
+        )
 
         audit = AuditLog(
             tenant_id=user.tenant_id,
@@ -262,9 +253,7 @@ class ComisionService:
         # TODO F3: publish ComisionCreada event al bus
         return comision
 
-    async def update(
-        self, id_: UUID, data: ComisionUpdate, user: User
-    ) -> Comision:
+    async def update(self, id_: UUID, data: ComisionUpdate, user: User) -> Comision:
         obj = await self.repo.get_or_404(id_)
         changes = data.model_dump(exclude_unset=True, exclude_none=True)
         for k, v in changes.items():
@@ -284,9 +273,7 @@ class ComisionService:
         return obj
 
     async def soft_delete(self, id_: UUID, user: User) -> Comision:
-        inscripciones_activas = await self.inscripciones.count(
-            filters={"comision_id": id_}
-        )
+        inscripciones_activas = await self.inscripciones.count(filters={"comision_id": id_})
         if inscripciones_activas > 0:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -315,7 +302,7 @@ class ComisionService:
         cursor: UUID | None = None,
         materia_id: UUID | None = None,
         periodo_id: UUID | None = None,
-    ) -> list[Comision]:
+    ) -> builtins.list[Comision]:
         filters: dict = {}
         if materia_id:
             filters["materia_id"] = materia_id
@@ -328,7 +315,7 @@ class ComisionService:
         user_id: UUID,
         limit: int = 50,
         cursor: UUID | None = None,
-    ) -> list[Comision]:
+    ) -> builtins.list[Comision]:
         """Devuelve las Comisiones donde `user_id` tiene un rol activo.
 
         Sólo considera filas de `usuarios_comision` no soft-deleted. La

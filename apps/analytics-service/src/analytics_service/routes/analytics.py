@@ -3,6 +3,7 @@
 POST /api/v1/analytics/kappa            calcula Cohen's Kappa de un batch de ratings
 GET  /api/v1/analytics/cohort/export    descarga dataset académico anonimizado
 """
+
 from __future__ import annotations
 
 import logging
@@ -113,8 +114,7 @@ async def compute_kappa(
     )
 
     logger.info(
-        "kappa_computed tenant_id=%s user_id=%s "
-        "n_episodes=%d kappa=%s interpretation=%s",
+        "kappa_computed tenant_id=%s user_id=%s n_episodes=%d kappa=%s interpretation=%s",
         tenant_id,
         user_id,
         response.n_episodes,
@@ -149,7 +149,9 @@ class ExportJobResponse(BaseModel):
     message: str
 
 
-@router.post("/cohort/export", response_model=ExportJobResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/cohort/export", response_model=ExportJobResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def export_cohort(
     req: CohortExportRequest,
     tenant_id: UUID = Depends(get_tenant_id),
@@ -207,8 +209,9 @@ async def get_export_status(job_id: UUID) -> dict:
     store = get_job_store()
     job = await store.get(job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Job {job_id} no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} no encontrado"
+        )
     return job.to_dict()
 
 
@@ -227,14 +230,15 @@ async def download_export(job_id: UUID) -> dict:
     store = get_job_store()
     job = await store.get(job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Job {job_id} no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} no encontrado"
+        )
 
-    if job.status == JobStatus.PENDING or job.status == JobStatus.RUNNING:
+    if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
         raise HTTPException(
             status_code=status.HTTP_425_TOO_EARLY,
             detail=f"Job aún no terminado (estado: {job.status.value}). "
-                   f"Hacé polling al endpoint /status.",
+            f"Hacé polling al endpoint /status.",
         )
     if job.status == JobStatus.FAILED:
         raise HTTPException(
@@ -322,7 +326,10 @@ async def get_cohort_progression(
                 await set_tenant_rls(ctr_s, tenant_id)
                 await set_tenant_rls(cls_s, tenant_id)
                 ds = RealLongitudinalDataSource(ctr_s, cls_s, tenant_id)
-                trajectories = await build_trajectories(ds, comision_id)
+                # build_trajectories acepta cualquier objeto con
+                # `list_classifications_grouped_by_student` (duck-typed); el
+                # protocol _DataSource es interno al paquete platform-ops.
+                trajectories = await build_trajectories(ds, comision_id)  # type: ignore[arg-type]
         finally:
             await ctr_engine.dispose()
             await cls_engine.dispose()
@@ -331,7 +338,8 @@ async def get_cohort_progression(
         class _LongitudinalAdapter:
             async def list_classifications_grouped_by_student(self, comision_id):
                 return {}
-        trajectories = await build_trajectories(_LongitudinalAdapter(), comision_id)
+
+        trajectories = await build_trajectories(_LongitudinalAdapter(), comision_id)  # type: ignore[arg-type]
 
     summary = summarize_cohort(comision_id, trajectories)
 
@@ -411,9 +419,7 @@ async def get_n_level_distribution(
     import sys
     from pathlib import Path
 
-    classifier_src = (
-        Path(__file__).parent.parent.parent.parent.parent / "classifier-service/src"
-    )
+    classifier_src = Path(__file__).parent.parent.parent.parent.parent / "classifier-service/src"
     if str(classifier_src) not in sys.path:
         sys.path.insert(0, str(classifier_src))
 
@@ -556,10 +562,10 @@ async def get_cii_evolution_longitudinal(
         )
 
     # Modo real: 3 sesiones (ctr + classifier + academic) con RLS
+    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from analytics_service.config import settings
-    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
 
     ctr_engine = create_async_engine(settings.ctr_store_url, pool_size=2)
     cls_engine = create_async_engine(settings.classifier_db_url, pool_size=2)
@@ -653,10 +659,10 @@ async def get_student_episodes(
             episodes=[],
         )
 
+    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from analytics_service.config import settings
-    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
 
     ctr_engine = create_async_engine(settings.ctr_store_url, pool_size=2)
     cls_engine = create_async_engine(settings.classifier_db_url, pool_size=2)
@@ -684,7 +690,11 @@ async def get_student_episodes(
     logger.info(
         "student_episodes_listed tenant_id=%s user_id=%s student_pseudonym=%s "
         "comision_id=%s n_episodes=%d",
-        tenant_id, user_id, student_pseudonym, comision_id, len(episodes),
+        tenant_id,
+        user_id,
+        student_pseudonym,
+        comision_id,
+        len(episodes),
     )
     return StudentEpisodesOut(
         student_pseudonym=str(student_pseudonym),
@@ -742,14 +752,14 @@ async def get_cohort_cii_quartiles(
         empty = compute_cohort_quartiles_payload([])
         return CohortCIIQuartilesOut(comision_id=str(comision_id), **empty)
 
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-    from analytics_service.config import settings
     from platform_ops import (
         RealLongitudinalDataSource,
         compute_cii_evolution_longitudinal,
         set_tenant_rls,
     )
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from analytics_service.config import settings
 
     ctr_engine = create_async_engine(settings.ctr_store_url, pool_size=2)
     cls_engine = create_async_engine(settings.classifier_db_url, pool_size=2)
@@ -797,8 +807,11 @@ async def get_cohort_cii_quartiles(
     logger.info(
         "cohort_cii_quartiles_computed tenant_id=%s user_id=%s comision_id=%s "
         "n_students_evaluated=%d insufficient_data=%s",
-        tenant_id, user_id, comision_id,
-        payload["n_students_evaluated"], payload["insufficient_data"],
+        tenant_id,
+        user_id,
+        comision_id,
+        payload["n_students_evaluated"],
+        payload["insufficient_data"],
     )
     return CohortCIIQuartilesOut(comision_id=str(comision_id), **payload)
 
@@ -856,14 +869,14 @@ async def get_student_alerts(
             **empty_alerts,
         )
 
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-    from analytics_service.config import settings
     from platform_ops import (
         RealLongitudinalDataSource,
         compute_cii_evolution_longitudinal,
         set_tenant_rls,
     )
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from analytics_service.config import settings
 
     ctr_engine = create_async_engine(settings.ctr_store_url, pool_size=2)
     cls_engine = create_async_engine(settings.classifier_db_url, pool_size=2)
@@ -921,8 +934,12 @@ async def get_student_alerts(
     logger.info(
         "student_alerts_computed tenant_id=%s user_id=%s student_pseudonym=%s "
         "comision_id=%s n_alerts=%d highest_severity=%s",
-        tenant_id, user_id, student_pseudonym, comision_id,
-        alerts_payload["n_alerts"], alerts_payload["highest_severity"],
+        tenant_id,
+        user_id,
+        student_pseudonym,
+        comision_id,
+        alerts_payload["n_alerts"],
+        alerts_payload["highest_severity"],
     )
     return StudentAlertsOut(
         student_pseudonym=str(student_pseudonym),
@@ -986,10 +1003,10 @@ async def get_cohort_adversarial_events(
         empty = aggregate_adversarial_events([])
         return CohortAdversarialEventsOut(comision_id=str(comision_id), **empty)
 
+    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from analytics_service.config import settings
-    from platform_ops import RealLongitudinalDataSource, set_tenant_rls
 
     ctr_engine = create_async_engine(settings.ctr_store_url, pool_size=2)
     cls_engine = create_async_engine(settings.classifier_db_url, pool_size=2)
@@ -1010,7 +1027,9 @@ async def get_cohort_adversarial_events(
     logger.info(
         "cohort_adversarial_events_computed tenant_id=%s user_id=%s "
         "comision_id=%s n_events=%d n_categories=%d",
-        tenant_id, user_id, comision_id,
+        tenant_id,
+        user_id,
+        comision_id,
         aggregated["n_events_total"],
         len(aggregated["counts_by_category"]),
     )

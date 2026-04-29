@@ -1,4 +1,5 @@
 """Endpoints de Tareas Prácticas (TP)."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -41,9 +42,7 @@ async def list_tareas_practicas(
     db: AsyncSession = Depends(get_db),
 ) -> ListResponse[TareaPracticaOut]:
     svc = TareaPracticaService(db)
-    objs = await svc.list(
-        comision_id=comision_id, estado=estado, limit=limit, cursor=cursor
-    )
+    objs = await svc.list(comision_id=comision_id, estado=estado, limit=limit, cursor=cursor)
     items = [TareaPracticaOut.model_validate(o) for o in objs]
     next_cursor = str(objs[-1].id) if len(objs) == limit else None
     return ListResponse(data=items, meta=ListMeta(cursor_next=next_cursor))
@@ -144,7 +143,7 @@ async def list_tarea_practica_versions(
         TareaPracticaVersionRef(
             id=t.id,
             version=t.version,
-            estado=t.estado,  # type: ignore[arg-type]
+            estado=t.estado,
             titulo=t.titulo,
             created_at=t.created_at,
             is_current=(t.version == current_version),

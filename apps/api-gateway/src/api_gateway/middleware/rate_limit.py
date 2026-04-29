@@ -1,8 +1,10 @@
 """Middleware FastAPI del rate limiter del api-gateway."""
+
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
+from typing import Any
 
 import redis.asyncio as redis
 from fastapi import Request, Response
@@ -26,9 +28,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     EXEMPT_PATHS = ("/health", "/metrics", "/", "/docs", "/openapi.json", "/redoc")
 
-    def __init__(self, app, redis_client: redis.Redis) -> None:
+    def __init__(self, app: Any, redis_client: redis.Redis) -> None:
         super().__init__(app)
-        self.limiter = RateLimiter(redis_client)
+        # RateLimiter declara un protocol _RedisLike más estricto que el typed
+        # stub de redis-py; en runtime ambos implementan los métodos requeridos.
+        self.limiter = RateLimiter(redis_client)  # type: ignore[arg-type]
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
@@ -44,7 +48,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         try:
             result = await self.limiter.check(principal, config)
-        except Exception:  # noqa: BLE001
+        except Exception:
             # Fail-open: si Redis falla, no bloquear requests legítimos
             logger.exception("rate_limiter_failed")
             return await call_next(request)
@@ -54,7 +58,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 status_code=429,
                 content={
                     "detail": f"Rate limit excedido: {result.current}/{result.limit} "
-                              f"en ventana de {config.window_seconds}s",
+                    f"en ventana de {config.window_seconds}s",
                     "retry_after_seconds": result.retry_after_seconds,
                 },
                 headers={

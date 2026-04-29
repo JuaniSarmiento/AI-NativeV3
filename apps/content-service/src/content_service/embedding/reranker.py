@@ -7,20 +7,20 @@ precisos que la similitud coseno de los embeddings independientes.
 Default: `BAAI/bge-reranker-base` (~500MB, funciona en CPU aceptablemente).
 En tests: identity re-ranker que devuelve scores 1.0 para todos.
 """
+
 from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
 from functools import lru_cache
+from typing import Any
 
 
 class BaseReranker(ABC):
     model_name: str
 
     @abstractmethod
-    async def rerank(
-        self, query: str, documents: list[str]
-    ) -> list[float]:
+    async def rerank(self, query: str, documents: list[str]) -> list[float]:
         """Scores (más alto = más relevante). No ordena; solo puntúa."""
 
 
@@ -39,11 +39,12 @@ class CrossEncoderReranker(BaseReranker):
     model_name = "BAAI/bge-reranker-base"
 
     def __init__(self) -> None:
-        self._model = None
+        self._model: Any = None
 
-    def _ensure_model(self):
+    def _ensure_model(self) -> Any:
         if self._model is None:
             from sentence_transformers import CrossEncoder
+
             self._model = CrossEncoder(self.model_name, max_length=512)
         return self._model
 
@@ -55,6 +56,7 @@ class CrossEncoderReranker(BaseReranker):
         scores = model.predict(pairs, show_progress_bar=False).tolist()
         # BGE devuelve logits; convertir a 0-1 via sigmoid
         import math
+
         return [1 / (1 + math.exp(-s)) for s in scores]
 
 
@@ -65,6 +67,7 @@ def get_reranker() -> BaseReranker:
         return IdentityReranker()
     try:
         import sentence_transformers  # noqa: F401
+
         return CrossEncoderReranker()
     except ImportError:
         return IdentityReranker()

@@ -4,12 +4,15 @@ El ai-gateway expone una API unificada independiente del proveedor
 underlying. Cada provider implementa BaseProvider. El mock provider
 se usa en tests para evitar pagar API calls reales.
 """
+
 from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any
 
 
 @dataclass
@@ -36,11 +39,10 @@ class BaseProvider(ABC):
     name: str
 
     @abstractmethod
-    async def complete(self, request: CompletionRequest) -> CompletionResponse:
-        ...
+    async def complete(self, request: CompletionRequest) -> CompletionResponse: ...
 
     @abstractmethod
-    async def stream_complete(self, request: CompletionRequest):
+    def stream_complete(self, request: CompletionRequest) -> AsyncIterator[str]:
         """Async generator que yieldea chunks de texto."""
         raise NotImplementedError
 
@@ -64,7 +66,7 @@ class MockProvider(BaseProvider):
             cost_usd=0.0,
         )
 
-    async def stream_complete(self, request: CompletionRequest):
+    async def stream_complete(self, request: CompletionRequest) -> AsyncIterator[str]:
         """Yieldea palabra por palabra para simular streaming."""
         response = await self.complete(request)
         for word in response.content.split():
@@ -85,9 +87,9 @@ class AnthropicProvider(BaseProvider):
 
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self._client = None
+        self._client: Any = None
 
-    def _ensure_client(self):
+    def _ensure_client(self) -> Any:
         if self._client is None:
             import anthropic
 
@@ -106,7 +108,7 @@ class AnthropicProvider(BaseProvider):
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             system="\n\n".join(system_msgs) if system_msgs else "",
-            messages=conversation,  # type: ignore
+            messages=conversation,
         )
 
         content = "".join(block.text for block in result.content if hasattr(block, "text"))
@@ -124,7 +126,7 @@ class AnthropicProvider(BaseProvider):
             cost_usd=cost,
         )
 
-    async def stream_complete(self, request: CompletionRequest):
+    async def stream_complete(self, request: CompletionRequest) -> AsyncIterator[str]:
         client = self._ensure_client()
         system_msgs = [m["content"] for m in request.messages if m.get("role") == "system"]
         conversation = [m for m in request.messages if m.get("role") != "system"]
@@ -134,7 +136,7 @@ class AnthropicProvider(BaseProvider):
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             system="\n\n".join(system_msgs) if system_msgs else "",
-            messages=conversation,  # type: ignore
+            messages=conversation,
         ) as stream:
             async for text in stream.text_stream:
                 yield text

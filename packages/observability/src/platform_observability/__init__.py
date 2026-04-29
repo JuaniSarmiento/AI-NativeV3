@@ -22,6 +22,7 @@ Esto hace que cada request HTTP entrante cree un span root, y cualquier
 llamada outbound (httpx, DB, Redis) se conecte como span hijo, con el
 trace_id propagándose vía header `traceparent` (W3C Trace Context).
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,9 @@ class ObservabilityConfig:
     sentry_dsn: str = ""
 
 
-def setup_observability(app: Any = None, config: ObservabilityConfig | None = None, **kwargs) -> None:
+def setup_observability(
+    app: Any = None, config: ObservabilityConfig | None = None, **kwargs
+) -> None:
     """Configura observabilidad completa.
 
     Si `app` es una FastAPI, la instrumenta. Si no, solo configura
@@ -65,6 +68,7 @@ def setup_observability(app: Any = None, config: ObservabilityConfig | None = No
 def _can_import_otel() -> bool:
     try:
         import opentelemetry  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -82,7 +86,7 @@ def _setup_logging(config: ObservabilityConfig) -> None:
         )
         return
 
-    processors = [
+    processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         _add_trace_context,
         structlog.processors.add_log_level,
@@ -105,9 +109,7 @@ def _setup_logging(config: ObservabilityConfig) -> None:
     )
 
 
-def _add_trace_context(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+def _add_trace_context(logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Inyecta trace_id y span_id en cada log line cuando hay span activo."""
     try:
         from opentelemetry import trace
@@ -132,10 +134,12 @@ def _setup_tracing(config: ObservabilityConfig, app: Any) -> None:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     # Resource con metadata del servicio
-    resource = Resource.create({
-        SERVICE_NAME: config.service_name,
-        "deployment.environment": config.environment,
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: config.service_name,
+            "deployment.environment": config.environment,
+        }
+    )
 
     provider = TracerProvider(resource=resource)
 
@@ -180,6 +184,7 @@ def _try_instrument_httpx() -> None:
     """Instrumenta httpx para propagar trace context en llamadas outbound."""
     try:
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
         HTTPXClientInstrumentor().instrument()
     except ImportError:
         pass
@@ -188,6 +193,7 @@ def _try_instrument_httpx() -> None:
 def _try_instrument_sqlalchemy() -> None:
     try:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
         SQLAlchemyInstrumentor().instrument()
     except ImportError:
         pass
@@ -196,6 +202,7 @@ def _try_instrument_sqlalchemy() -> None:
 def _try_instrument_redis() -> None:
     try:
         from opentelemetry.instrumentation.redis import RedisInstrumentor
+
         RedisInstrumentor().instrument()
     except ImportError:
         pass
@@ -230,6 +237,7 @@ def get_tracer(name: str):
     """
     try:
         from opentelemetry import trace
+
         return trace.get_tracer(name)
     except ImportError:
         return _NoopTracer()
@@ -240,11 +248,12 @@ class _NoopTracer:
 
     def start_as_current_span(self, name: str, **kwargs):
         from contextlib import nullcontext
+
         return nullcontext()
 
 
 __all__ = [
     "ObservabilityConfig",
-    "setup_observability",
     "get_tracer",
+    "setup_observability",
 ]

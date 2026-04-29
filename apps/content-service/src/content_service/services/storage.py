@@ -7,11 +7,14 @@ objetos se nombran por convención:
 
 En tests, se puede usar un MockStorage que guarda en memoria.
 """
+
 from __future__ import annotations
 
+import contextlib
 import os
 from abc import ABC, abstractmethod
 from functools import lru_cache
+from typing import Any
 from uuid import UUID
 
 
@@ -25,8 +28,7 @@ class BaseStorage(ABC):
         """Descarga el contenido."""
 
     @abstractmethod
-    async def delete(self, key: str) -> None:
-        ...
+    async def delete(self, key: str) -> None: ...
 
 
 class MockStorage(BaseStorage):
@@ -64,9 +66,9 @@ class S3Storage(BaseStorage):
         self.secret_key = secret_key
         self.bucket = bucket
         self.region = region
-        self._client = None
+        self._client: Any = None
 
-    def _ensure_client(self):
+    def _ensure_client(self) -> Any:
         if self._client is None:
             import boto3
             from botocore.client import Config
@@ -83,10 +85,8 @@ class S3Storage(BaseStorage):
             try:
                 self._client.head_bucket(Bucket=self.bucket)
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     self._client.create_bucket(Bucket=self.bucket)
-                except Exception:
-                    pass
         return self._client
 
     async def put(self, key: str, content: bytes, content_type: str) -> str:
@@ -106,23 +106,17 @@ class S3Storage(BaseStorage):
         import asyncio
 
         client = self._ensure_client()
-        obj = await asyncio.to_thread(
-            client.get_object, Bucket=self.bucket, Key=key
-        )
+        obj = await asyncio.to_thread(client.get_object, Bucket=self.bucket, Key=key)
         return obj["Body"].read()
 
     async def delete(self, key: str) -> None:
         import asyncio
 
         client = self._ensure_client()
-        await asyncio.to_thread(
-            client.delete_object, Bucket=self.bucket, Key=key
-        )
+        await asyncio.to_thread(client.delete_object, Bucket=self.bucket, Key=key)
 
 
-def make_storage_key(
-    tenant_id: UUID, comision_id: UUID, material_id: UUID, filename: str
-) -> str:
+def make_storage_key(tenant_id: UUID, comision_id: UUID, material_id: UUID, filename: str) -> str:
     """Convención de naming de objetos en storage."""
     ext = filename.rsplit(".", 1)[-1] if "." in filename else "bin"
     return f"materials/{tenant_id}/{comision_id}/{material_id}/original.{ext}"
