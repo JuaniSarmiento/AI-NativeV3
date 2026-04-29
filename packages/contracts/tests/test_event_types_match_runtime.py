@@ -17,7 +17,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 from platform_contracts.ctr.events import (
     AnotacionCreada,
     CodigoEjecutado,
@@ -30,7 +29,6 @@ from platform_contracts.ctr.events import (
     PromptEnviado,
     TutorRespondio,
 )
-
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _TUTOR_CORE = (

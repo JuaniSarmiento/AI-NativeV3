@@ -6,11 +6,9 @@ en uno de los dos lados sin tocar el otro, este test rompe.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from governance_service.config import Settings
-
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ENV_EXAMPLE = _REPO_ROOT / ".env.example"
@@ -49,11 +47,12 @@ def test_env_example_does_not_use_old_governance_repo_path() -> None:
 
 def test_env_example_var_matches_settings_field(monkeypatch) -> None:
     """Settings() lee PROMPTS_REPO_PATH y respeta el valor del entorno."""
-    monkeypatch.setenv("PROMPTS_REPO_PATH", "/tmp/test-prompts-fixture")
+    fixture_path = "/tmp/test-prompts-fixture"  # noqa: S108 — string fixture en test, sin escritura real a disco
+    monkeypatch.setenv("PROMPTS_REPO_PATH", fixture_path)
     # Aislamos el lookup del .env del CWD para no contaminar el test
     monkeypatch.chdir(_REPO_ROOT.parent if _REPO_ROOT.parent.exists() else _REPO_ROOT)
     settings = Settings()
-    assert settings.prompts_repo_path == "/tmp/test-prompts-fixture", (
+    assert settings.prompts_repo_path == fixture_path, (
         "Settings.prompts_repo_path debería leer la env var PROMPTS_REPO_PATH."
     )
 

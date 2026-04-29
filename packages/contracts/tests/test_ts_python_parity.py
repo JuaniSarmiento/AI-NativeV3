@@ -26,7 +26,6 @@ from platform_contracts.ctr.events import (
     TutorRespondio,
 )
 
-
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _TS_INDEX = _REPO_ROOT / "packages" / "contracts" / "src" / "ctr" / "index.ts"
 
