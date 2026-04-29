@@ -1,0 +1,10 @@
+/*
+ * Design tokens consumidos por HelpButton / PageContainer / helpContent.tsx.
+ * Importar desde cada frontend via `@import "@platform/ui/tokens/theme.css"`
+ * en su index.css para exponer las CSS variables a nivel :root.
+ */
+:root {
+  --text-inverse: #fafafa;
+  --text-tertiary: #a1a1aa;
+  --danger-text: #fecaca;
+}
