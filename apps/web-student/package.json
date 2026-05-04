@@ -26,7 +26,7 @@
     "@platform/auth-client": "workspace:*",
     "@platform/contracts": "workspace:*",
     "zod": "^3.23.0",
-    "lucide-react": "^0.460.0",
+    "lucide-react": "^1.14.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.5.0",
     "react-markdown": "^9.0.0",
