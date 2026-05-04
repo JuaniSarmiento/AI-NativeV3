@@ -100,7 +100,7 @@ export function AuditoriaPage(): ReactNode {
             )}
           </div>
           {episodeId.length > 0 && !idValid && (
-            <p className="text-xs text-red-600 mt-2">
+            <p className="text-xs text-[var(--color-danger)] mt-2">
               Formato UUID invalido. Ejemplo: 12345678-1234-1234-1234-123456789abc
             </p>
           )}
@@ -130,6 +130,9 @@ function VerificationResultCard({ result }: { result: ChainVerificationResult })
 
   return (
     <div
+      data-testid="audit-result"
+      data-valid={result.valid ? "true" : "false"}
+      data-events-count={String(result.events_count)}
       className={`rounded-lg border p-5 ${
         ok ? "bg-green-50 border-green-200 text-green-900" : "bg-red-50 border-red-200 text-red-900"
       }`}

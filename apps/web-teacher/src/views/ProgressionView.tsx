@@ -10,9 +10,10 @@
  * Si se necesita más interactividad (tooltips on hover, zoom), migrar
  * a Recharts en una iteración posterior.
  */
-import { PageContainer } from "@platform/ui"
+import { PageContainer, StateMessage } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
+import { useComisionLabel } from "../components/ComisionSelector"
 import { type CohortProgression, type StudentTrajectory, getCohortProgression } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export function ProgressionView({ comisionId, getToken }: Props) {
+  const comisionLabelText = useComisionLabel(comisionId)
   const [data, setData] = useState<CohortProgression | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,17 +51,25 @@ export function ProgressionView({ comisionId, getToken }: Props) {
   }, [comisionId, getToken])
 
   if (loading) {
-    return <div className="p-6 text-slate-500">Cargando progresión...</div>
+    return (
+      <div className="p-6">
+        <StateMessage variant="loading" title="Cargando progresion..." />
+      </div>
+    )
   }
   if (error) {
-    return <div className="p-6 text-red-600">Error: {error}</div>
+    return (
+      <div className="p-6">
+        <StateMessage variant="error" title="No se pudo cargar la progresion" description={error} />
+      </div>
+    )
   }
   if (!data) return null
 
   return (
     <PageContainer
       title="Progresion longitudinal"
-      description={`Cohorte ${data.comision_id.slice(0, 8)}... · ${data.n_students} estudiantes · ${data.n_students_with_enough_data} con datos suficientes (>=3 episodios)`}
+      description={`Cohorte ${comisionLabelText} · ${data.n_students} estudiantes · ${data.n_students_with_enough_data} con datos suficientes (>=3 episodios)`}
       helpContent={helpContent.progression}
     >
       <div className="space-y-6">
@@ -165,6 +175,7 @@ function TrajectoryRow({
   // longitudinal pre-poblada con student + comisión.
   return (
     <Link
+      data-testid="student-row"
       to="/student-longitudinal"
       search={{ comisionId, studentId: trajectory.student_pseudonym }}
       className="block rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-blue-400 hover:shadow-sm transition"

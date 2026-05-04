@@ -1,4 +1,4 @@
-// Contenido en espanol SIN tildes para evitar problemas de encoding en Windows/cp1252.
+// La regla de evitar Unicode (cp1252 en Windows) aplica a stdout de scripts Python, no a TSX servido al browser.
 import type { ReactNode } from "react"
 
 type HelpContentMap = Record<string, ReactNode>
@@ -6,9 +6,9 @@ type HelpContentMap = Record<string, ReactNode>
 export const helpContent: HelpContentMap = {
   home: (
     <div className="space-y-4 text-zinc-300">
-      <p className="text-lg font-medium text-[var(--text-inverse)]">Panel de Administracion</p>
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Panel de Administración</p>
       <p>
-        Este panel centraliza la gestion de la estructura academica institucional: universidades,
+        Este panel centraliza la gestión de la estructura academica institucional: universidades,
         facultades, carreras, planes, materias, comisiones y periodos.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
@@ -310,7 +310,7 @@ export const helpContent: HelpContentMap = {
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Periodos Lectivos</p>
       <p>
-        Gestion de periodos academicos (ej. 2026-S1). Cada comision se crea dentro de un periodo.
+        Gestión de periodos academicos (ej. 2026-S1). Cada comision se crea dentro de un periodo.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
         <li>

@@ -56,6 +56,9 @@ class GovernanceClient:
         Busca primero override por tenant_id en el manifest; si no existe,
         usa el default.
         """
+        # Deferred: ADR-024 / piloto-2 — `prompt_kind` reflexivo en runtime
+        # introduciría sesgo mid-cohort si se rota durante el piloto.
+        # Hoy se usa el prompt activo del manifest sin clasificación dinámica.
         configs = await self.active_configs()
         active = configs.get("active", {})
         version = active.get(tenant_id, {}).get(prompt_name) or active.get("default", {}).get(

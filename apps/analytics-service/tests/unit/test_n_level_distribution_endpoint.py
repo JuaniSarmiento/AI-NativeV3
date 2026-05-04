@@ -90,7 +90,7 @@ def test_modo_dev_devuelve_distribucion_vacia_con_200(client: TestClient) -> Non
 
     data = r.json()
     assert data["episode_id"] == episode_id
-    assert data["labeler_version"] == "1.0.0"
+    assert data["labeler_version"] == "1.1.0"  # ADR-023 G8a — bumped from 1.0.0
 
     # Distribución vacía
     assert data["distribution_seconds"] == {

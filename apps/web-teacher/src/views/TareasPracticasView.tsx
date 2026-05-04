@@ -20,6 +20,7 @@
  */
 import { HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
 import { useCallback, useEffect, useState } from "react"
+import { useComisionLabel } from "../components/ComisionSelector"
 import {
   type TareaEstado,
   type TareaPractica,
@@ -61,7 +62,7 @@ type ModalState =
 // creada por fan-out desde un `TareaPracticaTemplate`. Clickeable para
 // mostrar el id del template (puente a la vista "Plantillas").
 function TemplateBadge({ templateId }: { templateId: string }) {
-  const title = `Derivado de plantilla de catedra: ${templateId}`
+  const title = `Derivado de plantilla de cátedra: ${templateId}`
   return (
     <span
       className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200"
@@ -72,15 +73,15 @@ function TemplateBadge({ templateId }: { templateId: string }) {
   )
 }
 
-// ADR-016 — badge "drift": la instancia divergio de la plantilla de catedra.
+// ADR-016 — badge "drift": la instancia divergio de la plantilla de cátedra.
 // Desde ese momento, nuevas versiones del template no se propagan
-// automaticamente a esta fila (se preserva el link `template_id` pero
+// automáticamente a esta fila (se preserva el link `template_id` pero
 // la auto-sincronizacion queda deshabilitada).
 function DriftBadge() {
   return (
     <span
       className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200"
-      title="Este TP divergio de la plantilla de catedra. No recibira nuevas versiones automaticas del template."
+      title="Este TP divergio de la plantilla de cátedra. No recibira nuevas versiones automáticas del template."
     >
       Drift
     </span>
@@ -123,6 +124,7 @@ function localInputToIso(local: string): string | null {
 }
 
 export function TareasPracticasView({ comisionId, getToken }: Props) {
+  const comisionLabelText = useComisionLabel(comisionId)
   const [tareas, setTareas] = useState<TareaPractica[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -193,8 +195,8 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
 
   return (
     <PageContainer
-      title="Trabajos practicos"
-      description={`Diseña los TPs de la comision. Solo los TPs publicados aceptan episodios. Comision: ${comisionId.slice(0, 8)}...`}
+      title="Trabajos prácticos"
+      description={`Diseña los TPs de la comisión. Solo los TPs publicados aceptan episodios. Comisión: ${comisionLabelText}`}
       helpContent={helpContent.tareasPracticas}
     >
       <div className="space-y-6 max-w-6xl">
@@ -592,10 +594,10 @@ function TareaFormModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         {showDriftBanner && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            <p className="font-medium">Este TP esta sincronizado con una plantilla de catedra.</p>
+            <p className="font-medium">Este TP esta sincronizado con una plantilla de cátedra.</p>
             <p className="text-xs mt-1">
               Editar lo desconectara de la plantilla y lo marcara como drift. Ya no recibira nuevas
-              versiones automaticas del template. El link al template se preserva para trazabilidad.
+              versiones automáticas del template. El link al template se preserva para trazabilidad.
             </p>
             {!driftAck && (
               <button

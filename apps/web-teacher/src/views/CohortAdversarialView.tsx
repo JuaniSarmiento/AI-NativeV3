@@ -8,7 +8,7 @@
  * Visualización: cards de totales + barras de categorías + barras de severidad
  * + ranking de estudiantes + lista de eventos recientes con matched_text.
  */
-import { Badge, PageContainer } from "@platform/ui"
+import { Badge, PageContainer, StateMessage } from "@platform/ui"
 import { useEffect, useState } from "react"
 import { ComisionSelector } from "../components/ComisionSelector"
 import {
@@ -190,17 +190,14 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
           <ComisionSelector value={comisionId} onChange={setComisionId} />
         </div>
 
-        {loading && (
-          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Cargando eventos adversos...
-          </div>
-        )}
+        {loading && <StateMessage variant="loading" title="Cargando eventos adversos..." />}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <div className="font-medium">Error consultando la cohorte</div>
-            <div className="mt-1 font-mono text-xs">{error}</div>
-          </div>
+          <StateMessage
+            variant="error"
+            title="Error consultando la cohorte"
+            description={error}
+          />
         )}
 
         {data && !loading && (

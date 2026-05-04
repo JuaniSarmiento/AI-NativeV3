@@ -16,6 +16,7 @@
  */
 import { HelpButton, PageContainer } from "@platform/ui"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useComisionLabel } from "../components/ComisionSelector"
 import { type Material, type MaterialEstado, type MaterialTipo, materialesApi } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
@@ -79,6 +80,7 @@ function formatRelative(iso: string): string {
 }
 
 export function MaterialesView({ comisionId, getToken }: Props) {
+  const comisionLabelText = useComisionLabel(comisionId)
   const [materiales, setMateriales] = useState<Material[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -190,7 +192,7 @@ export function MaterialesView({ comisionId, getToken }: Props) {
   return (
     <PageContainer
       title="Materiales del curso"
-      description={`Corpus del RAG para el tutor socratico. Comision: ${comisionId.slice(0, 8)}...`}
+      description={`Corpus del RAG para el tutor socrático. Comisión: ${comisionLabelText}`}
       helpContent={helpContent.materiales}
     >
       <div className="space-y-6 max-w-6xl">
@@ -330,7 +332,7 @@ function MaterialRow({
         </div>
         {material.error_message && (
           <div
-            className="text-xs text-red-600 mt-0.5 truncate max-w-xs"
+            className="text-xs text-[var(--color-danger)] mt-0.5 truncate max-w-xs"
             title={material.error_message}
           >
             {material.error_message}

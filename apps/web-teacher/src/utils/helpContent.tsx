@@ -108,8 +108,8 @@ export const helpContent: HelpContentMap = {
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Materiales del Curso</p>
       <p>
-        Gestion del corpus del RAG (Retrieval-Augmented Generation). Los materiales subidos son
-        indexados automaticamente y el tutor socratico los usa para responder consultas de
+        Gestión del corpus del RAG (Retrieval-Augmented Generation). Los materiales subidos son
+        indexados automáticamente y el tutor socratico los usa para responder consultas de
         estudiantes.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
@@ -135,7 +135,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Refrescar:</strong> Actualiza la lista manualmente. Los materiales en
-          procesamiento se refrescan automaticamente cada 2 segundos.
+          procesamiento se refrescan automáticamente cada 2 segundos.
         </li>
       </ul>
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
@@ -194,9 +194,9 @@ export const helpContent: HelpContentMap = {
 
   tareasPracticas: (
     <div className="space-y-4 text-zinc-300">
-      <p className="text-lg font-medium text-[var(--text-inverse)]">Trabajos Practicos</p>
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Trabajos Prácticos</p>
       <p>
-        Gestion de los TPs de la comision. Solo los TPs en estado "Publicado" son visibles para los
+        Gestión de los TPs de la comision. Solo los TPs en estado "Publicado" son visibles para los
         estudiantes y aceptan episodios del tutor socratico.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
@@ -229,12 +229,12 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Badge "Plantilla":</strong> El TP fue auto-generado desde una plantilla de
-          catedra. Si se edita directamente, se marca como "Drift" (perdio sincronizacion con la
+          cátedra. Si se edita directamente, se marca como "Drift" (perdio sincronizacion con la
           plantilla).
         </li>
         <li>
-          <strong>Badge "Drift":</strong> El TP diverge de la plantilla de catedra. Nuevas versiones
-          del template ya no se propagan automaticamente a esta instancia.
+          <strong>Badge "Drift":</strong> El TP diverge de la plantilla de cátedra. Nuevas versiones
+          del template ya no se propagan automáticamente a esta instancia.
         </li>
       </ul>
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
@@ -257,12 +257,12 @@ export const helpContent: HelpContentMap = {
   templates: (
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
-        Plantillas de Trabajos Practicos
+        Plantillas de Trabajos Prácticos
       </p>
       <p>
-        Las plantillas de TP se definen a nivel de catedra (materia + periodo) y se instancian
-        automaticamente en todas las comisiones de esa materia. Esto asegura que los estudiantes de
-        comisiones distintas reciben el mismo material y que la catedra edita en un solo lugar.
+        Las plantillas de TP se definen a nivel de cátedra (materia + periodo) y se instancian
+        automáticamente en todas las comisiones de esa materia. Esto asegura que los estudiantes de
+        comisiones distintas reciben el mismo material y que la cátedra edita en un solo lugar.
       </p>
       <ul className="list-disc list-inside space-y-2 ml-4">
         <li>
@@ -271,7 +271,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Crear plantilla:</strong> Define codigo, titulo y enunciado markdown. Al guardar,
-          el sistema crea automaticamente una TP (instancia) en cada comision de la materia.
+          el sistema crea automáticamente una TP (instancia) en cada comision de la materia.
         </li>
         <li>
           <strong>Ver instancias:</strong> Lista cada comision donde existe una instancia, con badge
@@ -279,12 +279,12 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Publicar plantilla:</strong> Marca el template como published (luz verde de la
-          catedra). No publica automaticamente las instancias — cada comision decide.
+          cátedra). No publica automáticamente las instancias — cada comision decide.
         </li>
         <li>
           <strong>Nueva version:</strong> Crea v+1 del template en borrador. Con "Re-instanciar
           comisiones sin drift" activado, las instancias que aun siguen al template reciben la nueva
-          version automaticamente.
+          version automáticamente.
         </li>
         <li>
           <strong>Archivar / Eliminar:</strong> Soft delete. Las instancias existentes en comisiones
@@ -297,7 +297,7 @@ export const helpContent: HelpContentMap = {
           Drift ocurre cuando el docente de una comision edita una instancia de TP que vino del
           template. El link al template se preserva pero la auto-actualizacion se desactiva. Esto
           permite personalizar por comision sin perder trazabilidad. Una vez drifteada, la instancia
-          no recibe mas versiones automaticas del template.
+          no recibe mas versiones automáticas del template.
         </p>
       </div>
       <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
@@ -347,7 +347,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-orange-400 font-medium">Limitacion v1.0.0:</p>
         <p className="text-sm mt-1">
           `anotacion_creada` se etiqueta como N2 fijo (override por contenido es agenda futura). Una
-          `edicion_codigo` con `origin=copied_from_tutor` se reclasifica a N4 automaticamente. Ver
+          `edicion_codigo` con `origin=copied_from_tutor` se reclasifica a N4 automáticamente. Ver
           ADR-020.
         </p>
       </div>

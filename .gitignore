@@ -39,6 +39,10 @@ dist/
 .playwright/
 playwright-report/
 test-results/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+.dev-logs/e2e-artifacts/
+.dev-logs/e2e-shared/
 
 # IDE
 .vscode/

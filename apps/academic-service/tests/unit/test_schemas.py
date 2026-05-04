@@ -108,6 +108,7 @@ class TestComisionSchema:
                 materia_id=uuid4(),
                 periodo_id=uuid4(),
                 codigo="A",
+                nombre="A-Manana",
                 ai_budget_monthly_usd=Decimal("-10"),
             )
 
@@ -117,5 +118,48 @@ class TestComisionSchema:
                 materia_id=uuid4(),
                 periodo_id=uuid4(),
                 codigo="A",
+                nombre="A-Manana",
                 cupo_maximo=1000,
             )
+
+    def test_nombre_required(self) -> None:
+        """`nombre` es required en el payload — no hay default."""
+        with pytest.raises(ValidationError) as exc_info:
+            ComisionCreate(
+                materia_id=uuid4(),
+                periodo_id=uuid4(),
+                codigo="A",
+            )
+        assert "nombre" in str(exc_info.value)
+
+    def test_nombre_empty_rejected(self) -> None:
+        """`nombre=""` viola min_length=1 -> ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ComisionCreate(
+                materia_id=uuid4(),
+                periodo_id=uuid4(),
+                codigo="A",
+                nombre="",
+            )
+        assert "nombre" in str(exc_info.value)
+
+    def test_nombre_max_length(self) -> None:
+        """`nombre` mas largo que 100 chars -> ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            ComisionCreate(
+                materia_id=uuid4(),
+                periodo_id=uuid4(),
+                codigo="A",
+                nombre="x" * 101,
+            )
+        assert "nombre" in str(exc_info.value)
+
+    def test_crea_correctamente(self) -> None:
+        c = ComisionCreate(
+            materia_id=uuid4(),
+            periodo_id=uuid4(),
+            codigo="A",
+            nombre="A-Manana",
+        )
+        assert c.codigo == "A"
+        assert c.nombre == "A-Manana"

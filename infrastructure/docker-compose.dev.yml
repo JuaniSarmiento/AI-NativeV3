@@ -179,9 +179,12 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - ./observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
-      - ../ops/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ../ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      # Path canónico nuevo (epic grafana-dashboards-provisioned, 2026-05).
+      # `infrastructure/grafana/provisioning/` reemplaza al legacy
+      # `infrastructure/observability/grafana-datasources.yaml` + `ops/grafana/`
+      # (archivado en `ops/grafana/_archive/` con README de deprecación).
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
       - "3000:3000"

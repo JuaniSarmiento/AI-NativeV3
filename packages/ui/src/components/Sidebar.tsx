@@ -83,7 +83,9 @@ export function Sidebar({
         )}
       </div>
 
-      {!collapsed && topSlot && <div className="px-3 py-3 border-b border-gray-800">{topSlot}</div>}
+      {!collapsed && topSlot && (
+        <div className="px-3 pt-3 pb-3 border-b border-slate-800/50 mb-3">{topSlot}</div>
+      )}
 
       <nav className="flex-1 overflow-y-auto py-3">
         {navGroups.map((group, idx) => (

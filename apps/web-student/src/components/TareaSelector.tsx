@@ -6,6 +6,7 @@
  * EpisodePage abre el episodio con ese problema_id real (ya no un UUID
  * hardcoded) y muestra el enunciado arriba del editor.
  */
+import { StateMessage } from "@platform/ui"
 import { useEffect, useState } from "react"
 import { type AvailableTarea, tareasPracticasApi } from "../lib/api"
 
@@ -65,19 +66,21 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-        Cargando trabajos prácticos...
+      <div className="flex-1 flex items-center justify-center">
+        <StateMessage variant="loading" title="Cargando trabajos prácticos..." />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="max-w-md rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4 text-sm text-red-800 dark:text-red-200">
-          <p className="font-medium mb-1">No pudimos cargar los trabajos prácticos.</p>
-          <p className="font-mono text-xs">{error}</p>
-        </div>
+      <div className="flex-1 flex items-center justify-center px-4">
+        <StateMessage
+          variant="error"
+          title="No pudimos cargar los trabajos prácticos."
+          description={error}
+          className="max-w-md"
+        />
       </div>
     )
   }
@@ -151,7 +154,11 @@ function TareaCard({
   const excerpt = buildExcerpt(tarea.enunciado)
 
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div
+      data-testid="tp-card"
+      data-tp-codigo={tarea.codigo}
+      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+    >
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">

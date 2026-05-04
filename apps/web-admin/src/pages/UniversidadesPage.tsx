@@ -1,4 +1,4 @@
-import { HelpButton, PageContainer } from "@platform/ui"
+import { HelpButton, PageContainer, StateMessage } from "@platform/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { HttpError, type Universidad, type UniversidadCreate, universidadesApi } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
@@ -78,11 +78,13 @@ export function UniversidadesPage(): ReactNode {
 
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
+            <StateMessage variant="loading" />
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No hay universidades registradas.
-            </div>
+            <StateMessage
+              variant="empty"
+              title="Sin universidades"
+              description="No hay universidades registradas todavia."
+            />
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-left">

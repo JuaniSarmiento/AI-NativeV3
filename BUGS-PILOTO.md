@@ -1191,9 +1191,23 @@ Effort estimado para los 11 restantes: ~30 min/servicio (≈5–6h total). Encaj
 
 ---
 
-## GAP-9 (Coverage gates declarados pero no enforced) — cerrado parcialmente en sesión 2026-04-21
+## GAP-9 (Coverage gates declarados pero no enforced) — Fase A cerrada por epic `pre-defense-hardening` (2026-05-04)
 
-**Estado**: Gate implementado en CI con threshold conservador. Los targets documentados (80% global / 85% pedagogía) NO se alcanzan hoy — se requiere trabajo de testing adicional para ratchet up.
+**Estado**: Fase A cerrada — `tutor-service` subió de 60% a **85%** (cumple target), `ctr-service` subió de 63% a **73%** (a 2pts del target 75% de Fase A; 12pts del target final 85% reservado para Fase B post-defensa). Detalle en `openspec/changes/archive/2026-05-04-pre-defense-hardening/`.
+
+**Medición post-epic** (2026-05-04, `uv run pytest apps/<svc> --cov=<svc>`):
+
+| Servicio | Pre-epic | Post-epic | Target Fase A (75%) | Target Fase B (85%) |
+|----------|---------|----------|---------------------|---------------------|
+| `tutor-service` | 60% | **85%** ✓ | ✓ cumple Fase A y Fase B | n/a |
+| `ctr-service` | 63% | **73%** | -2pts | -12pts |
+| `classifier-service` | 85% | 85% (no tocado) | ✓ | ✓ |
+
+**Smoke regresión global**: `uv run pytest apps packages --ignore=apps/enrollment-service` → **862 passed, 4 skipped, 0 failed** (60s wall time). Confirmado verde.
+
+**Fase B remaining** (post-defensa, agendable piloto-2): subir `ctr-service` de 73% → 85% requiere tests del `partition_worker` (consume_loop, persist_event con DB session real o mocks complejos), `routes/events.py` happy path con auth override, `integrity_checker` _verify_episode end-to-end. Effort estimado 6-8h.
+
+**Estado original (pre-epic)**: Gate implementado en CI con threshold conservador. Los targets documentados (80% global / 85% pedagogía) NO se alcanzan hoy — se requiere trabajo de testing adicional para ratchet up.
 
 **Hallazgo**: `CLAUDE.md` > "Convenciones" declara "Coverage: ≥80% global, ≥85% en plano pedagógico (`tutor`, `ctr`, `classifier`)" pero `.github/workflows/ci.yml:103` corría `pytest --cov --cov-report=xml` **sin** `--cov-fail-under`. El número se reportaba a Codecov pero no rompía el merge — declaración sin enforcement.
 

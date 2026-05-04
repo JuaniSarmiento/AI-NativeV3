@@ -47,6 +47,7 @@ async def test_no_puede_crear_comision_en_periodo_cerrado(
         materia_id=materia_id,
         periodo_id=periodo_id,
         codigo="A",
+        nombre="A-Manana",
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -81,6 +82,7 @@ async def test_puede_crear_comision_en_periodo_abierto(mock_session, user_docent
         materia_id=materia_id,
         periodo_id=periodo_id,
         codigo="A",
+        nombre="A-Manana",
     )
 
     result = await svc.create(data, user_docente_admin_a)

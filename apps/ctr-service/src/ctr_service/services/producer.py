@@ -14,6 +14,8 @@ from uuid import UUID
 
 import redis.asyncio as redis
 
+from ctr_service.metrics import ctr_events_total
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,4 +61,19 @@ class EventProducer:
             maxlen=self.maxlen,
             approximate=True,
         )
+
+        # Métrica: incrementar ctr_events_total con labels permitidas.
+        # NO se incluye episode_id como label (cardinalidad prohibida — ver
+        # openspec/specs/metrics-instrumentation-otlp/spec.md). El tenant_id
+        # y event_type vienen del payload del evento; la partition se computa
+        # localmente y se etiqueta como string para Prometheus.
+        ctr_events_total.add(
+            1,
+            {
+                "tenant_id": str(event.get("tenant_id", "unknown")),
+                "event_type": str(event.get("event_type", "unknown")),
+                "partition": str(partition),
+            },
+        )
+
         return msg_id.decode() if isinstance(msg_id, bytes) else msg_id

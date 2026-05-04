@@ -62,6 +62,7 @@ class PeriodoOut(PeriodoBase):
 
 class ComisionBase(BaseModel):
     codigo: str = Field(min_length=1, max_length=50)
+    nombre: str = Field(min_length=1, max_length=100)
     cupo_maximo: int = Field(ge=1, le=500, default=50)
     horario: dict[str, Any] = Field(default_factory=dict)
     ai_budget_monthly_usd: Decimal = Field(default=Decimal("100.00"), ge=0, le=10000)
@@ -73,6 +74,7 @@ class ComisionCreate(ComisionBase):
 
 
 class ComisionUpdate(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=100)
     cupo_maximo: int | None = Field(default=None, ge=1, le=500)
     horario: dict[str, Any] | None = None
     ai_budget_monthly_usd: Decimal | None = Field(default=None, ge=0, le=10000)

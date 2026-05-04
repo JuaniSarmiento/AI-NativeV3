@@ -24,6 +24,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 
 from ctr_service.db.session import get_engine, get_session_factory
+from ctr_service.metrics import ctr_episodes_integrity_compromised_total
 from ctr_service.models import Episode, Event
 from ctr_service.models.base import GENESIS_HASH
 from ctr_service.services.hashing import compute_chain_hash, compute_self_hash
@@ -167,7 +168,13 @@ class IntegrityChecker:
         return True
 
     async def _mark_compromised(self, episode_id: UUID, tenant_id: UUID) -> None:
-        """Marca el episodio como comprometido + persiste."""
+        """Marca el episodio como comprometido + persiste.
+
+        Emite la métrica `ctr_episodes_integrity_compromised_total{tenant_id}`
+        con label tenant — episode_id NO entra como label (cardinalidad).
+        Target estricto del piloto: 0. Cualquier incremento dispara I01 del
+        runbook (`docs/pilot/runbook.md`).
+        """
         async with self.session_factory() as session:
             from sqlalchemy import text
 
@@ -184,6 +191,10 @@ class IntegrityChecker:
                 )
             )
             await session.commit()
+
+        ctr_episodes_integrity_compromised_total.add(
+            1, {"tenant_id": str(tenant_id)}
+        )
 
 
 # ── CLI entry ───────────────────────────────────────────────────────────

@@ -10,10 +10,13 @@ progresiones distintas.
 Shape resultante
 ----------------
 - 1 Universidad / Facultad / Carrera / Plan / Materia / Periodo
-- 3 Comisiones (codigo A, B, C) con 1 docente asignado a las tres
+- 3 Comisiones (codigo A, B, C; nombre "A-Manana", "B-Tarde", "C-Noche")
+  con 1 docente asignado a las tres
 - 18 estudiantes (6 por comision, pseudonyms distintos)
-- ~90 episodios CTR (cadena SHA-256 valida por episodio)
-- ~90 classifications append-only (is_current=true)
+- 2 plantillas de TP -> 6 instancias (3 comisiones x 2 templates)
+- ~94 episodios CTR (cadena SHA-256 valida por episodio); cada episodio
+  apunta a una de las 6 instancias reales via round-robin
+- ~94 classifications append-only (is_current=true)
 
 Cohortes
 --------
@@ -21,10 +24,21 @@ Cohortes
 - Comision B "Tarde"   -> cohorte fuerte (mayor proporcion reflexiva)
 - Comision C "Noche"   -> cohorte con dificultades (mas empeorando/superficial)
 
-Idempotencia
-------------
-Borra previo por tenant_id antes de insertar. Seguro de re-correr.
-Pisa lo que haya dejado `seed-demo-data.py` (mismo tenant).
+Idempotencia y precondiciones
+-----------------------------
+- DESTRUCTIVO sobre el tenant `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`:
+  borra y rehace todas las filas de academic/ctr/classifier para ese
+  tenant. NO toca otros tenants. Seguro de re-correr.
+- Requiere la migracion `20260430_0001_comision_nombre` aplicada
+  (columna `nombre` NOT NULL en `comisiones`). Si la migracion no esta
+  aplicada, el INSERT falla por columna inexistente.
+- Reconstruye los hashes CTR desde cero (genesis -> ultimo evento) en
+  cada corrida — append-only se preserva porque borramos antes de
+  insertar.
+- Bumpear `PROMPT_SYSTEM_VERSION` (este archivo) en lockstep con
+  `Settings.default_prompt_version` y `ai-native-prompts/manifest.yaml`.
+  Hoy: v1.0.1; el `PROMPT_SYSTEM_HASH` es el sha256 declarado en
+  `ai-native-prompts/prompts/tutor/v1.0.1/manifest.yaml`.
 
 Ejecucion
 ---------
@@ -78,12 +92,16 @@ PERIODO_ID = UUID("12345678-1234-1234-1234-123456789abc")
 
 DOCENTE_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 
-PROMPT_SYSTEM_HASH = hashlib.sha256(b"prompt-system-demo-v1").hexdigest()
-PROMPT_SYSTEM_VERSION = "v1.0.0"
+# SHA-256 de `ai-native-prompts/prompts/tutor/v1.0.1/system.md`, declarado
+# en el manifest firmado del prompt (campo `files.system.md`). Si bumpas
+# la version del prompt, actualiza ambas constantes en lockstep — el
+# governance-service verifica fail-loud que sha256(system.md) == hash
+# declarado, y el seed registra ese mismo hash en cada evento CTR para
+# alinear con `Settings.default_prompt_version` del tutor-service (G12).
+PROMPT_SYSTEM_VERSION = "v1.0.1"
+PROMPT_SYSTEM_HASH = "2ecfcdddd29681b24539114975b601f9ec432560dc3c3a066980bb2e3d36187b"
 CLASSIFIER_CONFIG_HASH = hashlib.sha256(b"classifier-config-demo-v1").hexdigest()
 CURSO_CONFIG_HASH = hashlib.sha256(b"curso-config-demo-v1").hexdigest()
-
-PROBLEMA_ID = UUID("99999999-9999-9999-9999-999999999999")
 
 # ---------------------------------------------------------------------
 # Plantillas de TP (ADR-016) — fuente canonica por (materia, periodo)
@@ -230,6 +248,19 @@ def _dt(ts: datetime) -> str:
     return ts.isoformat().replace("+00:00", "Z")
 
 
+def _instance_id_for(template_id: UUID, cohort_idx: int) -> UUID:
+    """UUID deterministico de la instancia de TP para `(template, cohort)`.
+
+    Misma formula que el INSERT en `seed_academic` — ambos lados deben
+    producir el mismo UUID para que `Episode.problema_id` apunte a una
+    fila real de `tareas_practicas` post-seed.
+    """
+    return UUID(
+        int=(template_id.int ^ ((cohort_idx + 1) * 0xC0DE_C0DE_C0DE_C0DE))
+        & ((1 << 128) - 1)
+    )
+
+
 def _build_event_canonical(
     *,
     event_uuid: UUID,
@@ -260,6 +291,7 @@ def _build_events_for_episode(
     tenant_id: UUID,
     comision_id: UUID,
     student_pseudonym: UUID,
+    problema_id: UUID,
     opened_at: datetime,
     closed_at: datetime,
 ) -> list[dict]:
@@ -269,7 +301,7 @@ def _build_events_for_episode(
             "ts": opened_at,
             "payload": {
                 "student_pseudonym": str(student_pseudonym),
-                "problema_id": str(PROBLEMA_ID),
+                "problema_id": str(problema_id),
                 "comision_id": str(comision_id),
                 "curso_config_hash": CURSO_CONFIG_HASH,
             },
@@ -358,10 +390,22 @@ async def _set_tenant(session: AsyncSession, tenant_id: UUID) -> None:
 # ---------------------------------------------------------------------
 
 
-async def seed_academic(academic_url: str) -> None:
+async def seed_academic(academic_url: str) -> dict[UUID, list[UUID]]:
+    """Inserta jerarquia academica + comisiones + templates + instancias TP.
+
+    Returns
+    -------
+    Mapping `comision_id -> [tp_instance_id, ...]` en orden estable
+    (orden de `TEMPLATES_DEMO`). Cada comision recibe N instancias (una
+    por template). El loop de episodios consume este dict para
+    distribuir round-robin con `tp_instances_by_comision[c][ep_idx % N]`.
+    """
     engine = create_async_engine(academic_url, pool_size=2)
     maker = async_sessionmaker(engine, expire_on_commit=False)
     today = date.today()
+    tp_instances_by_comision: dict[UUID, list[UUID]] = {
+        cast(UUID, c["comision_id"]): [] for c in COHORTES
+    }
 
     try:
         async with maker() as session:
@@ -478,12 +522,16 @@ async def seed_academic(academic_url: str) -> None:
                 },
             )
 
-            # 3 comisiones
+            # 3 comisiones — `nombre` es etiqueta humana del selector
+            # (e.g. "A-Manana"); la unicidad sigue siendo
+            # (tenant, materia, periodo, codigo).
             for cohort in COHORTES:
+                cohort_nombre = f"{cohort['codigo']}-{cohort['nombre']}"
                 await session.execute(
                     text(
-                        "INSERT INTO comisiones (id, tenant_id, materia_id, periodo_id, codigo, curso_config_hash) "
-                        "VALUES (:id, :t, :m, :p, :codigo, :cch)"
+                        "INSERT INTO comisiones "
+                        "(id, tenant_id, materia_id, periodo_id, codigo, nombre, curso_config_hash) "
+                        "VALUES (:id, :t, :m, :p, :codigo, :nombre, :cch)"
                     ),
                     {
                         "id": str(cohort["comision_id"]),
@@ -491,6 +539,7 @@ async def seed_academic(academic_url: str) -> None:
                         "m": str(MATERIA_ID),
                         "p": str(PERIODO_ID),
                         "codigo": cohort["codigo"],
+                        "nombre": cohort_nombre,
                         "cch": CURSO_CONFIG_HASH,
                     },
                 )
@@ -554,11 +603,14 @@ async def seed_academic(academic_url: str) -> None:
                 )
 
                 # Instanciar en las 3 comisiones — UUID deterministico por
-                # (template, cohort) para que el seed sea idempotente.
+                # (template, cohort) para que el seed sea idempotente. La
+                # misma formula vive en `_instance_id_for(template_id,
+                # cohort_idx)`; el dict `tp_instances_by_comision` la usa
+                # para que `Episode.problema_id` apunte a esta misma fila.
                 for cohort_idx, cohort in enumerate(COHORTES):
-                    instance_id = UUID(
-                        int=(cast(UUID, tpl["id"]).int ^ ((cohort_idx + 1) * 0xC0DE_C0DE_C0DE_C0DE))
-                        & ((1 << 128) - 1)
+                    instance_id = _instance_id_for(cast(UUID, tpl["id"]), cohort_idx)
+                    tp_instances_by_comision[cast(UUID, cohort["comision_id"])].append(
+                        instance_id
                     )
                     # Fechas: inicio hoy-15d, fin hoy+30d (TP en curso)
                     fecha_inicio = datetime.combine(
@@ -601,10 +653,21 @@ async def seed_academic(academic_url: str) -> None:
             await session.commit()
     finally:
         await engine.dispose()
+    return tp_instances_by_comision
 
 
-async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
-    """Returns: list de (episode_id, comision_id, student_pseudonym, classified_at)."""
+async def seed_ctr(
+    ctr_url: str,
+    tp_instances_by_comision: dict[UUID, list[UUID]],
+) -> list[tuple[UUID, UUID, UUID, datetime]]:
+    """Returns: list de (episode_id, comision_id, student_pseudonym, classified_at).
+
+    `tp_instances_by_comision` viene de `seed_academic` y es la fuente de
+    `Episode.problema_id` (round-robin sobre las N instancias de la
+    comision). Asi cada episodio apunta a una `TareaPractica` real con
+    `template_id` poblado, que es el JOIN que `cii-evolution-longitudinal`
+    necesita para no devolver `insufficient_data`.
+    """
     engine = create_async_engine(ctr_url, pool_size=2)
     maker = async_sessionmaker(engine, expire_on_commit=False)
     episode_refs: list[tuple[UUID, UUID, UUID, datetime]] = []
@@ -631,7 +694,13 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
             base_time = datetime.now(UTC) - timedelta(days=45)
 
             for cohort_idx, cohort in enumerate(COHORTES):
-                comision_id = cohort["comision_id"]
+                comision_id = cast(UUID, cohort["comision_id"])
+                tp_instance_ids = tp_instances_by_comision[comision_id]
+                if not tp_instance_ids:
+                    raise RuntimeError(
+                        f"No hay instancias de TP para comision {comision_id} — "
+                        "seed_academic debe correr antes que seed_ctr."
+                    )
                 for student_idx, (pseudo, pattern) in enumerate(
                     zip(cohort["students"], cohort["patterns"], strict=False)
                 ):
@@ -652,11 +721,19 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
                             | (1 << 127)
                         )
 
+                        # Round-robin sobre las N instancias de TP de la
+                        # comision (hoy N=2). Garantiza que cada
+                        # template recibe ~mitad de los episodios del
+                        # estudiante -> >= MIN_EPISODES_FOR_LONGITUDINAL
+                        # cuando el patron tiene >= 6 episodios.
+                        problema_id = tp_instance_ids[ep_idx % len(tp_instance_ids)]
+
                         events = _build_events_for_episode(
                             episode_id=episode_id,
                             tenant_id=TENANT_ID,
                             comision_id=comision_id,
                             student_pseudonym=pseudo,
+                            problema_id=problema_id,
                             opened_at=opened_at,
                             closed_at=closed_at,
                         )
@@ -682,7 +759,7 @@ async def seed_ctr(ctr_url: str) -> list[tuple[UUID, UUID, UUID, datetime]]:
                                 "t": str(TENANT_ID),
                                 "c": str(comision_id),
                                 "s": str(pseudo),
-                                "pb": str(PROBLEMA_ID),
+                                "pb": str(problema_id),
                                 "psh": PROMPT_SYSTEM_HASH,
                                 "psv": PROMPT_SYSTEM_VERSION,
                                 "cch": CLASSIFIER_CONFIG_HASH,
@@ -849,10 +926,10 @@ async def main() -> None:
     print(f"[seed] classifier  -> {classifier_url.split('@')[-1]}")
 
     print("[seed] 1/3 academic...")
-    await seed_academic(academic_url)
+    tp_instances_by_comision = await seed_academic(academic_url)
 
     print("[seed] 2/3 ctr_store...")
-    episode_refs = await seed_ctr(ctr_url)
+    episode_refs = await seed_ctr(ctr_url, tp_instances_by_comision)
 
     print("[seed] 3/3 classifications...")
     await seed_classifications(classifier_url, episode_refs)

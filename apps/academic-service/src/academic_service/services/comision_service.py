@@ -233,6 +233,7 @@ class ComisionService:
                 "materia_id": materia.id,
                 "periodo_id": periodo.id,
                 "codigo": data.codigo,
+                "nombre": data.nombre,
                 "cupo_maximo": data.cupo_maximo,
                 "horario": data.horario,
                 "ai_budget_monthly_usd": data.ai_budget_monthly_usd,

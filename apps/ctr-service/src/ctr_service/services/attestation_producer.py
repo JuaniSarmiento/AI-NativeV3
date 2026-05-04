@@ -23,6 +23,11 @@ from typing import Any
 
 import redis.asyncio as redis
 
+from ctr_service.metrics import (
+    ctr_attestations_emitted_total,
+    ctr_attestations_pending_count,
+)
+
 logger = logging.getLogger(__name__)
 
 # Stream donde se publican attestation requests
@@ -82,6 +87,11 @@ class AttestationProducer:
                 maxlen=self.maxlen,
                 approximate=True,
             )
+            # Métrica: attestation request emitida. El gauge `pending_count`
+            # se incrementa acá y se decrementa cuando el integrity-attestation-
+            # service confirma firma (call site del consumer, no acá).
+            ctr_attestations_emitted_total.add(1)
+            ctr_attestations_pending_count.add(1)
             return msg_id.decode() if isinstance(msg_id, bytes) else msg_id
         except Exception as exc:
             logger.warning(

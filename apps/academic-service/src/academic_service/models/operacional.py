@@ -67,6 +67,7 @@ class Comision(Base, TenantMixin, TimestampMixin):
     materia_id: Mapped[uuid.UUID] = fk_uuid("materias.id")
     periodo_id: Mapped[uuid.UUID] = fk_uuid("periodos.id")
     codigo: Mapped[str] = mapped_column(String(50), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     cupo_maximo: Mapped[int] = mapped_column(Integer, default=50)
     horario: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     # Hash de la configuración completa del curso AI-Native (prompt +

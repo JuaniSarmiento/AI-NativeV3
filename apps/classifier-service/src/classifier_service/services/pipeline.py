@@ -18,6 +18,11 @@ from uuid import UUID
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from classifier_service.metrics import (
+    classifier_ccd_orphan_ratio,
+    classifier_cii_evolution_slope,
+    classifier_classifications_total,
+)
 from classifier_service.models import Classification
 from classifier_service.services.ccd import compute_ccd
 from classifier_service.services.cii import compute_cii
@@ -107,4 +112,30 @@ async def persist_classification(
     )
     session.add(new_classification)
     await session.flush()
+
+    # Métricas: emisión post-flush para que el conteo refleje persistencias
+    # exitosas. `tenant_id` y `cohort` son labels permitidas; `episode_id`
+    # NO se incluye (cardinalidad). `template_id` queda como TODO — requiere
+    # lookup adicional Episode → TareaPractica.template_id que no está
+    # disponible en este scope sin un join extra.
+    cohort_label = str(comision_id)
+    classifier_classifications_total.add(
+        1,
+        {
+            "tenant_id": str(tenant_id),
+            "appropriation": result.appropriation,
+            "classifier_config_hash": classifier_config_hash,
+            "cohort": cohort_label,
+        },
+    )
+    if result.ccd_orphan_ratio is not None:
+        # UpDownCounter — aproximación al gauge per-cohort. Cada clasificación
+        # contribuye con su valor; el panel del dashboard 5 muestra avg() por
+        # cohorte, lo cual es equivalente al promedio de los emisores.
+        classifier_ccd_orphan_ratio.add(
+            float(result.ccd_orphan_ratio), {"cohort": cohort_label}
+        )
+    if result.cii_evolution is not None:
+        classifier_cii_evolution_slope.record(float(result.cii_evolution))
+
     return new_classification

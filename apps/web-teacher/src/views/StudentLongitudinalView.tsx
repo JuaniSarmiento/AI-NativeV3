@@ -37,8 +37,10 @@ function slopeLabel(slope: number | null): {
   if (slope === null) {
     return { label: "datos insuficientes", arrow: "?", color: "text-slate-400" }
   }
-  if (slope > 0.1) return { label: "mejorando", arrow: "↑", color: "text-emerald-600" }
-  if (slope < -0.1) return { label: "empeorando", arrow: "↓", color: "text-red-600" }
+  if (slope > 0.1)
+    return { label: "mejorando", arrow: "↑", color: "text-[var(--color-success)]" }
+  if (slope < -0.1)
+    return { label: "empeorando", arrow: "↓", color: "text-[var(--color-danger)]" }
   return { label: "estable", arrow: "→", color: "text-slate-600" }
 }
 

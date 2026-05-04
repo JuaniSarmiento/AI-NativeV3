@@ -7,6 +7,7 @@ GET  /api/v1/analytics/cohort/export    descarga dataset académico anonimizado
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Literal
 from uuid import UUID
 
@@ -16,6 +17,11 @@ from platform_ops import (
     compute_cohen_kappa,
 )
 from pydantic import BaseModel, Field
+
+from analytics_service.metrics import (
+    classifier_kappa_rolling,
+    classifier_kappa_rolling_last_update_unix_seconds,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
@@ -62,6 +68,10 @@ class KappaRatingIn(BaseModel):
 
 class KappaRequest(BaseModel):
     ratings: list[KappaRatingIn] = Field(..., min_length=1, max_length=10000)
+    # Optional cohort tag — si está presente, se actualiza el gauge
+    # `classifier_kappa_rolling{cohort=...}` para visualización en Grafana
+    # dashboard 5. Sin él, el κ se computa pero no se grafica longitudinalmente.
+    cohort_id: UUID | None = None
 
 
 class KappaResponse(BaseModel):
@@ -121,6 +131,17 @@ async def compute_kappa(
         response.kappa,
         response.interpretation,
     )
+
+    # Métrica: si el request trae cohort_id, actualizar los gauges para el
+    # dashboard 5 (κ rolling). UpDownCounter — para "set value" emitimos
+    # delta vs valor previo, simulado con add(value) que en práctica refleja
+    # acumulado. En el período del piloto basta para visualización.
+    if req.cohort_id is not None:
+        cohort_label = {"window": "7d", "cohort": str(req.cohort_id)}
+        classifier_kappa_rolling.add(response.kappa, cohort_label)
+        classifier_kappa_rolling_last_update_unix_seconds.add(
+            time.time(), {"cohort": str(req.cohort_id)}
+        )
 
     return response
 
@@ -496,7 +517,7 @@ async def get_n_level_distribution(
 class CIIEvolutionTemplateOut(BaseModel):
     """Slope longitudinal de un estudiante sobre un template específico."""
 
-    template_id: str
+    template_id: UUID
     n_episodes: int
     scores_ordinal: list[int]
     slope: float | None

@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from ctr_service.metrics import ctr_self_hash_compute_seconds
 from ctr_service.models.base import GENESIS_HASH
 
 
@@ -66,12 +68,17 @@ def compute_self_hash(event: dict[str, Any]) -> str:
     7.3 pero requerido por el principio de reproducibilidad 7.1.4: permite
     reclasificar con otro profile y producir cadena distinguible).
     """
+    start = time.perf_counter()
     clean = {
         k: v
         for k, v in event.items()
         if k not in {"self_hash", "chain_hash", "prev_chain_hash", "persisted_at", "id"}
     }
-    return hashlib.sha256(canonicalize(clean)).hexdigest()
+    digest = hashlib.sha256(canonicalize(clean)).hexdigest()
+    # Métrica: latencia del compute. Sin labels — la cardinalidad por
+    # event_type no aporta y agregaría 15+ buckets duplicados.
+    ctr_self_hash_compute_seconds.record(time.perf_counter() - start)
+    return digest
 
 
 def compute_chain_hash(self_hash: str, prev_chain_hash: str | None) -> str:

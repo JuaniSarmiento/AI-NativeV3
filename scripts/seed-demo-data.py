@@ -327,8 +327,8 @@ async def seed_academic(academic_url: str) -> None:
             # Comisión (con el id que el web-teacher espera)
             await session.execute(
                 text(
-                    "INSERT INTO comisiones (id, tenant_id, materia_id, periodo_id, codigo, curso_config_hash) "
-                    "VALUES (:id, :t, :m, :p, :codigo, :cch)"
+                    "INSERT INTO comisiones (id, tenant_id, materia_id, periodo_id, codigo, nombre, curso_config_hash) "
+                    "VALUES (:id, :t, :m, :p, :codigo, :nombre, :cch)"
                 ),
                 {
                     "id": str(COMISION_ID),
@@ -336,6 +336,7 @@ async def seed_academic(academic_url: str) -> None:
                     "m": str(MATERIA_ID),
                     "p": str(PERIODO_ID),
                     "codigo": "A",
+                    "nombre": "A",
                     "cch": CURSO_CONFIG_HASH,
                 },
             )

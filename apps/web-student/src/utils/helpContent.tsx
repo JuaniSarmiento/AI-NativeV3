@@ -1,4 +1,4 @@
-// Contenido en espanol SIN tildes para evitar problemas de encoding en Windows/cp1252.
+// La regla de evitar Unicode (cp1252 en Windows) aplica a stdout de scripts Python, no a TSX servido al browser.
 import type { ReactNode } from "react"
 
 type HelpContentMap = Record<string, ReactNode>
@@ -10,7 +10,7 @@ export const helpContent: HelpContentMap = {
         Tutor Socratico de Programacion
       </p>
       <p>
-        Esta es tu estacion de trabajo para resolver trabajos practicos (TPs) con asistencia de un
+        Esta es tu estacion de trabajo para resolver trabajos prácticos (TPs) con asistencia de un
         tutor socratico. El tutor no te da la respuesta directa — te guia con preguntas para que
         construyas tu solucion.
       </p>
@@ -46,7 +46,7 @@ export const helpContent: HelpContentMap = {
       <div className="bg-zinc-800 p-4 rounded-lg mt-4">
         <p className="text-orange-400 font-medium">Consejo:</p>
         <p className="text-sm mt-1">
-          Si recargas la pestana (F5), tu episodio se recupera automaticamente. Si cerras la
+          Si recargas la pestana (F5), tu episodio se recupera automáticamente. Si cerras la
           pestana, el episodio queda abierto pero volves al selector la proxima vez.
         </p>
       </div>

@@ -1,4 +1,4 @@
-import { HelpButton, PageContainer } from "@platform/ui"
+import { HelpButton, PageContainer, StateMessage } from "@platform/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import {
   type Carrera,
@@ -93,11 +93,17 @@ export function CarrerasPage(): ReactNode {
 
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
+            <StateMessage variant="loading" />
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No hay carreras creadas. {noFacultades && "Primero creá una facultad."}
-            </div>
+            <StateMessage
+              variant="empty"
+              title="Sin carreras"
+              description={
+                noFacultades
+                  ? "No hay carreras creadas. Primero crea una facultad."
+                  : "No hay carreras creadas."
+              }
+            />
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-left">

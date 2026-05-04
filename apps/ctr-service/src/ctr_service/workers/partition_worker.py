@@ -32,6 +32,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ctr_service.config import settings
 from ctr_service.db.session import get_session_factory, tenant_session
+from ctr_service.metrics import (
+    ctr_episodes_integrity_compromised_total,
+    ctr_worker_xpending_count,
+)
 from ctr_service.models import DeadLetter, Episode, Event
 from ctr_service.models.base import GENESIS_HASH, utc_now
 from ctr_service.services.attestation_producer import AttestationProducer
@@ -101,14 +105,56 @@ class PartitionWorker:
             self.consumer_name,
         )
 
-        while not self._stop.is_set():
+        # Métrica: poll periódico del XPENDING count para reflejar lag por
+        # partición. Background task — no bloquea el process loop.
+        xpending_task = asyncio.create_task(self._xpending_metric_loop())
+
+        try:
+            while not self._stop.is_set():
+                try:
+                    await self._process_batch()
+                except Exception:
+                    logger.exception(
+                        "Error procesando batch en partition=%d", self.cfg.partition
+                    )
+                    await asyncio.sleep(1)
+        finally:
+            xpending_task.cancel()
             try:
-                await self._process_batch()
-            except Exception:
-                logger.exception("Error procesando batch en partition=%d", self.cfg.partition)
-                await asyncio.sleep(1)
+                await xpending_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
         logger.info("Worker partition=%d terminado", self.cfg.partition)
+
+    async def _xpending_metric_loop(self) -> None:
+        """Loop background que reporta XPENDING count cada 30s al gauge.
+
+        Métrica: `ctr_worker_xpending_count{partition}`. Refleja cuántos
+        mensajes están entregados pero sin ACK (lag del consumer del worker).
+        Si crece, hay problemas de procesamiento o el worker está caído.
+        """
+        partition_label = {"partition": str(self.cfg.partition)}
+        last_value = 0
+        while not self._stop.is_set():
+            try:
+                pending = await self.redis.xpending(
+                    name=self.stream_key,
+                    groupname=self.cfg.consumer_group,
+                )
+                # xpending() devuelve dict con `pending` key (count total)
+                current = int(pending.get("pending", 0)) if pending else 0
+                # UpDownCounter — emitimos delta vs last_value para que el
+                # gauge refleje el valor absoluto.
+                delta = current - last_value
+                if delta != 0:
+                    ctr_worker_xpending_count.add(delta, partition_label)
+                    last_value = current
+            except Exception:
+                logger.debug(
+                    "Error en xpending poll para partition=%d", self.cfg.partition
+                )
+            await asyncio.sleep(30)
 
     async def _process_batch(self) -> None:
         """Lee un batch del stream y procesa cada mensaje."""
@@ -372,6 +418,12 @@ class PartitionWorker:
                             estado="integrity_compromised",
                         )
                     )
+
+                # Métrica: incremento del counter post-commit. tenant_id como
+                # único label (episode_id prohibido por cardinalidad).
+                ctr_episodes_integrity_compromised_total.add(
+                    1, {"tenant_id": str(tenant_id)}
+                )
             except Exception:
                 logger.exception("Error guardando dead-letter en DB")
 

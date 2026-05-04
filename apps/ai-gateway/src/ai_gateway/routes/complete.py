@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -19,6 +20,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ai_gateway.config import settings
+from ai_gateway.metrics import (
+    ai_gateway_budget_remaining_usd,
+    ai_gateway_cache_hits_total,
+    ai_gateway_fallback_total,
+    ai_gateway_request_duration_seconds,
+    ai_gateway_requests_total,
+    ai_gateway_tokens_total,
+)
 from ai_gateway.providers.base import CompletionRequest, get_provider
 from ai_gateway.services.budget_and_cache import BudgetTracker, ResponseCache
 
@@ -107,6 +116,9 @@ async def complete(
     tracker = BudgetTracker(redis_client)
     cache = ResponseCache(redis_client)
 
+    # Métrica: cada request entra al counter total (denominador del cache hit rate).
+    ai_gateway_requests_total.add(1, {"feature": req.feature})
+
     # 1. Check budget (el límite se toma de la config del tenant; por ahora,
     # un default global. En F4 se consulta academic-service por el límite
     # específico del tenant/feature).
@@ -132,6 +144,8 @@ async def complete(
     # 3. Cache check
     cached = await cache.get(internal_req)
     if cached:
+        # Métrica: cache hit (numerador del cache hit rate).
+        ai_gateway_cache_hits_total.add(1, {"feature": req.feature})
         logger.info(
             "cache_hit tenant=%s feature=%s model=%s",
             caller.tenant_id,
@@ -156,18 +170,44 @@ async def complete(
 
     # 4. Invocar al provider
     provider = get_provider()
+    _provider_start = time.perf_counter()
     try:
         response = await provider.complete(internal_req)
     except Exception as e:
+        # Métrica: fallback al provider secundario (cuando esté implementado).
+        # Por ahora cualquier excepción del primario cuenta como fallback.
+        ai_gateway_fallback_total.add(1, {"reason": "provider_error"})
         logger.exception("provider_error")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"LLM provider error: {e}",
         )
 
+    # Métrica: latencia del request al provider real (excluye cache hits).
+    ai_gateway_request_duration_seconds.record(
+        time.perf_counter() - _provider_start,
+        {"provider": response.provider},
+    )
+
     # 5. Cache + budget charge
     await cache.set(internal_req, response)
     new_total = await tracker.charge(caller.tenant_id, req.feature, response.cost_usd)
+
+    # Métricas: tokens consumidos + budget remaining.
+    tenant_label = str(caller.tenant_id)
+    ai_gateway_tokens_total.add(
+        response.input_tokens,
+        {"provider": response.provider, "kind": "input", "tenant_id": tenant_label},
+    )
+    ai_gateway_tokens_total.add(
+        response.output_tokens,
+        {"provider": response.provider, "kind": "output", "tenant_id": tenant_label},
+    )
+    # Budget remaining como delta — el gauge se construye con UpDownCounter
+    # (descontamos el cost_usd de este request).
+    ai_gateway_budget_remaining_usd.add(
+        -response.cost_usd, {"tenant_id": tenant_label}
+    )
 
     return CompleteResponse(
         content=response.content,

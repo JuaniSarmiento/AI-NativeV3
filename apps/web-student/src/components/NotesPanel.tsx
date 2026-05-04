@@ -87,7 +87,9 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
             className="w-full px-3 py-2 text-sm rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 resize-none focus:outline-none focus:border-blue-500"
           />
           <div className="flex items-center justify-between gap-2">
-            <span className={`text-xs ${tooLong ? "text-red-600" : "text-slate-500"}`}>
+            <span
+              className={`text-xs ${tooLong ? "text-[var(--color-danger)]" : "text-slate-500"}`}
+            >
               {trimmed.length}/{MAX_LEN}
             </span>
             <button
@@ -99,7 +101,9 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
               {saving ? "Guardando..." : "Guardar nota"}
             </button>
           </div>
-          {validationError && <p className="text-xs text-red-600">{validationError}</p>}
+          {validationError && (
+            <p className="text-xs text-[var(--color-danger)]">{validationError}</p>
+          )}
 
           {notes.length > 0 && (
             <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 max-h-48 overflow-y-auto space-y-2">

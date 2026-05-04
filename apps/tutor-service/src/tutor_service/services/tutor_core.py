@@ -14,6 +14,7 @@ Flujo de una interacción:
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 from typing import Literal
@@ -21,6 +22,10 @@ from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 
+from tutor_service.metrics import (
+    tutor_active_sessions_count,
+    tutor_response_duration_seconds,
+)
 from tutor_service.services.academic_client import AcademicClient
 from tutor_service.services.clients import (
     AIGatewayClient,
@@ -162,6 +167,9 @@ class TutorCore:
         await self.sessions.next_seq(state)
         await self.ctr.publish_event(event, tenant_id, TUTOR_SERVICE_USER_ID)
 
+        # Métrica: nueva sesión activa.
+        tutor_active_sessions_count.add(1)
+
         return episode_id
 
     # ── Interacción (streaming) ────────────────────────────────────────
@@ -173,6 +181,10 @@ class TutorCore:
           {"type": "chunk", "content": "..."}
           {"type": "done", "chunks_used_hash": "...", "tokens_delta": {"seq_prompt": N, "seq_response": N+1}}
         """
+        # Métrica: latencia end-to-end del turno SSE. Se mide desde acá hasta
+        # el yield del "done" final. SLO p95 < 3s, p99 < 8s (paneles del
+        # dashboard 4 con threshold lines).
+        _turn_start = time.perf_counter()
         state = await self.sessions.get(episode_id)
         if state is None:
             raise ValueError(f"Episode {episode_id} no existe o expiró")
@@ -294,6 +306,9 @@ class TutorCore:
         )
         await self.ctr.publish_event(response_event, state.tenant_id, TUTOR_SERVICE_USER_ID)
 
+        # Métrica: registrar la duración del turno completo antes del done final.
+        tutor_response_duration_seconds.record(time.perf_counter() - _turn_start)
+
         yield {
             "type": "done",
             "chunks_used_hash": retrieval.chunks_used_hash,
@@ -316,6 +331,9 @@ class TutorCore:
         )
         await self.ctr.publish_event(event, state.tenant_id, TUTOR_SERVICE_USER_ID)
         await self.sessions.delete(episode_id)
+
+        # Métrica: sesión cerrada.
+        tutor_active_sessions_count.add(-1)
 
     # ── Abandono de episodio (ADR-025, G10-A) ───────────────────────────
 
@@ -368,6 +386,9 @@ class TutorCore:
         )
         await self.ctr.publish_event(event, state.tenant_id, user_id)
         await self.sessions.delete(episode_id)
+
+        # Métrica: sesión abandonada (cuenta junto a las cerradas).
+        tutor_active_sessions_count.add(-1)
         return seq
 
     # ── Evento codigo_ejecutado (emitido por el frontend con Pyodide) ───

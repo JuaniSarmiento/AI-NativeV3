@@ -1,7 +1,7 @@
 /**
  * Vista de Plantillas de TP (ADR-016).
  *
- * Permite a la catedra (docente) gestionar TP-templates canonicos por
+ * Permite a la cátedra (docente) gestionar TP-templates canónicos por
  * (materia, periodo). Al crear un template, el backend fan-out-ea
  * instancias en TODAS las comisiones de esa materia+periodo (auto-seed).
  * Editar una instancia en su comision dispara `has_drift=true`; crear
@@ -124,7 +124,7 @@ export function TemplatesView({ getToken }: Props) {
 
   const handleArchive = async (t: TareaPracticaTemplate) => {
     const ok = window.confirm(
-      `Archivar la plantilla "${t.codigo} — ${t.titulo}"? Las instancias en comisiones no se archivan automaticamente.`,
+      `Archivar la plantilla "${t.codigo} — ${t.titulo}"? Las instancias en comisiones no se archivan automáticamente.`,
     )
     if (!ok) return
     try {
@@ -150,8 +150,8 @@ export function TemplatesView({ getToken }: Props) {
 
   return (
     <PageContainer
-      title="Plantillas de Trabajos Practicos"
-      description="Gestion de templates canonicos a nivel catedra (materia + periodo). Las plantillas se instancian automaticamente en todas las comisiones de la misma materia y periodo."
+      title="Plantillas de Trabajos Prácticos"
+      description="Gestión de templates canónicos a nivel cátedra (materia + periodo). Las plantillas se instancian automáticamente en todas las comisiones de la misma materia y periodo."
       helpContent={helpContent.templates}
     >
       <div className="space-y-6 max-w-6xl">
@@ -513,8 +513,8 @@ function TemplateFormModal({
               <div className="space-y-3 text-zinc-300">
                 <p>
                   <strong>Completa los campos</strong> para crear o editar la plantilla. Las
-                  plantillas son fuente canonica a nivel catedra — al guardarlas, el sistema crea
-                  automaticamente una instancia en cada comision de la materia y periodo elegidos.
+                  plantillas son fuente canónica a nivel cátedra — al guardarlas, el sistema crea
+                  automáticamente una instancia en cada comision de la materia y periodo elegidos.
                 </p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
@@ -946,7 +946,7 @@ function InstancesModal({
                   <li>
                     <strong>Sin drift:</strong> La instancia sigue al template. Si se crea una nueva
                     version con `reinstance_non_drifted=true`, la instancia recibe la nueva version
-                    automaticamente.
+                    automáticamente.
                   </li>
                   <li>
                     <strong>Drift:</strong> El docente de la comision edito la instancia. El link al

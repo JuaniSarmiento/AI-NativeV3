@@ -1,4 +1,5 @@
 .PHONY: help init install dev dev-bootstrap test test-fast test-rls test-adversarial \
+        test-e2e test-e2e-clean test-e2e-headed \
         lint lint-fix typecheck migrate migrate-new setup-dev-perms clean clean-all \
         check-health check-rls generate-service seed-casbin eval-retrieval backup restore \
         onboard-unsl kappa progression export-academic generate-protocol status build check-tools
@@ -109,6 +110,16 @@ test-rls: ## Tests de aislamiento multi-tenant (requiere Postgres)
 
 test-adversarial: ## Tests adversariales contra el tutor
 	$(UV) run pytest -m "adversarial"
+
+test-e2e: ## Suite Playwright (asume servicios + frontends + seed activos)
+	$(PNPM) exec playwright test --config=tests/e2e/playwright.config.ts
+
+test-e2e-clean: ## Re-seedea + corre la suite Playwright (DESTRUCTIVO sobre tenant demo)
+	$(UV) run python scripts/seed-3-comisiones.py
+	$(PNPM) exec playwright test --config=tests/e2e/playwright.config.ts
+
+test-e2e-headed: ## Suite Playwright en modo headed --debug (inspeccion manual)
+	$(PNPM) exec playwright test --config=tests/e2e/playwright.config.ts --headed --debug
 
 
 ## Calidad

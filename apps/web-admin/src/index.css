@@ -8,6 +8,16 @@
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Tokens semanticos: severidad y estado. Usados via var(...) en clases arbitrarias
+     (text-[var(--color-danger)], bg-[var(--color-success-soft)], etc.). */
+  --color-success: oklch(0.62 0.14 145);
+  --color-warning: oklch(0.78 0.14 75);
+  --color-danger: oklch(0.58 0.20 27);
+  --color-neutral: oklch(0.55 0.02 250);
+  --color-success-soft: oklch(0.95 0.04 145);
+  --color-warning-soft: oklch(0.96 0.05 75);
+  --color-danger-soft: oklch(0.95 0.05 27);
 }
 
 html {
@@ -18,4 +28,26 @@ html {
 code,
 pre {
   font-family: var(--font-mono);
+}
+
+@layer base {
+  body {
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.011em;
+    font-weight: 600;
+  }
+  h1 {
+    line-height: 1.15;
+  }
+  h2 {
+    line-height: 1.2;
+  }
+  h3 {
+    line-height: 1.3;
+  }
 }

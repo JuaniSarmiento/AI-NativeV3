@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     keycloak_url: str = Field(default="http://127.0.0.1:8180")
     keycloak_realm: str = Field(default="demo_uni")
 
+    # Database (skeleton: el servicio aún no tiene lógica de negocio,
+    # pero declaramos academic_db_url para que el readiness check sea real
+    # — D5 del design, simetría con los demás servicios académicos).
+    academic_db_url: str = Field(
+        default="postgresql+asyncpg://academic_user:academic_pass@127.0.0.1:5432/academic_main"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

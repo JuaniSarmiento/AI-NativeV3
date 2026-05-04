@@ -19,6 +19,7 @@ const vitestConfig = {
   test: {
     environment: "jsdom",
     globals: true,
+    setupFiles: ["./tests/setup.ts"],
   },
 } as const
 
@@ -45,6 +46,12 @@ export default defineConfig({
             proxyReq.setHeader("x-user-roles", "docente_admin,superadmin")
           })
         },
+      },
+      // /health del api-gateway (sin auth) — usado por el HomePage para mostrar
+      // estado live. No va por /api porque el ROUTE_MAP no lo registra.
+      "/health": {
+        target: process.env.VITE_API_URL || "http://127.0.0.1:8000",
+        changeOrigin: true,
       },
     },
   },

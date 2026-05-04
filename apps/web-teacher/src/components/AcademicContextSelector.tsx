@@ -301,7 +301,7 @@ function CascadeSelect<T extends { id: string }>({
         ))}
       </select>
       {hasError && (
-        <p className="text-xs text-red-600 mt-1 truncate" title={state.error ?? ""}>
+        <p className="text-xs text-[var(--color-danger)] mt-1 truncate" title={state.error ?? ""}>
           {state.error}
         </p>
       )}

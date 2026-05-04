@@ -15,11 +15,22 @@
 import { useEffect, useState } from "react"
 import { type Comision, comisionesApi } from "../lib/api"
 
-const LS_KEY = "selected-comision-id"
+const LS_KEY = "selectedComisionId"
 
 interface Props {
   value: string | null
   onChange: (comisionId: string) => void
+}
+
+/**
+ * Devuelve el label visible para una comisión: prioriza `nombre` (cuando
+ * exista en el backend) y cae a `codigo`. Sin UUID truncado.
+ */
+function comisionLabel(c: Comision): string {
+  // biome-ignore lint/suspicious/noExplicitAny: forward-compat — ver web-teacher.
+  const maybeNombre = (c as any).nombre
+  if (typeof maybeNombre === "string" && maybeNombre.length > 0) return maybeNombre
+  return c.codigo
 }
 
 export function ComisionSelector({ value, onChange }: Props) {
@@ -41,13 +52,15 @@ export function ComisionSelector({ value, onChange }: Props) {
       .then((res) => {
         if (cancelled) return
         setComisiones(res.items)
-        // Si el padre todavía no eligió y hay un valor recordado, lo
-        // proponemos — siempre que esa comisión siga apareciendo en el
-        // listado del backend (evita propagar IDs stale).
-        if (!value) {
+        // Auto-pick: ver el comentario equivalente en web-teacher. Primero el
+        // valor recordado, después la primera comisión disponible.
+        if (!value && res.items.length > 0) {
           const stored = localStorage.getItem(LS_KEY)
           if (stored && res.items.some((c) => c.id === stored)) {
             onChange(stored)
+          } else {
+            const first = res.items[0]
+            if (first) onChange(first.id)
           }
         }
       })
@@ -61,6 +74,11 @@ export function ComisionSelector({ value, onChange }: Props) {
       cancelled = true
     }
   }, [])
+
+  // Persistir cualquier cambio externo o interno.
+  useEffect(() => {
+    if (value) localStorage.setItem(LS_KEY, value)
+  }, [value])
 
   function handleSelect(e: React.ChangeEvent<HTMLSelectElement>) {
     const id = e.target.value
@@ -102,7 +120,7 @@ export function ComisionSelector({ value, onChange }: Props) {
         </option>
         {comisiones.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.codigo} · {c.id.slice(0, 8)}
+            {comisionLabel(c)}
           </option>
         ))}
       </select>

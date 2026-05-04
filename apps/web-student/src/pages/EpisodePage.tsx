@@ -1,5 +1,6 @@
 import { DEMO_COMISION_ID } from "@platform/contracts"
-import { HelpButton, MarkdownRenderer } from "@platform/ui"
+import { EmptyHero, HelpButton, MarkdownRenderer } from "@platform/ui"
+import { BookOpen } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CodeEditor } from "../components/CodeEditor"
 import { ComisionSelector } from "../components/ComisionSelector"
@@ -307,12 +308,13 @@ export default function EpisodePage() {
           </div>
         </div>
       ) : selectedComisionId === null ? (
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="max-w-md text-center">
-            <p className="text-base text-slate-600 dark:text-slate-400">
-              Seleccioná una comisión arriba para empezar.
-            </p>
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyHero
+            icon={<BookOpen className="h-12 w-12" />}
+            title="Bienvenido al tutor"
+            description="Elegí tu comisión para ver los trabajos prácticos disponibles."
+            hint="Vas a poder cambiarla desde el menú de arriba."
+          />
         </div>
       ) : classification ? (
         <ClassificationPanel
@@ -332,6 +334,10 @@ export default function EpisodePage() {
       ) : (
         <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
           {/* Editor de código con Monaco + Pyodide */}
+          {/* Deferred: ADR-026 / post-defensa — botón "Insertar código del tutor"
+              desde el chat al editor cambiaría la condición experimental del
+              piloto (introduciría copy-paste asistido). Mantener manual hasta
+              piloto-2. */}
           <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
             <EnunciadoPanel tarea={selectedTarea} episodeId={episodeId} />
             <CodeEditor
@@ -380,27 +386,33 @@ export default function EpisodePage() {
                   Escribí tu consulta o describí el problema en el que estás trabajando.
                 </p>
               )}
-              {messages.map((m, i) => (
-                <div
-                  key={`${m.ts}-${i}`}
-                  className={`max-w-[85%] ${m.role === "user" ? "ml-auto" : ""}`}
-                >
+              {messages.map((m, i) => {
+                const isLastTutor =
+                  m.role === "tutor" && messages.findLastIndex((mm) => mm.role === "tutor") === i
+                return (
                   <div
-                    className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                      m.role === "user"
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 dark:bg-slate-800"
-                    }`}
+                    key={`${m.ts}-${i}`}
+                    className={`max-w-[85%] ${m.role === "user" ? "ml-auto" : ""}`}
                   >
-                    {m.content || (m.role === "tutor" && streaming ? "..." : "")}
+                    <div
+                      data-testid={isLastTutor ? "tutor-message-last" : undefined}
+                      className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                        m.role === "user"
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}
+                    >
+                      {m.content || (m.role === "tutor" && streaming ? "..." : "")}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
               <div ref={messagesEndRef} />
             </div>
 
             <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex gap-2">
               <textarea
+                data-testid="tutor-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {

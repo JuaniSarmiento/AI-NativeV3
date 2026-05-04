@@ -5,10 +5,17 @@
  * Si el path actual no admite `comisionId` (ej. /templates, /kappa), el
  * componente igual muestra el selector pero su valor solo afecta a futuras
  * navegaciones, no al estado actual.
+ *
+ * Para que el auto-pick del selector siga funcionando aunque la fuente de
+ * verdad sea la URL, persistimos también en localStorage al cambiar — el
+ * selector "interno" se autodescubre desde ese mismo storage en el primer
+ * mount.
  */
 import { useNavigate, useRouterState } from "@tanstack/react-router"
 import { useCallback } from "react"
 import { ComisionSelector } from "./ComisionSelector"
+
+const LS_KEY = "selectedComisionId"
 
 export function ComisionSelectorRouted() {
   const navigate = useNavigate()
@@ -22,6 +29,7 @@ export function ComisionSelectorRouted() {
 
   const handleChange = useCallback(
     (newId: string | null) => {
+      if (newId) localStorage.setItem(LS_KEY, newId)
       navigate({
         search: ((prev: Record<string, unknown>) => ({
           ...prev,

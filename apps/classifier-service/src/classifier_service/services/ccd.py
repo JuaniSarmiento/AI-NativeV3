@@ -1,3 +1,6 @@
+# Deferred: ADR-017 / piloto-2 — CCD opera por ventana temporal 2min;
+# embeddings semánticos del giro verbal vs código ejecutado quedan como
+# agenda Eje B. Operacionalización conservadora declarada en tesis 15.6.
 """Coherencia Código-Discurso (CCD).
 
 Definición operacional:

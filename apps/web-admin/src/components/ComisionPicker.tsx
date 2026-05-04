@@ -82,7 +82,7 @@ export function ComisionPicker({
   }
   if (error) {
     return (
-      <span className={`text-sm text-red-600 ${className}`} role="alert">
+      <span className={`text-sm text-[var(--color-danger)] ${className}`} role="alert">
         {error}
       </span>
     )
