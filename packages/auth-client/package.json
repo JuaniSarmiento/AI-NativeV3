@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "keycloak-js": "^25.0.0",
+    "keycloak-js": "^26.2.4",
     "react": "^19.0.0"
   },
   "peerDependencies": {

@@ -66,8 +66,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.1
       keycloak-js:
-        specifier: ^25.0.0
-        version: 25.0.6
+        specifier: ^26.2.4
+        version: 26.2.4
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.5)
@@ -151,8 +151,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.1
       keycloak-js:
-        specifier: ^25.0.0
-        version: 25.0.6
+        specifier: ^26.2.4
+        version: 26.2.4
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.5)
@@ -245,8 +245,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.1
       keycloak-js:
-        specifier: ^25.0.0
-        version: 25.0.6
+        specifier: ^26.2.4
+        version: 26.2.4
       lucide-react:
         specifier: ^0.460.0
         version: 0.460.0(react@19.2.5)
@@ -318,8 +318,8 @@ importers:
   packages/auth-client:
     dependencies:
       keycloak-js:
-        specifier: ^25.0.0
-        version: 25.0.6
+        specifier: ^26.2.4
+        version: 26.2.4
       react:
         specifier: ^19.0.0
         version: 19.2.5
@@ -2142,9 +2142,6 @@ packages:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
-  js-sha256@0.11.1:
-    resolution: {integrity: sha512-o6WSo/LUvY2uC4j7mO50a2ms7E/EAdbP0swigLV+nzHKTTaYnaLIWJ02VdXrsJX0vGedDESQnLsOekr94ryfjg==}
-
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -2170,12 +2167,8 @@ packages:
   jszip@3.10.1:
     resolution: {integrity: sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==}
 
-  jwt-decode@4.0.0:
-    resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
-    engines: {node: '>=18'}
-
-  keycloak-js@25.0.6:
-    resolution: {integrity: sha512-Km+dc+XfNvY6a4az5jcxTK0zPk52ns9mAxLrHj7lF3V+riVYvQujfHmhayltJDjEpSOJ4C8a57LFNNKnNnRP2g==}
+  keycloak-js@26.2.4:
+    resolution: {integrity: sha512-PnXpR3ubETGOt0B/Qt2lxmPbkZr5bc3vlQsOqDoTPPQsZRp7JjhTKxlJ187uWh8qJhvBab6Gsjb06a8ayOPfuw==}
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
@@ -4571,8 +4564,6 @@ snapshots:
 
   jiti@2.6.1: {}
 
-  js-sha256@0.11.1: {}
-
   js-tokens@4.0.0: {}
 
   jsdom@25.0.1:
@@ -4614,12 +4605,7 @@ snapshots:
       readable-stream: 2.3.8
       setimmediate: 1.0.5
 
-  jwt-decode@4.0.0: {}
-
-  keycloak-js@25.0.6:
-    dependencies:
-      js-sha256: 0.11.1
-      jwt-decode: 4.0.0
+  keycloak-js@26.2.4: {}
 
   lie@3.3.0:
     dependencies:
