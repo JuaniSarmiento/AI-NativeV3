@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth import User, get_db, require_permission
@@ -12,6 +13,7 @@ from academic_service.schemas import (
     ListMeta,
     ListResponse,
     MateriaCreate,
+    MateriaInscripta,
     MateriaOut,
     MateriaUpdate,
 )
@@ -44,6 +46,85 @@ async def list_materias(
     items = [MateriaOut.model_validate(o) for o in objs]
     next_cursor = str(objs[-1].id) if len(objs) == limit else None
     return ListResponse(data=items, meta=ListMeta(cursor_next=next_cursor))
+
+
+@router.get("/mias", response_model=ListResponse[MateriaInscripta])
+async def list_mis_materias(
+    user: User = Depends(require_permission("materia", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ListResponse[MateriaInscripta]:
+    """Devuelve las materias en las que el estudiante autenticado está inscripto.
+
+    Una fila por inscripción activa (Inscripcion.estado='activa', no soft-deleted),
+    con datos planos de materia + comisión + período. La RLS de Postgres ya
+    filtra por tenant_id (set_config en `tenant_session`); este endpoint suma
+    el filtro adicional por `student_pseudonym = user.id`.
+
+    Diseño deliberado: el alumno NO elige comisión, elige materia. La comisión
+    es metadata derivada de su inscripción. Esto cierra el bug de
+    `/comisiones/mis` que joinea contra `usuarios_comision` (docentes/JTP) y
+    devuelve [] para estudiantes (gap B.2 documentado en CLAUDE.md).
+
+    Sin paginación: el alumno típico tiene <10 materias en un cuatrimestre.
+    """
+    sql = text(
+        """
+        SELECT
+            m.id            AS materia_id,
+            m.codigo        AS materia_codigo,
+            m.nombre        AS materia_nombre,
+            c.id            AS comision_id,
+            c.codigo        AS comision_codigo,
+            c.nombre        AS comision_nombre,
+            c.horario       AS comision_horario,
+            p.id            AS periodo_id,
+            p.codigo        AS periodo_codigo,
+            i.id            AS inscripcion_id,
+            i.fecha_inscripcion AS fecha_inscripcion
+        FROM inscripciones i
+        JOIN comisiones c ON c.id = i.comision_id
+        JOIN materias m ON m.id = c.materia_id
+        JOIN periodos p ON p.id = c.periodo_id
+        WHERE i.student_pseudonym = :student_id
+          AND i.estado IN ('activa', 'cursando')
+          AND i.deleted_at IS NULL
+          AND c.deleted_at IS NULL
+          AND m.deleted_at IS NULL
+          AND p.deleted_at IS NULL
+        ORDER BY p.codigo DESC, m.codigo ASC
+        """
+    )
+    result = await db.execute(sql, {"student_id": str(user.id)})
+    rows = result.mappings().all()
+
+    items: list[MateriaInscripta] = []
+    for row in rows:
+        # `comision_horario` es JSONB libre. Tomamos el primer string de los
+        # values como hint humano; si no hay nada, queda en None.
+        horario_resumen: str | None = None
+        horario = row["comision_horario"] or {}
+        if isinstance(horario, dict) and horario:
+            for v in horario.values():
+                if isinstance(v, str) and v.strip():
+                    horario_resumen = v.strip()
+                    break
+
+        items.append(
+            MateriaInscripta(
+                materia_id=row["materia_id"],
+                codigo=row["materia_codigo"],
+                nombre=row["materia_nombre"],
+                comision_id=row["comision_id"],
+                comision_codigo=row["comision_codigo"],
+                comision_nombre=row["comision_nombre"],
+                horario_resumen=horario_resumen,
+                periodo_id=row["periodo_id"],
+                periodo_codigo=row["periodo_codigo"],
+                inscripcion_id=row["inscripcion_id"],
+                fecha_inscripcion=row["fecha_inscripcion"],
+            )
+        )
+    return ListResponse(data=items, meta=ListMeta(total=len(items)))
 
 
 @router.get("/{materia_id}", response_model=MateriaOut)

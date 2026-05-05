@@ -1,15 +1,12 @@
 import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
+import { TanStackRouterVite } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-// NOTE: @tanstack/router-plugin (TanStackRouterVite) intentionally NOT wired —
-// routing en este frontend es useState-based; el plugin escaneaba src/routes/
-// inexistente y tiraba ENOENT al startup. Migración a TanStack Router
-// type-safe está prevista para F2-F3. Cuando llegue, re-importar
-// { TanStackRouterVite } from "@tanstack/router-plugin/vite" y agregar
-// TanStackRouterVite({ target: "react", autoCodeSplitting: true }) al inicio
-// del array `plugins` (debe ir ANTES de react()). Dep ya está en package.json.
+// File-based routing con TanStack Router (mismo pattern que web-teacher).
+// El plugin escanea `src/routes/` y genera `src/routeTree.gen.ts`
+// automaticamente al startup / build. MUST ir ANTES de react() segun docs.
 // `test` es config de Vitest, no de Vite. Vitest la lee del mismo archivo
 // pero la firma de `defineConfig` de vite (con exactOptionalPropertyTypes)
 // la rechaza. Para evitar acoplar el typecheck al paquete `vitest/config`
@@ -19,11 +16,16 @@ const vitestConfig = {
   test: {
     environment: "jsdom",
     globals: true,
+    setupFiles: ["./tests/setup.ts"],
   },
 } as const
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
+    react(),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

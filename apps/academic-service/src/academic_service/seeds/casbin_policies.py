@@ -152,6 +152,10 @@ POLICIES: list[tuple[str, str, str, str]] = [
     # ── Estudiante: lectura muy limitada ──────────────────────────────
     ("role:estudiante", "*", "universidad:*", "read"),
     ("role:estudiante", "*", "carrera:*", "read"),
+    # `materia:* read` requerido por GET /api/v1/materias/mias (filtra por
+    # student_pseudonym desde headers — el endpoint NO expone materias de
+    # otros alumnos). Diseño shape: el alumno elige materia, no comisión.
+    ("role:estudiante", "*", "materia:*", "read"),
     ("role:estudiante", "*", "comision:*", "read"),
     ("role:estudiante", "*", "inscripcion:*", "read"),
     ("role:estudiante", "*", "tarea_practica:*", "read"),

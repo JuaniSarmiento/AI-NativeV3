@@ -20,7 +20,11 @@ from academic_service.schemas.facultad import (
     FacultadOut,
     FacultadUpdate,
 )
-from academic_service.schemas.inscripcion import InscripcionCreate, InscripcionOut
+from academic_service.schemas.inscripcion import (
+    InscripcionCreate,
+    InscripcionOut,
+    MateriaInscripta,
+)
 from academic_service.schemas.materia import MateriaCreate, MateriaOut, MateriaUpdate
 from academic_service.schemas.plan import PlanCreate, PlanOut, PlanUpdate
 from academic_service.schemas.tarea_practica import (
@@ -51,6 +55,7 @@ __all__ = [
     "ListMeta",
     "ListResponse",
     "MateriaCreate",
+    "MateriaInscripta",
     "MateriaOut",
     "MateriaUpdate",
     "PeriodoCreate",

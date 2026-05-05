@@ -1,11 +1,22 @@
-import { DEMO_COMISION_ID } from "@platform/contracts"
-import { EmptyHero, HelpButton, MarkdownRenderer } from "@platform/ui"
-import { BookOpen } from "lucide-react"
+/**
+ * Vista del episodio activo (post-craft Fase 2).
+ *
+ * Este componente NO es ya la "page" raiz del web-student. Vive como vista
+ * embebida dentro de la ruta `/episodio/$id` (TanStack Router file-based).
+ * Recibe `episodeId` por prop (no por state) y un callback `onExit` que la
+ * ruta usa para volver a "/" cuando el alumno cierra o sale.
+ *
+ * El selector de comisión / selector de TP YA NO viven acá — el flujo nuevo
+ * es: home (/) -> /materia/:id (TareaSelector) -> /episodio/:id (esta vista).
+ *
+ * Hidratacion on-mount: pegamos a GET /api/v1/episodes/{id} para traer la TP,
+ * mensajes y codigo. Si el episodio cerro / no existe / es cross-tenant,
+ * limpiamos sessionStorage y llamamos onExit().
+ */
+import { HelpButton, MarkdownRenderer } from "@platform/ui"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CodeEditor } from "../components/CodeEditor"
-import { ComisionSelector } from "../components/ComisionSelector"
 import { ReflectionModal } from "../components/ReflectionModal"
-import { TareaSelector } from "../components/TareaSelector"
 import {
   type AvailableTarea,
   type Classification,
@@ -17,16 +28,10 @@ import {
   emitLecturaEnunciado,
   getEpisodeState,
   getTareaById,
-  openEpisode,
   sendMessage,
 } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
-/**
- * sessionStorage key for episode recovery (G4). Per-tab scoped, clears on
- * tab close. NO usar localStorage: queremos que cerrar la pestaña descarte
- * la sesión, pero refrescar (F5) la recupere.
- */
 const ACTIVE_EPISODE_KEY = "active-episode-id"
 
 interface Message {
@@ -35,18 +40,14 @@ interface Message {
   ts: number
 }
 
-/**
- * Re-export del constante compartido (F10). La definición canónica vive
- * en `packages/contracts/src/demo/constants.ts`. En F9 real, el listado
- * del selector se filtra por el claim `comisiones_activas` del JWT.
- */
-export { DEMO_COMISION_ID }
+export interface EpisodeViewProps {
+  episodeId: string
+  /** Disparado cuando el alumno cierra el episodio o el recovery falla. */
+  onExit: () => void
+}
 
-/** Página principal del estudiante: selector TP → editor + chat → panel N4. */
-export default function EpisodePage() {
-  const [selectedComisionId, setSelectedComisionId] = useState<string | null>(null)
-  const [selectedTarea, setSelectedTarea] = useState<AvailableTarea | null>(null)
-  const [episodeId, setEpisodeId] = useState<string | null>(null)
+export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
+  const [tarea, setTarea] = useState<AvailableTarea | null>(null)
   const [code, setCode] = useState<string>(
     "# Escribí tu código Python acá\n\ndef factorial(n):\n    pass\n",
   )
@@ -55,17 +56,8 @@ export default function EpisodePage() {
   const [streaming, setStreaming] = useState(false)
   const [classification, setClassification] = useState<Classification | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [opening, setOpening] = useState(false)
-  const [recovering, setRecovering] = useState<boolean>(() => {
-    // Si hay un episodio en sessionStorage, arrancamos en modo "recovering"
-    // para que no flashee el TareaSelector antes de hidratar.
-    if (typeof window === "undefined") return false
-    return Boolean(window.sessionStorage.getItem(ACTIVE_EPISODE_KEY))
-  })
-  // ADR-035: estado del modal de reflexion post-cierre. Se abre tras el
-  // closeEpisode exitoso y guardamos el episodeId que acabamos de cerrar
-  // para que la reflexion apunte al CTR correcto (el setEpisodeId(null)
-  // de handleClose limpia el state principal).
+  const [hydrating, setHydrating] = useState<boolean>(true)
+  const [closed, setClosed] = useState<boolean>(false)
   const [reflectionTargetId, setReflectionTargetId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -73,71 +65,52 @@ export default function EpisodePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
-  // ── G4: persistencia + recuperación del episodio activo ──────────────
-  // Mantenemos sessionStorage sincronizado con el episodio actual para
-  // sobrevivir a refresh (F5). Sólo persiste mientras la pestaña vive.
+  // Persistencia en sessionStorage del episodio activo (recovery via home).
   useEffect(() => {
     if (typeof window === "undefined") return
-    if (episodeId) {
-      window.sessionStorage.setItem(ACTIVE_EPISODE_KEY, episodeId)
-    } else {
+    if (closed) {
       window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
+    } else {
+      window.sessionStorage.setItem(ACTIVE_EPISODE_KEY, episodeId)
     }
-  }, [episodeId])
+  }, [episodeId, closed])
 
-  // ── G10-A (ADR-025): emitir EpisodioAbandonado en beforeunload ───────
-  // Si el estudiante cierra la pestaña o navega afuera con un episodio
-  // abierto, emitimos al CTR para distinguir cierre intencional de cierre
-  // por inactividad. Idempotente con el worker server-side de timeout —
-  // el backend ignora la segunda emision si ya hubo una. Usa sendBeacon
-  // por dentro porque fetch puede ser cancelado mid-flight en unload.
+  // ADR-025 G10-A: emitir EpisodioAbandonado en beforeunload.
   useEffect(() => {
     if (typeof window === "undefined") return
-    if (!episodeId) return
+    if (closed) return
     const handler = () => {
       void emitEpisodioAbandonado(episodeId, {
         reason: "beforeunload",
-        // Sin baseline confiable de "ultima actividad" en el cliente —
-        // el backend acepta 0 y queda como signal honesta.
         last_activity_seconds_ago: 0,
       })
     }
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [episodeId])
+  }, [episodeId, closed])
 
-  // Recuperación on-mount. Corre UNA vez antes del flujo normal para
-  // evitar parpadeo del TareaSelector. Si la TP fue despublicada o el
-  // episodio ya está cerrado, limpiamos sessionStorage y arrancamos
-  // fresco (closed = workflow completo, no tiene sentido restaurar).
+  // Hydration on-mount. El episodeId viene del path param, no del state.
   useEffect(() => {
-    if (typeof window === "undefined") return
-    const storedId = window.sessionStorage.getItem(ACTIVE_EPISODE_KEY)
-    if (!storedId) {
-      setRecovering(false)
-      return
-    }
     let cancelled = false
+    setHydrating(true)
+    setError(null)
     ;(async () => {
       try {
-        const state = await getEpisodeState(storedId)
+        const state = await getEpisodeState(episodeId)
         if (cancelled) return
         if (state.estado === "closed") {
           window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
+          onExit()
           return
         }
-        const tarea = await getTareaById(state.tarea_practica_id)
+        const t = await getTareaById(state.tarea_practica_id)
         if (cancelled) return
-        if (!tarea) {
+        if (!t) {
           window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
-          setError("La TP del episodio anterior ya no está disponible.")
+          setError("La TP del episodio anterior ya no esta disponible.")
           return
         }
-        // Hidratar estado. Sólo restauramos mensajes completos — un chunk
-        // streamado a medio camino se pierde (acceptable trade-off).
-        setSelectedComisionId(state.comision_id)
-        setSelectedTarea(tarea)
-        setEpisodeId(state.episode_id)
+        setTarea(t)
         if (state.last_code_snapshot) setCode(state.last_code_snapshot)
         setMessages(
           state.messages.map((m) => ({
@@ -150,82 +123,27 @@ export default function EpisodePage() {
         if (cancelled) return
         if (e instanceof EpisodeStateError && (e.status === 404 || e.status === 403)) {
           window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
+          onExit()
         } else {
-          console.warn("Episode recovery failed:", e)
-          window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
-          setError("No se pudo recuperar la sesión anterior.")
+          console.warn("Episode hydration failed:", e)
+          setError("No se pudo cargar el episodio.")
         }
       } finally {
-        if (!cancelled) setRecovering(false)
+        if (!cancelled) setHydrating(false)
       }
     })()
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  async function handleOpenEpisode(tarea: AvailableTarea) {
-    setError(null)
-    setClassification(null)
-    setOpening(true)
-    try {
-      const res = await openEpisode({
-        comision_id: selectedComisionId ?? DEMO_COMISION_ID,
-        problema_id: tarea.id,
-        // Hashes de configuración del piloto. En F9 real vienen del backend
-        // como parte del bootstrap de la comisión.
-        curso_config_hash: "c".repeat(64),
-        classifier_config_hash: "d".repeat(64),
-      })
-      setEpisodeId(res.episode_id)
-      setMessages([])
-    } catch (e) {
-      setError(`Error abriendo episodio: ${e}`)
-      // Si falla el open (TP vencida, no autorizada, etc.), volvemos al
-      // selector para que el estudiante pueda elegir otra.
-      setSelectedTarea(null)
-    } finally {
-      setOpening(false)
-    }
-  }
-
-  function handleSelectTarea(tarea: AvailableTarea) {
-    setSelectedTarea(tarea)
-    void handleOpenEpisode(tarea)
-  }
-
-  /**
-   * Vuelve al selector de TP. Si hay un episodio en curso lo cerramos
-   * con motivo `student_switched_tarea` para no dejar episodios abiertos
-   * colgando — el invariante CTR append-only se preserva: cerrar es un
-   * INSERT, no un DELETE.
-   */
-  async function handleChangeTarea() {
-    if (episodeId) {
-      try {
-        await closeEpisode(episodeId, "student_switched_tarea")
-      } catch (e) {
-        // No bloqueamos el cambio de TP por un error de cierre — el
-        // estudiante priorizó cambiar de problema.
-        console.warn("Error cerrando episodio al cambiar de TP:", e)
-      }
-    }
-    setEpisodeId(null)
-    setMessages([])
-    setClassification(null)
-    setSelectedTarea(null)
-    setError(null)
-  }
+  }, [episodeId, onExit])
 
   async function handleSend() {
-    if (!episodeId || !input.trim() || streaming) return
+    if (!input.trim() || streaming) return
     const userMessage = input.trim()
     setInput("")
     setMessages((m) => [...m, { role: "user", content: userMessage, ts: Date.now() }])
     setStreaming(true)
 
-    // Chunk buffer para ir renderizando
     const tutorMessage: Message = { role: "tutor", content: "", ts: Date.now() }
     setMessages((m) => [...m, tutorMessage])
 
@@ -239,7 +157,6 @@ export default function EpisodePage() {
           setError(`Tutor error: ${event.message}`)
           break
         } else if (event.type === "done") {
-          // opcional: mostrar chunks_used_hash en debug panel
           console.debug("chunks_used_hash:", event.chunks_used_hash)
         }
       }
@@ -251,7 +168,6 @@ export default function EpisodePage() {
   }
 
   async function handleClose() {
-    if (!episodeId) return
     setError(null)
     try {
       await closeEpisode(episodeId, "student_finished")
@@ -259,49 +175,99 @@ export default function EpisodePage() {
       setError(`Error cerrando: ${e}`)
       return
     }
-    // ADR-035: el cierre ya fue appendeado al CTR — disparamos el modal de
-    // reflexion DESPUES, asincrono y opcional. La clasificacion sigue su
-    // camino en paralelo (best-effort).
-    const closedEpisodeId = episodeId
-    setReflectionTargetId(closedEpisodeId)
+    setClosed(true)
+    setReflectionTargetId(episodeId)
     try {
-      const c = await classifyEpisode(closedEpisodeId)
+      const c = await classifyEpisode(episodeId)
       setClassification(c)
     } catch {
-      // Clasificación es best-effort — en dev el pipeline puede no estar
-      // disponible. El episodio ya se cerró correctamente.
+      // Best-effort.
     }
-    setEpisodeId(null)
-    setSelectedTarea(null)
     window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 flex flex-col">
-      <header className="border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold">Tutor — Programación 2</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-            {selectedTarea
-              ? `${selectedTarea.codigo} · ${selectedTarea.titulo}`
-              : "Elegí un trabajo práctico para empezar"}
-            {episodeId ? ` · Episodio ${episodeId.slice(0, 8)}...` : ""}
+  const elapsedSeconds = useElapsedSeconds(closed ? null : episodeId)
+
+  if (hydrating) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-center">
+          <div
+            className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full motion-safe:animate-spin mb-3"
+            style={{ borderColor: "var(--color-accent-brand)", borderTopColor: "transparent" }}
+          />
+          <p className="text-sm text-slate-600 dark:text-slate-400">Cargando episodio...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (classification) {
+    return (
+      <ClassificationPanel
+        classification={classification}
+        onReset={() => {
+          setClassification(null)
+          onExit()
+        }}
+      />
+    )
+  }
+
+  if (!tarea) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="max-w-md text-center">
+          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+            {error ?? "No pudimos cargar el episodio."}
           </p>
+          <button
+            type="button"
+            onClick={onExit}
+            className="mt-4 px-4 py-2 rounded text-sm font-medium text-white"
+            style={{ backgroundColor: "var(--color-accent-brand)" }}
+          >
+            Volver a mis materias
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <ComisionSelector value={selectedComisionId} onChange={setSelectedComisionId} />
-          {selectedTarea && (
-            <button
-              type="button"
-              onClick={handleChangeTarea}
-              className="shrink-0 px-3 py-1 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              Cambiar TP
-            </button>
-          )}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div
+        data-testid="episode-context-header"
+        className="border-b border-slate-200 dark:border-slate-800 px-6 py-2 bg-white dark:bg-slate-900 flex items-center gap-4 text-xs"
+      >
+        <span className="font-mono text-slate-600 dark:text-slate-400">
+          episodio {episodeId.slice(0, 6)}...{episodeId.slice(-4)}
+        </span>
+        <span className="text-slate-400">·</span>
+        <span className="text-slate-600 dark:text-slate-400">
+          abierto hace {formatElapsed(elapsedSeconds)}
+        </span>
+        <span className="text-slate-400">·</span>
+        <span className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: "var(--color-level-n1)" }}
+          />
+          <span className="text-slate-700 dark:text-slate-300">N1 lectura activa</span>
+        </span>
+        <div className="ml-auto flex items-center gap-2">
           <HelpButton title="Tutor Socratico" content={helpContent.episode} />
+          <button
+            type="button"
+            onClick={handleClose}
+            data-testid="close-episode-button"
+            className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            Cerrar episodio
+          </button>
         </div>
-      </header>
+      </div>
 
       {error && (
         <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-6 py-2 text-sm">
@@ -309,171 +275,167 @@ export default function EpisodePage() {
         </div>
       )}
 
-      {recovering ? (
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Recuperando sesión anterior...
-            </p>
-          </div>
-        </div>
-      ) : selectedComisionId === null ? (
-        <div className="flex-1 flex items-center justify-center">
-          <EmptyHero
-            icon={<BookOpen className="h-12 w-12" />}
-            title="Bienvenido al tutor"
-            description="Elegí tu comisión para ver los trabajos prácticos disponibles."
-            hint="Vas a poder cambiarla desde el menú de arriba."
+      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
+        <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <SectionKicker level="N1" label="Enunciado" colorVar="var(--color-level-n1)" />
+          <EnunciadoPanel tarea={tarea} episodeId={episodeId} />
+          <SectionKicker level="N3" label="Editor + tests" colorVar="var(--color-level-n3)" />
+          <CodeEditor
+            initialCode={code}
+            onCodeExecuted={(result) => {
+              setCode(result.code)
+              console.debug("code executed:", result)
+            }}
+            onEditDebounced={(snapshot, diffChars, origin) => {
+              void emitEdicionCodigo(episodeId, {
+                snapshot,
+                diff_chars: Math.abs(diffChars),
+                language: "python",
+                origin,
+              }).catch((e) => {
+                console.warn("emit edicion_codigo failed:", e)
+              })
+            }}
           />
-        </div>
-      ) : classification ? (
-        <ClassificationPanel
-          classification={classification}
-          onReset={() => {
-            setClassification(null)
-            setEpisodeId(null)
-            setSelectedTarea(null)
-          }}
-        />
-      ) : !selectedTarea ? (
-        <TareaSelector comisionId={selectedComisionId} onSelect={handleSelectTarea} />
-      ) : !episodeId ? (
-        <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
-          {opening ? "Abriendo episodio..." : "Preparando episodio..."}
-        </div>
-      ) : (
-        <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
-          {/* Editor de código con Monaco + Pyodide */}
-          {/* Deferred: ADR-026 / post-defensa — botón "Insertar código del tutor"
-              desde el chat al editor cambiaría la condición experimental del
-              piloto (introduciría copy-paste asistido). Mantener manual hasta
-              piloto-2. */}
-          <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <EnunciadoPanel tarea={selectedTarea} episodeId={episodeId} />
-            <CodeEditor
-              initialCode={code}
-              onCodeExecuted={(result) => {
-                setCode(result.code)
-                // TODO F6: emitir evento CTR codigo_ejecutado con result.output + result.error
-                console.debug("code executed:", result)
-              }}
-              onEditDebounced={(snapshot, diffChars, origin) => {
-                if (!episodeId) return
-                // F6: emitimos edicion_codigo con `origin` para que el
-                // clasificador distinga tipeo vs paste sin depender solo de
-                // inferencia temporal. Best-effort — un error no bloquea la
-                // UI ni invalida la sesión.
-                void emitEdicionCodigo(episodeId, {
-                  snapshot,
-                  diff_chars: Math.abs(diffChars),
-                  language: "python",
-                  origin,
-                }).catch((e) => {
-                  console.warn("emit edicion_codigo failed:", e)
-                })
-              }}
-            />
-            <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 flex gap-2">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="ml-auto px-3 py-1 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+        </section>
+
+        <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <SectionKicker level="N4" label="Tutor socratico" colorVar="var(--color-level-n4)" />
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 && (
+              <div
+                data-testid="chat-pedagogical-contract"
+                className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-prose"
               >
-                Cerrar episodio
-              </button>
-            </div>
-          </section>
-
-          {/* Chat con el tutor */}
-          <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="text-sm font-medium">Tutor socrático</h2>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.length === 0 && (
-                <p className="text-sm text-slate-500">
-                  Escribí tu consulta o describí el problema en el que estás trabajando.
+                <p className="font-medium mb-2">El tutor no te da la respuesta.</p>
+                <p className="mb-3 text-slate-600 dark:text-slate-400">
+                  Te hace preguntas para que llegues vos.
                 </p>
-              )}
-              {messages.map((m, i) => {
-                const isLastTutor =
-                  m.role === "tutor" && messages.findLastIndex((mm) => mm.role === "tutor") === i
-                return (
+                <p className="text-xs text-slate-500 dark:text-slate-500 border-l border-slate-300 dark:border-slate-700 pl-3">
+                  Empezas vos: contale en que estas pensando para resolver esta TP.
+                </p>
+              </div>
+            )}
+            {messages.map((m, i) => {
+              const isLastTutor =
+                m.role === "tutor" && messages.findLastIndex((mm) => mm.role === "tutor") === i
+              return (
+                <div
+                  key={`${m.ts}-${i}`}
+                  className={`max-w-[85%] ${m.role === "user" ? "ml-auto" : ""}`}
+                >
                   <div
-                    key={`${m.ts}-${i}`}
-                    className={`max-w-[85%] ${m.role === "user" ? "ml-auto" : ""}`}
+                    data-testid={isLastTutor ? "tutor-message-last" : undefined}
+                    className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                      m.role === "user" ? "text-white" : "bg-slate-100 dark:bg-slate-800"
+                    }`}
+                    style={
+                      m.role === "user"
+                        ? { backgroundColor: "var(--color-accent-brand)" }
+                        : undefined
+                    }
                   >
-                    <div
-                      data-testid={isLastTutor ? "tutor-message-last" : undefined}
-                      className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                        m.role === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 dark:bg-slate-800"
-                      }`}
-                    >
-                      {m.content || (m.role === "tutor" && streaming ? "..." : "")}
-                    </div>
+                    {m.content || (m.role === "tutor" && streaming ? "..." : "")}
                   </div>
-                )
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+                </div>
+              )
+            })}
+            <div ref={messagesEndRef} />
+          </div>
 
-            <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex gap-2">
-              <textarea
-                data-testid="tutor-input"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSend()
-                  }
-                }}
-                placeholder="Escribí tu consulta (Enter para enviar)..."
-                rows={2}
-                disabled={streaming}
-                className="flex-1 px-3 py-2 text-sm rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 resize-none focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={streaming || !input.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded text-sm font-medium"
-              >
-                {streaming ? "..." : "Enviar"}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+          <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex gap-2">
+            <textarea
+              data-testid="tutor-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              placeholder="Escribi tu mensaje (Enter para enviar)..."
+              rows={2}
+              disabled={streaming}
+              className="flex-1 px-3 py-2 text-sm rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 resize-none focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={streaming || !input.trim()}
+              className="px-4 py-2 disabled:bg-slate-400 text-white rounded text-sm font-medium"
+              style={{
+                backgroundColor:
+                  streaming || !input.trim() ? undefined : "var(--color-accent-brand)",
+              }}
+            >
+              {streaming ? "..." : "Enviar"}
+            </button>
+          </div>
+        </section>
+      </div>
+
       <ReflectionModal
         isOpen={reflectionTargetId !== null}
         episodeId={reflectionTargetId}
         onClose={() => setReflectionTargetId(null)}
       />
+    </>
+  )
+}
+
+function SectionKicker({
+  level,
+  label,
+  colorVar,
+}: {
+  level: "N1" | "N2" | "N3" | "N4"
+  label: string
+  colorVar: string
+}) {
+  return (
+    <div
+      data-testid={`section-kicker-${level.toLowerCase()}`}
+      className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2"
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block w-2 h-2 rounded-full"
+        style={{ backgroundColor: colorVar }}
+      />
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+        {level} {label}
+      </h2>
     </div>
   )
 }
 
-/**
- * Hook que mide tiempo de visibilidad de un elemento + tab focus, y
- * emite el delta acumulado al backend cada `flushMs` o al unmount.
- *
- * Es la señal observable canónica de N1 (Comprensión) — sin esto el
- * clasificador queda casi sin evidencia para esa coherencia.
- *
- * Reglas:
- *  - Sólo cuenta tiempo cuando el elemento está visible (IntersectionObserver
- *    >= 25% threshold) Y la pestaña está visible (document.visibilityState).
- *  - Flushea cada flushMs si hay >= 1s acumulado.
- *  - On unmount, flushea el remanente.
- *  - Si el episodio aún no abrió (episodeId == null), acumula igual y se
- *    flushea en el siguiente flush con episode válido (mejor evidencia
- *    cuando la TP demoró en abrir).
- */
+function useElapsedSeconds(episodeId: string | null): number {
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    if (!episodeId) {
+      setSeconds(0)
+      return
+    }
+    setSeconds(0)
+    const interval = window.setInterval(() => {
+      setSeconds((s) => s + 1)
+    }, 1000)
+    return () => window.clearInterval(interval)
+  }, [episodeId])
+  return seconds
+}
+
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}m ${s}s`
+}
+
+/** Hook que mide tiempo de visibilidad + tab focus y emite el delta al
+ * backend cada `flushMs` o al unmount. Señal observable canónica de N1. */
 function useReadingTimeReporter(episodeId: string | null, enabled: boolean, flushMs = 30_000) {
   const elementRef = useRef<HTMLDivElement | null>(null)
 
@@ -503,8 +465,6 @@ function useReadingTimeReporter(episodeId: string | null, enabled: boolean, flus
       try {
         await emitLecturaEnunciado(episodeId, { duration_seconds: seconds })
       } catch (e) {
-        // Re-acumulamos para no perder señal — el siguiente flush lo
-        // reintenta. No bloquea la UI.
         accumMs += seconds * 1000
         console.warn("emit lectura_enunciado failed:", e)
       }
@@ -545,14 +505,6 @@ function useReadingTimeReporter(episodeId: string | null, enabled: boolean, flus
   return elementRef
 }
 
-/**
- * Panel del enunciado de la TP, colapsable. Renderiza markdown con
- * `react-markdown` + `remark-gfm` para que listas, headings, código inline
- * y tablas se vean bien.
- *
- * F5: emite eventos `lectura_enunciado` al CTR mientras el panel está
- * visible (cada 30s acumulados o al cerrar el episodio/unmount).
- */
 function EnunciadoPanel({
   tarea,
   episodeId,
@@ -561,7 +513,6 @@ function EnunciadoPanel({
   episodeId: string | null
 }) {
   const [open, setOpen] = useState(true)
-  // Sólo cuenta tiempo cuando el panel está expandido y hay episodio activo.
   const enunciadoRef = useReadingTimeReporter(episodeId, open && episodeId !== null)
 
   return (
@@ -569,17 +520,17 @@ function EnunciadoPanel({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-2 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-slate-900"
+        className="w-full px-4 py-1.5 flex items-center justify-between text-left text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
       >
-        <span className="text-sm font-medium">
-          Enunciado · {tarea.codigo} (v{tarea.version})
+        <span>
+          {tarea.codigo} (v{tarea.version})
         </span>
-        <span className="text-xs text-slate-500">{open ? "Ocultar" : "Mostrar"}</span>
+        <span>{open ? "Ocultar" : "Mostrar"}</span>
       </button>
       {open && (
         <div
           ref={enunciadoRef}
-          className="px-4 py-3 max-h-48 overflow-y-auto text-slate-700 dark:text-slate-300"
+          className="px-4 py-3 max-h-48 overflow-y-auto text-sm text-slate-700 dark:text-slate-300"
         >
           <MarkdownRenderer content={tarea.enunciado} />
         </div>
@@ -668,7 +619,7 @@ function ClassificationPanel({
           onClick={onReset}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
         >
-          Nuevo episodio
+          Volver a mis materias
         </button>
       </div>
     </div>
@@ -694,8 +645,6 @@ function CoherenceCard({
       {secondary && (
         <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
           <p className="text-xs text-slate-500 mb-1">{secondary.label}</p>
-          {/* exactOptionalPropertyTypes: no pasamos la prop si el caller no la fijó,
-              para que tome el default de Meter (false) sin propagar `undefined`. */}
           {secondary.invertScale !== undefined ? (
             <Meter value={secondary.value} invertScale={secondary.invertScale} />
           ) : (
@@ -718,7 +667,6 @@ function Meter({
     return <div className="text-xs text-slate-400">sin datos</div>
   }
   const pct = Math.round(value * 100)
-  // color: alto=verde si no es escala invertida; si invertScale, alto=rojo
   const goodHigh = !invertScale
   const isGood = goodHigh ? pct > 60 : pct < 40
   const barColor = isGood ? "bg-green-500" : pct > 40 && pct < 70 ? "bg-yellow-500" : "bg-red-500"
@@ -734,3 +682,8 @@ function Meter({
     </div>
   )
 }
+
+// Default export para retro-compat con `App.tsx` viejo (queda como referencia
+// no utilizada cuando main.tsx usa RouterProvider). NO romper si alguien
+// importa `EpisodePage`.
+export default EpisodeView

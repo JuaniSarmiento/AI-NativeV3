@@ -45,3 +45,30 @@ class InscripcionOut(InscripcionBase):
     nota_final: Decimal | None = None
     fecha_cierre: date | None = None
     created_at: datetime
+
+
+class MateriaInscripta(BaseModel):
+    """Vista flatten de una materia en la que el estudiante está inscripto.
+
+    Combina datos de Inscripcion + Comision + Materia + Periodo en una sola
+    fila por inscripcion activa. Es el shape que necesita la home del
+    web-student: el alumno elige materia (no comision), y la comision queda
+    como metadata implícita.
+
+    El `horario_resumen` se deriva del JSONB `comisiones.horario` cuando
+    contiene un string descriptivo; si no, queda en None y la UI no lo muestra.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    materia_id: UUID
+    codigo: str  # codigo de la materia (ej. "PROG2")
+    nombre: str  # nombre de la materia (ej. "Programacion 2")
+    comision_id: UUID
+    comision_codigo: str  # codigo de la comision (ej. "A")
+    comision_nombre: str | None  # nombre legible de la comision (ej. "A-Manana")
+    horario_resumen: str | None  # resumen humano del horario, derivado de horario JSONB
+    periodo_id: UUID
+    periodo_codigo: str  # codigo del periodo (ej. "2026-S1")
+    inscripcion_id: UUID
+    fecha_inscripcion: date

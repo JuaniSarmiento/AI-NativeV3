@@ -80,6 +80,10 @@ MATRIX = [
     ("role:estudiante", "universidad:123", "read", True),
     ("role:estudiante", "universidad:123", "update", False),
     ("role:estudiante", "carrera:x", "delete", False),
+    # `materia:* read` agregado para que el alumno pueda llamar
+    # GET /api/v1/materias/mias (filtrado por su student_pseudonym desde
+    # headers — el endpoint NO expone materias de otros).
+    ("role:estudiante", "materia:m1", "read", True),
     ("role:estudiante", "materia:m1", "update", False),
     ("role:estudiante", "tarea_practica_template:tpl1", "read", True),
     ("role:estudiante", "tarea_practica_template:tpl1", "create", False),

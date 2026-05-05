@@ -439,6 +439,59 @@ export const tareasPracticasApi = {
   getById: getTareaById,
 }
 
+// ── Episodios historicos del estudiante (drill-down nav, ADR-022) ────
+
+/**
+ * Episodio cerrado del estudiante con classification asociada.
+ *
+ * El backend (analytics-service) joinea CTR + Classification + TareaPractica
+ * y devuelve el `template_id` para agrupar TPs analogas — necesario para
+ * la "trayectoria N4 historica" del TareaSelector.
+ */
+export interface StudentEpisode {
+  episode_id: string
+  problema_id: string
+  tarea_codigo: string | null
+  tarea_titulo: string | null
+  template_id: string | null
+  opened_at: string | null
+  closed_at: string | null
+  events_count: number
+  appropriation: "delegacion_pasiva" | "apropiacion_superficial" | "apropiacion_reflexiva" | null
+  classified_at: string | null
+}
+
+export interface StudentEpisodesResponse {
+  student_pseudonym: string
+  comision_id: string
+  n_episodes: number
+  episodes: StudentEpisode[]
+}
+
+/**
+ * Trae los episodios cerrados del estudiante en una comision. Usado por
+ * el TareaSelector para mostrar la trayectoria N4 historica en TPs
+ * analogas (mismo `template_id`).
+ *
+ * `studentPseudonym` = UUID del estudiante autenticado. En dev mode el
+ * proxy de Vite inyecta `x-user-id`; en prod viene del JWT.
+ */
+export async function listStudentEpisodes(
+  studentPseudonym: string,
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<StudentEpisodesResponse> {
+  const qs = new URLSearchParams({ comision_id: comisionId })
+  const r = await fetch(
+    `/api/v1/analytics/student/${studentPseudonym}/episodes?${qs.toString()}`,
+    {
+      headers: await authHeaders(getToken),
+    },
+  )
+  if (!r.ok) throw new Error(`list student episodes failed: ${r.status}`)
+  return (await r.json()) as StudentEpisodesResponse
+}
+
 // ── Comisiones ────────────────────────────────────────────────────────
 
 export interface Comision {
@@ -459,6 +512,15 @@ export interface Comision {
  * Devuelve las comisiones donde el estudiante tiene asignación activa.
  * Backend: `GET /api/v1/comisiones/mis`. Normalizamos `{data, meta}` →
  * `{items, next_cursor}` para alinearlo con el resto de los listados.
+ *
+ * NOTA: el endpoint `/comisiones/mis` joinea contra `usuarios_comision`
+ * (docentes/JTP), por lo que devuelve [] para estudiantes (gap B.2 documentado
+ * en CLAUDE.md). Para el flujo del web-student usar `listMisMaterias()`
+ * que lee de `inscripciones`. Esta función queda solo para casos legacy /
+ * forward-compat con el claim `comisiones_activas` del JWT cuando F9 cierre.
+ *
+ * El fallback previo a `/api/v1/comisiones` (sin /mis) era un BUG: devolvía
+ * TODAS las comisiones del tenant en vez de las del alumno. Eliminado.
  */
 export async function listMyComisiones(
   getToken?: TokenGetter,
@@ -471,20 +533,65 @@ export async function listMyComisiones(
     data: Comision[]
     meta: { cursor_next: string | null }
   }
-  if (body.data.length > 0) {
-    return { items: body.data, next_cursor: body.meta.cursor_next }
-  }
-  const fallback = await fetch("/api/v1/comisiones", {
-    headers: await authHeaders(getToken),
-  })
-  if (!fallback.ok) return { items: [], next_cursor: null }
-  const fb = (await fallback.json()) as {
-    data: Comision[]
-    meta: { cursor_next: string | null }
-  }
-  return { items: fb.data, next_cursor: fb.meta.cursor_next }
+  return { items: body.data, next_cursor: body.meta.cursor_next }
 }
 
 export const comisionesApi = {
   listMine: listMyComisiones,
+}
+
+// ── Materias del estudiante (shape principal del web-student) ─────────
+
+/**
+ * Vista flatten de una materia en la que el estudiante esta inscripto.
+ *
+ * Combina datos de Inscripcion + Comision + Materia + Periodo en una sola
+ * fila por inscripcion activa. Es el shape que usa la home: el alumno elige
+ * MATERIA (no comisión); la comisión queda como metadata implícita.
+ *
+ * Coincide bit-a-bit con `MateriaInscripta` del academic-service
+ * (`apps/academic-service/src/academic_service/schemas/inscripcion.py`).
+ */
+export interface MateriaInscripta {
+  materia_id: string
+  codigo: string
+  nombre: string
+  comision_id: string
+  comision_codigo: string
+  comision_nombre: string | null
+  horario_resumen: string | null
+  periodo_id: string
+  periodo_codigo: string
+  inscripcion_id: string
+  fecha_inscripcion: string // ISO 8601 (YYYY-MM-DD)
+}
+
+/**
+ * Lista las materias en las que el estudiante autenticado esta inscripto.
+ *
+ * Backend: `GET /api/v1/materias/mias` (academic-service). El filtro por
+ * `student_pseudonym` lo hace el endpoint usando el header `X-User-Id`
+ * inyectado por el api-gateway. Sin paginación (alumnos típicos tienen
+ * <10 materias por cuatrimestre).
+ *
+ * Devuelve `[]` honestamente si el alumno no tiene inscripciones activas
+ * (la home muestra mensaje literal del gap B.2 en ese caso). NO cae a un
+ * fallback que devuelva data ajena.
+ */
+export async function listMisMaterias(
+  getToken?: TokenGetter,
+): Promise<MateriaInscripta[]> {
+  const r = await fetch("/api/v1/materias/mias", {
+    headers: await authHeaders(getToken),
+  })
+  if (!r.ok) throw new Error(`list mis materias failed: ${r.status}`)
+  const body = (await r.json()) as {
+    data: MateriaInscripta[]
+    meta: { total?: number | null }
+  }
+  return body.data
+}
+
+export const materiasApi = {
+  listMine: listMisMaterias,
 }
