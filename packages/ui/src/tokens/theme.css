@@ -1,10 +1,43 @@
 /*
- * Design tokens consumidos por HelpButton / PageContainer / helpContent.tsx.
- * Importar desde cada frontend via `@import "@platform/ui/tokens/theme.css"`
- * en su index.css para exponer las CSS variables a nivel :root.
+ * Design tokens compartidos por los 3 frontends (web-student, web-teacher,
+ * web-admin). Importar desde cada index.css via
+ * `@import "@platform/ui/tokens/theme.css"` antes del @source / @theme.
+ *
+ * Decision tecnica (Tailwind v4):
+ *   El bloque @theme debe vivir en el CSS principal de cada app (es donde
+ *   Tailwind genera sus utilidades). Los tokens reusables se declaran en
+ *   :root como CSS custom properties standard. Los componentes consumen
+ *   los tokens via var(--name) en clases arbitrarias o style inline,
+ *   patron usado hoy en todos los frontends. No se necesita @theme aca:
+ *   las custom properties resuelven igual sin ese wrapper.
+ *
+ * Si necesitas un token nuevo cross-frontend, agregalo aca (NO en cada
+ * index.css por separado).
  */
 :root {
+  /* === Texto / superficies basicas (HelpButton, modals, helpContent) === */
   --text-inverse: #fafafa;
   --text-tertiary: #a1a1aa;
   --danger-text: #fecaca;
+
+  /* === Acento de marca committed (stack-blue del favicon UNSL ~ #185FA5) ===
+     CTAs primarios. Reemplaza el blue-600 default del shape alumno y va a
+     reemplazarlo en web-teacher / web-admin en la fase siguiente. */
+  --color-accent-brand: oklch(0.43 0.13 245);
+  --color-accent-brand-deep: oklch(0.36 0.13 245);
+  --color-accent-brand-soft: oklch(0.95 0.04 245);
+
+  /* === Modelo N4 - pedagogia ===
+     Single source of truth de la jerarquia N1-N4 + meta. Componentes que
+     antes hardcodeaban LEVEL_COLORS consumen var(--color-level-n*). */
+  --color-level-n1: oklch(0.74 0.18 145); /* comprension lectora */
+  --color-level-n2: oklch(0.65 0.18 245); /* elaboracion (anotacion) */
+  --color-level-n3: oklch(0.81 0.17 90); /* validacion (editor + tests) */
+  --color-level-n4: oklch(0.72 0.18 50); /* interaccion con tutor IA */
+  --color-level-meta: oklch(0.71 0.03 250); /* apertura, cierre, sistema */
+
+  /* === Apropiacion (resultado classifier, ADR-022) === */
+  --color-appropriation-reflexiva: oklch(0.65 0.18 145);
+  --color-appropriation-superficial: oklch(0.78 0.16 75);
+  --color-appropriation-delegacion: oklch(0.61 0.20 27);
 }

@@ -19,27 +19,9 @@
   --color-warning-soft: oklch(0.96 0.05 75);
   --color-danger-soft: oklch(0.95 0.05 27);
 
-  /* === Acento de marca committed (shape alumno, brief D3) ===
-     Reemplaza el blue-600 predeterminado en CTAs del web-student.
-     Stack-blue del favicon institucional UNSL (≈ #185FA5 en sRGB).
-     Otros frontends migran en shape posterior. */
-  --color-accent-brand: oklch(0.43 0.13 245);
-  --color-accent-brand-deep: oklch(0.36 0.13 245);
-  --color-accent-brand-soft: oklch(0.95 0.04 245);
-
-  /* === Modelo N4: pedagogia (shape alumno, brief D4) ===
-     Single source of truth de la jerarquia N1-N4 + meta. Los componentes
-     que hardcodean LEVEL_COLORS pasan a usar var(--color-level-n*). */
-  --color-level-n1: oklch(0.74 0.18 145); /* comprension lectora */
-  --color-level-n2: oklch(0.65 0.18 245); /* elaboracion (anotacion) */
-  --color-level-n3: oklch(0.81 0.17 90); /* validacion (editor + tests) */
-  --color-level-n4: oklch(0.72 0.18 50); /* interaccion con tutor IA */
-  --color-level-meta: oklch(0.71 0.03 250); /* apertura, cierre, sistema */
-
-  /* === Apropiacion (resultado classifier, ADR-022) === */
-  --color-appropriation-reflexiva: oklch(0.65 0.18 145);
-  --color-appropriation-superficial: oklch(0.78 0.16 75);
-  --color-appropriation-delegacion: oklch(0.61 0.20 27);
+  /* Tokens de marca + N4 + apropiacion viven en
+     packages/ui/src/tokens/theme.css (importado arriba). Quedan disponibles
+     como var(--color-accent-brand), var(--color-level-n*), etc. */
 }
 
 html {
