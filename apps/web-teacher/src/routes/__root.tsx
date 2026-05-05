@@ -1,13 +1,16 @@
 /**
- * Root layout del web-teacher (ADR-022).
+ * Root layout del web-teacher (ADR-022, shape docente 2026-05-04).
  *
- * - Sidebar con NAV_GROUPS (cada item es un <Link to=...>).
- * - <Outlet /> para renderizar la ruta hija.
- * - `selectedComisionId` vive en search params (?comisionId=X) para que sea
- *   shareable y persista en F5. ComisionSelector escribe en URL via setSearch.
- * - getToken centralizado: las rutas hijas lo reciben via context (no prop drilling).
+ * Layout vertical del chrome:
+ *   header global (Plataforma N4 · UNSL) + ComisionSelectorRouted + email
+ *   [sidebar | main scrollable]
+ *   AuditFooter compartido (mismo patron que web-student)
+ *
+ * El sidebar mantiene NAV_GROUPS con `selectedComisionId` en search params
+ * para que las URLs sean shareable. Las views consumen el comisionId via
+ * Route.useSearch().
  */
-import { type NavGroup, Sidebar } from "@platform/ui"
+import { AuditFooter, type NavGroup, Sidebar } from "@platform/ui"
 import { Outlet, createRootRouteWithContext, useNavigate } from "@tanstack/react-router"
 import {
   BarChart3,
@@ -16,6 +19,7 @@ import {
   FileBarChart,
   FileCode2,
   FolderOpen,
+  Home,
   Layers,
   ShieldAlert,
   TrendingUp,
@@ -24,11 +28,15 @@ import { useCallback } from "react"
 import { ComisionSelectorRouted } from "../components/ComisionSelectorRouted"
 
 export interface RouterContext {
-  /** Función de auth — placeholder hasta integración Keycloak (F8). */
+  /** Función de auth, placeholder hasta integración Keycloak (F8). */
   getToken: () => Promise<string | null>
 }
 
 const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Inicio",
+    items: [{ id: "/", label: "Mis comisiones", icon: Home }],
+  },
   {
     label: "Trabajo del docente",
     items: [
@@ -57,26 +65,50 @@ function RootLayout() {
   const navigate = useNavigate()
   const handleNavigate = useCallback(
     (id: string) => {
-      // `id` es un path (`/progression`, etc.). Navegamos preservando search params.
       navigate({ to: id as never })
     },
     [navigate],
   )
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
-      <Sidebar
-        navGroups={NAV_GROUPS}
-        headerLabel="Docente · N4"
-        collapsedHeaderLabel="N4"
-        storageKey="web-teacher-sidebar-collapsed"
-        activeItemId={window.location.pathname}
-        onNavigate={handleNavigate}
-        topSlot={<ComisionSelectorRouted />}
-      />
-      <main className="flex-1 overflow-x-hidden">
-        <Outlet />
-      </main>
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
+      {/* Header global slim. Identidad UNSL siempre visible (F11 brief). */}
+      <header
+        data-testid="teacher-global-header"
+        className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 h-12 flex items-center justify-between gap-4 shrink-0"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            aria-hidden="true"
+            className="inline-block w-1.5 h-4 rounded-sm"
+            style={{ backgroundColor: "var(--color-accent-brand)" }}
+          />
+          <h1 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+            Plataforma N4 <span className="text-slate-400 mx-1">·</span> UNSL
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <ComisionSelectorRouted />
+        </div>
+      </header>
+
+      {/* Cuerpo principal con sidebar persistente y outlet scrollable. */}
+      <div className="flex-1 flex min-h-0">
+        <Sidebar
+          navGroups={NAV_GROUPS}
+          headerLabel="Docente · N4"
+          collapsedHeaderLabel="N4"
+          storageKey="web-teacher-sidebar-collapsed"
+          activeItemId={window.location.pathname}
+          onNavigate={handleNavigate}
+        />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* Footer auditoria compartido (web-student replica). */}
+      <AuditFooter episodeId={null} classifierHash={null} />
     </div>
   )
 }

@@ -359,7 +359,7 @@ function MaterialRow({
         </span>
       </td>
       <td className="px-4 py-2 text-right tabular-nums text-slate-600">
-        {material.chunks_count ?? "—"}
+        {material.chunks_count ?? "..."}
       </td>
       <td className="px-4 py-2 text-xs text-slate-500" title={material.created_at}>
         {formatRelative(material.created_at)}

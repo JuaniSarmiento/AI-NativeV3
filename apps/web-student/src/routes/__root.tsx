@@ -13,9 +13,8 @@
  *     este activa, va a inyectar el id via search/path param y el footer va a
  *     pollear el verify (mejora pendiente; el render con null sigue siendo válido).
  */
-import { HelpButton } from "@platform/ui"
+import { AuditFooter, HelpButton } from "@platform/ui"
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router"
-import { AuditFooter } from "../components/AuditFooter"
 import { helpContent } from "../utils/helpContent"
 
 export interface RouterContext {

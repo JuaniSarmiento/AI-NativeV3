@@ -17,17 +17,20 @@ import { useComisionLabel } from "../components/ComisionSelector"
 import { type CohortProgression, type StudentTrajectory, getCohortProgression } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
-const LABEL_COLORS: Record<string, string> = {
-  delegacion_pasiva: "#dc2626", // red-600
-  apropiacion_superficial: "#f59e0b", // amber-500
-  apropiacion_reflexiva: "#16a34a", // green-600
+// Mapping de apropiacion -> CSS variable. Los SVG/style backgroundColor
+// inline necesitan strings, asi que devolvemos `var(--token)` directo
+// (browser lo resuelve, jsdom lo deja literal en computed style).
+const LABEL_COLOR_VAR: Record<string, string> = {
+  delegacion_pasiva: "var(--color-appropriation-delegacion)",
+  apropiacion_superficial: "var(--color-appropriation-superficial)",
+  apropiacion_reflexiva: "var(--color-appropriation-reflexiva)",
 }
 
-const PROGRESSION_COLORS: Record<string, string> = {
-  mejorando: "#16a34a",
-  estable: "#64748b",
-  empeorando: "#dc2626",
-  insuficiente: "#94a3b8",
+const PROGRESSION_COLOR_VAR: Record<string, string> = {
+  mejorando: "var(--color-success)",
+  estable: "var(--color-neutral)",
+  empeorando: "var(--color-danger)",
+  insuficiente: "var(--text-tertiary)",
 }
 
 interface Props {
@@ -73,7 +76,7 @@ export function ProgressionView({ comisionId, getToken }: Props) {
       helpContent={helpContent.progression}
     >
       <div className="space-y-6">
-        <SummaryCards data={data} />
+        <SummaryStrip data={data} />
         <NetProgressionBar ratio={data.net_progression_ratio} />
         <TrajectoriesSection trajectories={data.trajectories} comisionId={comisionId} />
       </div>
@@ -81,21 +84,51 @@ export function ProgressionView({ comisionId, getToken }: Props) {
   )
 }
 
-function SummaryCards({ data }: { data: CohortProgression }) {
-  const items = [
-    { label: "Mejorando", value: data.mejorando, color: "bg-green-100 text-green-900" },
-    { label: "Estable", value: data.estable, color: "bg-slate-100 text-slate-900" },
-    { label: "Empeorando", value: data.empeorando, color: "bg-red-100 text-red-900" },
-    { label: "Datos insuficientes", value: data.insuficiente, color: "bg-slate-50 text-slate-600" },
+// Strip horizontal denso, NO 4-card grid (resuelve hero-metric ban). Los
+// 4 estados van inline con dot coloreado + numero + label (Linear-grade
+// densidad). Cumple DESIGN.md don't #3.
+function SummaryStrip({ data }: { data: CohortProgression }) {
+  const items: { label: string; value: number; dot: string }[] = [
+    {
+      label: "mejorando",
+      value: data.mejorando,
+      dot: "var(--color-success)",
+    },
+    {
+      label: "estable",
+      value: data.estable,
+      dot: "var(--color-neutral)",
+    },
+    {
+      label: "empeorando",
+      value: data.empeorando,
+      dot: "var(--color-danger)",
+    },
+    {
+      label: "datos insuf.",
+      value: data.insuficiente,
+      dot: "var(--text-tertiary)",
+    },
   ]
   return (
-    <div className="grid grid-cols-4 gap-4">
-      {items.map((item) => (
-        <div key={item.label} className={`rounded-lg p-4 ${item.color}`}>
-          <div className="text-3xl font-semibold">{item.value}</div>
-          <div className="text-sm mt-1">{item.label}</div>
-        </div>
-      ))}
+    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+      <p className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-2">Resumen</p>
+      <ul
+        className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm text-slate-700"
+        data-testid="progression-summary-strip"
+      >
+        {items.map((it) => (
+          <li key={it.label} className="inline-flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: it.dot }}
+            />
+            <strong className="font-semibold">{it.value}</strong>
+            <span className="text-slate-600">{it.label}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -170,7 +203,7 @@ function TrajectoryRow({
   trajectory: StudentTrajectory
   comisionId: string
 }) {
-  const color = PROGRESSION_COLORS[trajectory.progression_label]
+  const color = PROGRESSION_COLOR_VAR[trajectory.progression_label] ?? "var(--color-neutral)"
   // ADR-022: drill-down navegacional. Click en la fila navega a la vista
   // longitudinal pre-poblada con student + comisión.
   return (
@@ -216,7 +249,7 @@ function TrajectoryTimeline({
         <div
           key={p.episode_id}
           className="flex-1 h-8 rounded transition-transform hover:scale-105 cursor-pointer"
-          style={{ backgroundColor: LABEL_COLORS[p.appropriation] ?? "#94a3b8" }}
+          style={{ backgroundColor: LABEL_COLOR_VAR[p.appropriation] ?? "var(--color-level-meta)" }}
           title={`${new Date(p.classified_at).toLocaleDateString()} · ${p.appropriation}`}
         >
           <span className="sr-only">{p.appropriation}</span>

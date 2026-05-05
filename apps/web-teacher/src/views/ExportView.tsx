@@ -168,7 +168,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                         (ej. UNSL_2026_P2).
                       </li>
                       <li>
-                        <strong>Incluir prompts:</strong> Activa con precaucion — riesgo de
+                        <strong>Incluir prompts:</strong> Activa con precaucion: riesgo de
                         re-identificacion.
                       </li>
                     </ul>
@@ -214,7 +214,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                 </p>
               )}
               <p className="text-xs text-slate-500 mt-1">
-                Guardalo en un lugar seguro — sin el salt no podés correlacionar datasets
+                Guardalo en un lugar seguro: sin el salt no podés correlacionar datasets
                 posteriores con éste.
               </p>
             </div>

@@ -199,7 +199,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
           onChange={handleUniversidad}
           disabled={false}
           placeholder="Selecciona universidad"
-          renderOption={(u: Universidad) => `${u.codigo} — ${u.nombre}`}
+          renderOption={(u: Universidad) => `${u.codigo} · ${u.nombre}`}
         />
         <CascadeSelect
           label="Facultad"
@@ -208,7 +208,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
           onChange={handleFacultad}
           disabled={!universidadId}
           placeholder={universidadId ? "Selecciona facultad" : "Elegi universidad primero"}
-          renderOption={(f: Facultad) => `${f.codigo} — ${f.nombre}`}
+          renderOption={(f: Facultad) => `${f.codigo} · ${f.nombre}`}
         />
         <CascadeSelect
           label="Carrera"
@@ -217,7 +217,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
           onChange={handleCarrera}
           disabled={!facultadId}
           placeholder={facultadId ? "Selecciona carrera" : "Elegi facultad primero"}
-          renderOption={(c: Carrera) => `${c.codigo} — ${c.nombre}`}
+          renderOption={(c: Carrera) => `${c.codigo} · ${c.nombre}`}
         />
         <CascadeSelect
           label="Plan"
@@ -235,7 +235,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
           onChange={setMateriaId}
           disabled={!planId}
           placeholder={planId ? "Selecciona materia" : "Elegi plan primero"}
-          renderOption={(m: Materia) => `${m.codigo} — ${m.nombre}`}
+          renderOption={(m: Materia) => `${m.codigo} · ${m.nombre}`}
         />
         <CascadeSelect
           label="Periodo"
@@ -244,7 +244,7 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
           onChange={setPeriodoId}
           disabled={false}
           placeholder="Selecciona periodo"
-          renderOption={(p: Periodo) => `${p.codigo} — ${p.nombre}`}
+          renderOption={(p: Periodo) => `${p.codigo} · ${p.nombre}`}
         />
       </div>
     </div>

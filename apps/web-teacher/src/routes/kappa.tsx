@@ -12,7 +12,7 @@ const DEMO_EPISODES = [
     episode_id: "ep_demo_2",
     classifier_label: "delegacion_pasiva" as const,
     summary:
-      '"Dame la solución del ejercicio 3 del TP" — tres prompts consecutivos pidiendo código directo, copia-pega sin preguntar.',
+      '"Dame la solución del ejercicio 3 del TP" (tres prompts consecutivos pidiendo código directo, copia-pega sin preguntar).',
   },
   {
     episode_id: "ep_demo_3",

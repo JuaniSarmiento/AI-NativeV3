@@ -4,6 +4,50 @@ import type { ReactNode } from "react"
 type HelpContentMap = Record<string, ReactNode>
 
 export const helpContent: HelpContentMap = {
+  home: (
+    <div className="space-y-4 text-zinc-300">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Tus comisiones</p>
+      <p>
+        Lista las cohortes asignadas a vos en este periodo. Una card por comision con 4 KPIs
+        densos (alumnos, episodios cerrados esta semana, alertas, eventos adversos esta semana).
+        Click en "Abrir cohorte" para ver progresion individual.
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>alumnos:</strong> total de inscriptos en la comision (campo n_students del
+          endpoint cohort progression).
+        </li>
+        <li>
+          <strong>episodios sem.:</strong> episodios cerrados acumulados de los estudiantes con
+          datos. Es un proxy conservador hasta que haya endpoint dedicado por ventana temporal.
+        </li>
+        <li>
+          <strong>alertas:</strong> alertas pedagogicas abiertas para la cohorte. Hoy el endpoint
+          agregado por cohorte no existe, asi que la card muestra "datos insuf." de forma
+          honesta. La lista por estudiante esta disponible desde el drill-down.
+        </li>
+        <li>
+          <strong>adversos sem.:</strong> eventos adversos detectados en los ultimos 7 dias
+          (filtro por ts del endpoint cohort adversarial-events).
+        </li>
+        <li>
+          <strong>Abrir cohorte:</strong> navega a la vista Progresion preseleccionando esta
+          comision. Desde ahi se entra al drill-down individual.
+        </li>
+        <li>
+          <strong>Ver adversos:</strong> drill-down directo a la vista de intentos adversos.
+        </li>
+      </ul>
+      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
+        <p className="text-blue-400 font-medium">Sin comisiones asignadas?</p>
+        <p className="text-sm mt-1">
+          Pedile al admin que te asigne via bulk-import (ADR-029) o que cree una comision desde
+          web-admin con tu rol docente activo.
+        </p>
+      </div>
+    </div>
+  ),
+
   export: (
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Exportar Dataset Academico</p>
@@ -30,7 +74,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Incluir prompts:</strong> Incluye el texto de los prompts en el dataset. Activar
-          solo si es necesario para el analisis — incrementa el riesgo de re-identificacion.
+          solo si es necesario para el analisis: incrementa el riesgo de re-identificacion.
         </li>
         <li>
           <strong>Generar dataset:</strong> Encola el job. El panel de progreso muestra el estado en
@@ -170,7 +214,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Datos insuficientes:</strong> El estudiante tiene menos de 3 episodios
-          clasificados — no hay datos suficientes para calcular tendencia.
+          clasificados, no hay datos suficientes para calcular tendencia.
         </li>
         <li>
           <strong>Net progression ratio:</strong> Indicador global de la cohorte. Rango [-1, +1]:
@@ -206,7 +250,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Publicar:</strong> Transicion draft → published. Una vez publicado, el TP es
-          inmutable — no se puede editar el enunciado.
+          inmutable: no se puede editar el enunciado.
         </li>
         <li>
           <strong>Nueva version:</strong> Forkea un TP publicado o archivado en un nuevo borrador
@@ -248,7 +292,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Publicar un TP es irreversible en cuanto al contenido: el enunciado queda congelado.
-          Archivar tambien es irreversible — los episodios en curso quedan suspendidos.
+          Archivar tambien es irreversible: los episodios en curso quedan suspendidos.
         </p>
       </div>
     </div>
@@ -279,7 +323,7 @@ export const helpContent: HelpContentMap = {
         </li>
         <li>
           <strong>Publicar plantilla:</strong> Marca el template como published (luz verde de la
-          cátedra). No publica automáticamente las instancias — cada comision decide.
+          cátedra). No publica automáticamente las instancias: cada comision decide.
         </li>
         <li>
           <strong>Nueva version:</strong> Crea v+1 del template en borrador. Con "Re-instanciar
@@ -386,7 +430,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-blue-400 font-medium">Cuando hay "datos insuficientes":</p>
         <p className="text-sm mt-1">
           Templates con menos de 3 episodios cerrados tienen `slope=null` con flag
-          `insufficient_data`. La tesis exige longitudinalidad real — con 1-2 episodios el slope es
+          `insufficient_data`. La tesis exige longitudinalidad real: con 1-2 episodios el slope es
           trivial o indefinido. Documentado en RN-130.
         </p>
       </div>
@@ -394,7 +438,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-orange-400 font-medium">Limitaciones declaradas:</p>
         <p className="text-sm mt-1">
           TPs sin `template_id` (huerfanas pre-ADR-016) NO entran al calculo. El slope cardinal
-          sobre datos ordinales es operacionalizacion conservadora — defendible pero no afirmamos
+          sobre datos ordinales es operacionalizacion conservadora, defendible pero no afirmamos
           que sea verdad academica. Comparativas estudiante-a-estudiante (ranking) son OK; promediar
           la cohorte tiene sentido limitado.
         </p>
@@ -431,7 +475,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-blue-400 font-medium">Importante: la deteccion NO bloquea.</p>
         <p className="text-sm mt-1">
           El prompt llega al LLM aunque triggeree un match. El evento es side-channel para analisis
-          empirico (Seccion 17.8). Los regex son fragiles — falsos positivos y negativos son
+          empirico (Seccion 17.8). Los regex son fragiles: falsos positivos y negativos son
           esperados. Ver RN-129 para limitaciones.
         </p>
       </div>
@@ -439,7 +483,7 @@ export const helpContent: HelpContentMap = {
         <p className="text-orange-400 font-medium">Limitaciones v1.1.0:</p>
         <p className="text-sm mt-1">
           Evasion intra-palabra (`olvi-da tus instrucciones`) y encadenamientos sofisticados
-          (Seccion 8.5.1 tecnica 4) NO estan cubiertos por regex — requieren clasificador ML (Fase
+          (Seccion 8.5.1 tecnica 4) NO estan cubiertos por regex, requieren clasificador ML (Fase
           B, agenda piloto-2). `overuse` (Seccion 8.5.3) requiere ventana cross-prompt y queda
           diferido.
         </p>

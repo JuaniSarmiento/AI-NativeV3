@@ -1,16 +1,20 @@
 /**
  * Vista de eventos adversos por cohorte (ADR-019, RN-129).
  *
- * Cumple Sección 8.5 + 17.8 de la tesis: visibilidad pedagógica para el
- * docente sobre intentos de jailbreak / persuasión / prompt injection
- * detectados en los prompts de los estudiantes de su comisión.
+ * Cumple Seccion 8.5 + 17.8 de la tesis: visibilidad pedagogica para el
+ * docente sobre intentos de jailbreak / persuasion / prompt injection
+ * detectados en los prompts de los estudiantes de su comision.
  *
- * Visualización: cards de totales + barras de categorías + barras de severidad
- * + ranking de estudiantes + lista de eventos recientes con matched_text.
+ * Drill-down (D7 brief): top estudiantes -> /student-longitudinal,
+ * eventos recientes -> /episode-n-level. Conecta intento adverso con
+ * perfil cognitivo + episodio especifico sin endpoint nuevo.
+ *
+ * Tokens: CATEGORY_COLORS y SEVERITY_COLORS migrados a tokens compartidos
+ * (var(--color-adversarial-*) y var(--color-severity-*)). Resuelve F4.
  */
 import { Badge, PageContainer, StateMessage } from "@platform/ui"
-import { useEffect, useState } from "react"
-import { ComisionSelector } from "../components/ComisionSelector"
+import { Link } from "@tanstack/react-router"
+import { useEffect, useMemo, useState } from "react"
 import {
   type AdversarialRecentEvent,
   type CohortAdversarialEvents,
@@ -20,7 +24,7 @@ import { helpContent } from "../utils/helpContent"
 
 interface Props {
   getToken: () => Promise<string | null>
-  /** Si viene, se selecciona automáticamente al montar (drill-down). */
+  /** Si viene, se selecciona automaticamente al montar (drill-down). */
   initialComisionId?: string
 }
 
@@ -32,23 +36,48 @@ const CATEGORY_LABELS: Record<string, string> = {
   prompt_injection: "Prompt injection",
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  jailbreak_indirect: "#a855f7", // purple-500
-  jailbreak_substitution: "#dc2626", // red-600
-  jailbreak_fiction: "#06b6d4", // cyan-500
-  persuasion_urgency: "#f59e0b", // amber-500
-  prompt_injection: "#7f1d1d", // red-900 (más severo)
+const CATEGORY_TOKEN_VAR: Record<string, string> = {
+  jailbreak_indirect: "--color-adversarial-jailbreak-indirect",
+  jailbreak_substitution: "--color-adversarial-jailbreak-substitution",
+  jailbreak_fiction: "--color-adversarial-jailbreak-fiction",
+  persuasion_urgency: "--color-adversarial-persuasion-urgency",
+  prompt_injection: "--color-adversarial-prompt-injection",
 }
 
-const SEVERITY_COLORS: Record<string, string> = {
-  "1": "#94a3b8", // slate-400
-  "2": "#fbbf24", // amber-400
-  "3": "#fb923c", // orange-400
-  "4": "#ef4444", // red-500
-  "5": "#7f1d1d", // red-900
+const SEVERITY_TOKEN_VAR: Record<string, string> = {
+  "1": "--color-severity-1",
+  "2": "--color-severity-2",
+  "3": "--color-severity-3",
+  "4": "--color-severity-4",
+  "5": "--color-severity-5",
 }
 
-function CategoryBars({ counts }: { counts: Record<string, number> }) {
+const CATEGORY_FALLBACK: Record<string, string> = {
+  jailbreak_indirect: "#a855f7",
+  jailbreak_substitution: "#dc2626",
+  jailbreak_fiction: "#06b6d4",
+  persuasion_urgency: "#f59e0b",
+  prompt_injection: "#7f1d1d",
+}
+
+const SEVERITY_FALLBACK: Record<string, string> = {
+  "1": "#94a3b8",
+  "2": "#fbbf24",
+  "3": "#fb923c",
+  "4": "#ef4444",
+  "5": "#7f1d1d",
+}
+
+function resolveCssVar(varName: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback
+  const v = window.getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  return v || fallback
+}
+
+function CategoryBars({
+  counts,
+  colors,
+}: { counts: Record<string, number>; colors: Record<string, string> }) {
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
   if (entries.length === 0) {
     return (
@@ -72,7 +101,7 @@ function CategoryBars({ counts }: { counts: Record<string, number> }) {
                 className="h-full flex items-center justify-end px-2 text-xs font-medium text-white"
                 style={{
                   width: `${ratio * 100}%`,
-                  backgroundColor: CATEGORY_COLORS[cat] ?? "#64748b",
+                  backgroundColor: colors[cat] ?? "#64748b",
                 }}
               >
                 {ratio > 0.15 ? count : ""}
@@ -88,7 +117,10 @@ function CategoryBars({ counts }: { counts: Record<string, number> }) {
   )
 }
 
-function SeverityBars({ counts }: { counts: Record<string, number> }) {
+function SeverityBars({
+  counts,
+  colors,
+}: { counts: Record<string, number>; colors: Record<string, string> }) {
   const max = Math.max(...Object.values(counts), 1)
   return (
     <div className="grid grid-cols-5 gap-2">
@@ -103,7 +135,7 @@ function SeverityBars({ counts }: { counts: Record<string, number> }) {
                 className="w-full transition-all"
                 style={{
                   height: `${ratio * 100}%`,
-                  backgroundColor: SEVERITY_COLORS[sev],
+                  backgroundColor: colors[sev],
                 }}
               />
             </div>
@@ -115,16 +147,24 @@ function SeverityBars({ counts }: { counts: Record<string, number> }) {
   )
 }
 
-function RecentEventRow({ event }: { event: AdversarialRecentEvent }) {
+function RecentEventRow({
+  event,
+  catColors,
+  sevColors,
+}: {
+  event: AdversarialRecentEvent
+  catColors: Record<string, string>
+  sevColors: Record<string, string>
+}) {
   return (
-    <tr className="border-b border-slate-100 last:border-0">
+    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
       <td className="py-2 pr-3 align-top text-xs text-slate-500 whitespace-nowrap">
         {event.ts.slice(0, 19).replace("T", " ")}
       </td>
       <td className="py-2 pr-3 align-top">
         <span
           className="inline-block rounded px-2 py-0.5 text-xs font-medium text-white"
-          style={{ backgroundColor: CATEGORY_COLORS[event.category] ?? "#64748b" }}
+          style={{ backgroundColor: catColors[event.category] ?? "#64748b" }}
         >
           {CATEGORY_LABELS[event.category] ?? event.category}
         </span>
@@ -132,7 +172,7 @@ function RecentEventRow({ event }: { event: AdversarialRecentEvent }) {
       <td className="py-2 pr-3 align-top">
         <span
           className="inline-block rounded px-2 py-0.5 text-xs font-bold text-white"
-          style={{ backgroundColor: SEVERITY_COLORS[String(event.severity)] }}
+          style={{ backgroundColor: sevColors[String(event.severity)] }}
         >
           {event.severity}
         </span>
@@ -145,15 +185,48 @@ function RecentEventRow({ event }: { event: AdversarialRecentEvent }) {
           {event.matched_text}
         </code>
       </td>
+      <td className="py-2 pl-3 align-top text-right whitespace-nowrap">
+        <Link
+          to="/episode-n-level"
+          search={{ episodeId: event.episode_id }}
+          className="text-xs text-[var(--color-accent-brand)] hover:underline"
+        >
+          ver episodio →
+        </Link>
+      </td>
     </tr>
   )
 }
 
 export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
-  const [comisionId, setComisionId] = useState<string | null>(initialComisionId ?? null)
+  const comisionId = initialComisionId ?? null
   const [data, setData] = useState<CohortAdversarialEvents | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Resolvemos los colores via tokens compartidos. CSS vars se aplicarian
+  // automaticamente con var(...) inline, pero los SVG/style backgroundColor
+  // necesitan strings concretos -> caemos a hex fallback en jsdom.
+  const catColors = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(CATEGORY_TOKEN_VAR).map(([k, v]) => [
+          k,
+          resolveCssVar(v, CATEGORY_FALLBACK[k] ?? "#64748b"),
+        ]),
+      ),
+    [],
+  )
+  const sevColors = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(SEVERITY_TOKEN_VAR).map(([k, v]) => [
+          k,
+          resolveCssVar(v, SEVERITY_FALLBACK[k] ?? "#64748b"),
+        ]),
+      ),
+    [],
+  )
 
   useEffect(() => {
     if (!comisionId) {
@@ -181,14 +254,27 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
   return (
     <PageContainer
       title="Intentos adversos detectados"
-      description="Visibilidad pedagógica de los matches del corpus de guardrails (ADR-019, Sección 8.5 de la tesis). Detección preprocesamiento del prompt — el flujo NO se bloquea."
+      description="Visibilidad pedagógica de los matches del corpus de guardrails (ADR-019, Sección 8.5 de la tesis). Detección preprocesamiento del prompt, el flujo NO se bloquea."
       helpContent={helpContent.cohortAdversarial}
     >
       <div className="space-y-6">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="text-sm font-medium text-slate-700 mb-2">Comisión a inspeccionar</div>
-          <ComisionSelector value={comisionId} onChange={setComisionId} />
-        </div>
+        {comisionId && (
+          <div className="text-xs">
+            <Link
+              to="/progression"
+              search={{ comisionId }}
+              className="text-slate-500 hover:text-slate-700"
+            >
+              ← Volver a la cohorte
+            </Link>
+          </div>
+        )}
+
+        {!comisionId && !loading && (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+            Eligi una comisión desde la barra lateral para ver los intentos adversos detectados.
+          </div>
+        )}
 
         {loading && <StateMessage variant="loading" title="Cargando eventos adversos..." />}
 
@@ -202,64 +288,76 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
 
         {data && !loading && (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-xs uppercase tracking-wider text-slate-500">
-                  Eventos totales
-                </div>
-                <div className="mt-1 text-3xl font-semibold text-slate-900">
-                  {data.n_events_total}
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-xs uppercase tracking-wider text-slate-500">
-                  Categorías observadas
-                </div>
-                <div className="mt-1 text-3xl font-semibold text-slate-900">
-                  {Object.keys(data.counts_by_category).length}
-                </div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-xs uppercase tracking-wider text-slate-500">
-                  Estudiantes con matches
-                </div>
-                <div className="mt-1 text-3xl font-semibold text-slate-900">
-                  {Object.keys(data.counts_by_student).length}
-                </div>
-              </div>
+            {/* Resumen denso (no 3 KPI cards). Resuelve F5. */}
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <p className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                Resumen
+              </p>
+              <p>
+                <strong>{data.n_events_total}</strong> eventos totales
+                <span className="text-slate-400 mx-2">·</span>
+                <strong>{Object.keys(data.counts_by_category).length}</strong> categorias
+                observadas
+                <span className="text-slate-400 mx-2">·</span>
+                <strong>{Object.keys(data.counts_by_student).length}</strong> estudiantes con
+                matches
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-sm font-medium text-slate-700 mb-3">Por categoría</div>
-                <CategoryBars counts={data.counts_by_category} />
+            {/* Categorias + severidades unificados (1 card en vez de 2). Resuelve F5. */}
+            <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-5">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
+                  Por categoria
+                </div>
+                <CategoryBars counts={data.counts_by_category} colors={catColors} />
               </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-sm font-medium text-slate-700 mb-3">
+              <div className="border-t border-slate-100 pt-4">
+                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
                   Por severidad (1-5, ordinal)
                 </div>
-                <SeverityBars counts={data.counts_by_severity} />
+                <SeverityBars counts={data.counts_by_severity} colors={sevColors} />
               </div>
             </div>
 
             {data.top_students_by_n_events.length > 0 && (
               <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-sm font-medium text-slate-700 mb-3">
-                  Top estudiantes (más eventos)
+                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
+                  Top estudiantes por número de eventos
                 </div>
-                <div className="space-y-2">
+                <ul className="divide-y divide-slate-100">
                   {data.top_students_by_n_events.map((s) => (
-                    <div
-                      key={s.student_pseudonym}
-                      className="flex items-center justify-between rounded border border-slate-100 px-3 py-2"
-                    >
-                      <span className="font-mono text-xs text-slate-700">
-                        {s.student_pseudonym.slice(0, 8)}...{s.student_pseudonym.slice(-4)}
-                      </span>
-                      <Badge className="bg-slate-700 text-white">{s.n_events} ev.</Badge>
-                    </div>
+                    <li key={s.student_pseudonym}>
+                      {comisionId ? (
+                        <Link
+                          to="/student-longitudinal"
+                          search={{ comisionId, studentId: s.student_pseudonym }}
+                          className="flex items-center justify-between px-2 py-2 hover:bg-slate-50"
+                          data-testid="adversarial-top-student-link"
+                        >
+                          <span className="font-mono text-xs text-slate-700">
+                            {s.student_pseudonym.slice(0, 8)}...
+                            {s.student_pseudonym.slice(-4)}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <Badge className="bg-slate-700 text-white">{s.n_events} ev.</Badge>
+                            <span aria-hidden="true" className="text-slate-300">
+                              ›
+                            </span>
+                          </span>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center justify-between px-2 py-2">
+                          <span className="font-mono text-xs text-slate-700">
+                            {s.student_pseudonym.slice(0, 8)}...
+                            {s.student_pseudonym.slice(-4)}
+                          </span>
+                          <Badge className="bg-slate-700 text-white">{s.n_events} ev.</Badge>
+                        </div>
+                      )}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
 
@@ -277,11 +375,17 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
                         <th className="px-3 py-2 font-medium">Sev.</th>
                         <th className="px-3 py-2 font-medium">Estudiante</th>
                         <th className="px-3 py-2 font-medium">Texto matcheado</th>
+                        <th className="px-3 py-2 font-medium text-right">Drill-down</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.recent_events.map((ev, idx) => (
-                        <RecentEventRow key={`${ev.episode_id}-${idx}`} event={ev} />
+                        <RecentEventRow
+                          key={`${ev.episode_id}-${idx}`}
+                          event={ev}
+                          catColors={catColors}
+                          sevColors={sevColors}
+                        />
                       ))}
                     </tbody>
                   </table>

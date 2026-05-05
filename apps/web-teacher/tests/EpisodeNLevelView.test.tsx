@@ -7,11 +7,11 @@
  * - initialEpisodeId (drill-down): autocarga al montar
  * - Error de API: render del bloque de error
  */
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { EpisodeNLevelView } from "../src/views/EpisodeNLevelView"
-import { setupFetchMock } from "./_mocks"
+import { renderWithRouter, setupFetchMock } from "./_mocks"
 
 const fakeGetToken = async () => "test-token"
 
@@ -32,18 +32,18 @@ afterEach(() => {
 })
 
 describe("EpisodeNLevelView", () => {
-  test("render inicial muestra input + boton 'Analizar' disabled", () => {
-    render(<EpisodeNLevelView getToken={fakeGetToken} />)
-    expect(screen.getByLabelText(/UUID del episodio/i)).toBeInTheDocument()
+  test("render inicial muestra input + boton 'Analizar' disabled", async () => {
+    renderWithRouter(<EpisodeNLevelView getToken={fakeGetToken} />)
+    expect(await screen.findByLabelText(/UUID del episodio/i)).toBeInTheDocument()
     const button = screen.getByRole("button", { name: /Analizar/i })
     expect(button).toBeDisabled()
   })
 
   test("click 'Analizar' con UUID dispara fetch y muestra distribución", async () => {
     const user = userEvent.setup()
-    render(<EpisodeNLevelView getToken={fakeGetToken} />)
+    renderWithRouter(<EpisodeNLevelView getToken={fakeGetToken} />)
 
-    const input = screen.getByLabelText(/UUID del episodio/i)
+    const input = await screen.findByLabelText(/UUID del episodio/i)
     await user.type(input, "11111111-2222-3333-4444-555555555555")
 
     const button = screen.getByRole("button", { name: /Analizar/i })
@@ -58,7 +58,7 @@ describe("EpisodeNLevelView", () => {
   })
 
   test("initialEpisodeId autocarga al montar (drill-down)", async () => {
-    render(
+    renderWithRouter(
       <EpisodeNLevelView
         getToken={fakeGetToken}
         initialEpisodeId="11111111-2222-3333-4444-555555555555"
@@ -81,11 +81,9 @@ describe("EpisodeNLevelView", () => {
       },
     })
     const user = userEvent.setup()
-    render(<EpisodeNLevelView getToken={fakeGetToken} />)
-    await user.type(
-      screen.getByLabelText(/UUID del episodio/i),
-      "11111111-2222-3333-4444-555555555555",
-    )
+    renderWithRouter(<EpisodeNLevelView getToken={fakeGetToken} />)
+    const input = await screen.findByLabelText(/UUID del episodio/i)
+    await user.type(input, "11111111-2222-3333-4444-555555555555")
     await user.click(screen.getByRole("button", { name: /Analizar/i }))
 
     await waitFor(() => {

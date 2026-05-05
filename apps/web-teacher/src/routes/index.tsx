@@ -1,8 +1,15 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
+import { HomeView } from "../views/HomeView"
 
-// Default redirect: / → /tareas-practicas (primera vista del NAV_GROUPS)
+// Home del docente: lista densa de comisiones con KPIs en strip inline.
+// Reemplaza el redirect viejo a /tareas-practicas (shape docente, brief D1).
 export const Route = createFileRoute("/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/tareas-practicas" })
+  component: function HomeRoute() {
+    const { getToken } = Route.useRouteContext()
+    return (
+      <div className="p-6">
+        <HomeView getToken={getToken} />
+      </div>
+    )
   },
 })

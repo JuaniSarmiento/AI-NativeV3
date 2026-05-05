@@ -10,7 +10,7 @@
  */
 import { render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { AuditFooter } from "../src/components/AuditFooter"
+import { AuditFooter } from "@platform/ui"
 import { setupFetchMock } from "./_mocks"
 
 beforeEach(() => {

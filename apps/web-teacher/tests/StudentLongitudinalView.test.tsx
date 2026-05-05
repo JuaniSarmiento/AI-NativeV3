@@ -7,10 +7,10 @@
  * - Render de alertas cuando hay (vs cohorte)
  * - Render de "sin alertas" cuando el estudiante está OK
  */
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { StudentLongitudinalView } from "../src/views/StudentLongitudinalView"
-import { setupFetchMock } from "./_mocks"
+import { renderWithRouter, setupFetchMock } from "./_mocks"
 
 const fakeGetToken = async () => "test-token"
 const COMISION = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -100,7 +100,7 @@ afterEach(() => {
 describe("StudentLongitudinalView", () => {
   test("drill-down autocarga evolution + alerts", async () => {
     mockTwoFetches(evolutionResponse, alertsResponseWithAlerts)
-    render(
+    renderWithRouter(
       <StudentLongitudinalView
         getToken={fakeGetToken}
         initialComisionId={COMISION}
@@ -108,15 +108,15 @@ describe("StudentLongitudinalView", () => {
       />,
     )
     await waitFor(() => {
-      // Card de "episodios totales"
-      expect(screen.getByText(/Episodios totales/i)).toBeInTheDocument()
+      // Resumen denso: "6 episodios totales" (un solo bloque de texto en el strip)
+      expect(screen.getByText(/episodios totales/i)).toBeInTheDocument()
       expect(screen.getByText("6")).toBeInTheDocument()
     })
   })
 
   test("alertas con severity high se renderizan en panel ámbar", async () => {
     mockTwoFetches(evolutionResponse, alertsResponseWithAlerts)
-    render(
+    renderWithRouter(
       <StudentLongitudinalView
         getToken={fakeGetToken}
         initialComisionId={COMISION}
@@ -127,12 +127,12 @@ describe("StudentLongitudinalView", () => {
       expect(screen.getByText(/1 alerta para este estudiante/i)).toBeInTheDocument()
     })
     expect(screen.getByText(/Regresión severa vs\. cohorte/i)).toBeInTheDocument()
-    expect(screen.getByText(/Q1 — peor 25%/i)).toBeInTheDocument()
+    expect(screen.getByText(/Q1 \(peor 25%\)/i)).toBeInTheDocument()
   })
 
   test("sin alertas: panel emerald 'dentro del rango esperado'", async () => {
     mockTwoFetches(evolutionResponse, alertsResponseEmpty)
-    render(
+    renderWithRouter(
       <StudentLongitudinalView
         getToken={fakeGetToken}
         initialComisionId={COMISION}
@@ -147,7 +147,7 @@ describe("StudentLongitudinalView", () => {
 
   test("renderiza tabla con un row por template + slopes", async () => {
     mockTwoFetches(evolutionResponse, alertsResponseEmpty)
-    render(
+    renderWithRouter(
       <StudentLongitudinalView
         getToken={fakeGetToken}
         initialComisionId={COMISION}

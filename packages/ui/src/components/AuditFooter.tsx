@@ -1,5 +1,5 @@
 /**
- * Footer de auditabilidad fijo (shape alumno, brief D1).
+ * Footer de auditabilidad fijo (compartido por web-student y web-teacher).
  *
  * Status bar de IDE: muestra version del prompt, hash del classifier y
  * estado de la cadena CTR. Renderiza igual en TODOS los estados del flujo
@@ -18,16 +18,16 @@
  *  - n_eventos cadena: poll cada 30s al verify del episodio activo. Sin
  *    episodio activo cae al ultimo conocido + label "ultima verificacion:
  *    hace X". NO live counter falso.
+ *
+ * Tambien expone `labeler` (default 1.1.0) para extension futura.
  */
 import { useEffect, useState } from "react"
 
 const LS_AUDIT_HASH_KEY = "audit-classifier-hash"
 const LS_AUDIT_CHAIN_KEY = "audit-chain-state"
 
-// TODO: cuando GET /api/v1/active_configs entre al ROUTE_MAP, leer la
-// version vigente en mount + cache 5min. Hoy reflejamos `tutor/v1.0.0`
-// del default_prompt_version del tutor-service (config.py).
 const PROMPT_VERSION = "tutor/v1.0.0"
+const LABELER_VERSION = "1.1.0"
 
 interface ChainState {
   events: number
@@ -61,9 +61,11 @@ interface AuditFooterProps {
   episodeId: string | null
   /** Hash del classifier de la classification mas reciente (si existe). */
   classifierHash?: string | null
+  /** Suplemento opcional. Hoy lo usa la vista adversaria (guardrails_corpus). */
+  extraLabel?: string
 }
 
-export function AuditFooter({ episodeId, classifierHash }: AuditFooterProps) {
+export function AuditFooter({ episodeId, classifierHash, extraLabel }: AuditFooterProps) {
   const [chain, setChain] = useState<ChainState>(() => {
     if (typeof window === "undefined") {
       return { events: 0, lastVerifiedAt: null, episodeId: null }
@@ -156,7 +158,15 @@ export function AuditFooter({ episodeId, classifierHash }: AuditFooterProps) {
         classifier: <span data-testid="audit-classifier-hash">{truncateHash(hash)}</span>
       </span>
       <span aria-hidden="true">{"·"}</span>
+      <span>labeler: {LABELER_VERSION}</span>
+      <span aria-hidden="true">{"·"}</span>
       <span data-testid="audit-chain-label">{chainLabel}</span>
+      {extraLabel && (
+        <>
+          <span aria-hidden="true">{"·"}</span>
+          <span data-testid="audit-extra-label">{extraLabel}</span>
+        </>
+      )}
     </footer>
   )
 }

@@ -6,10 +6,10 @@
  * - Render del shape vacío (n_events_total=0): mensaje emerald "sin eventos"
  * - Render con eventos: barras de categoría + severidad + ranking + recientes
  */
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { CohortAdversarialView } from "../src/views/CohortAdversarialView"
-import { setupFetchMock } from "./_mocks"
+import { renderWithRouter, setupFetchMock } from "./_mocks"
 
 const fakeGetToken = async () => "test-token"
 
@@ -61,7 +61,7 @@ afterEach(() => {
 describe("CohortAdversarialView", () => {
   test("con initialComisionId, fetch al montar y renderiza estructura vacía", async () => {
     setupFetchMock({ "/adversarial-events": () => emptyResponse })
-    render(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
+    renderWithRouter(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
     await waitFor(() => {
       expect(screen.getByText(/Sin eventos adversos en esta cohorte/i)).toBeInTheDocument()
     })
@@ -69,7 +69,7 @@ describe("CohortAdversarialView", () => {
 
   test("con eventos: renderiza categoria + severidad + ranking + recientes", async () => {
     setupFetchMock({ "/adversarial-events": () => populatedResponse })
-    render(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
+    renderWithRouter(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
     await waitFor(() => {
       // Total de eventos
       expect(screen.getByText("5")).toBeInTheDocument()
@@ -91,7 +91,7 @@ describe("CohortAdversarialView", () => {
         body: () => ({ detail: "Internal error" }),
       },
     })
-    render(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
+    renderWithRouter(<CohortAdversarialView getToken={fakeGetToken} initialComisionId={COMISION_ID} />)
     await waitFor(() => {
       expect(screen.getByText(/Error consultando la cohorte/i)).toBeInTheDocument()
     })

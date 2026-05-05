@@ -124,7 +124,7 @@ export function TemplatesView({ getToken }: Props) {
 
   const handleArchive = async (t: TareaPracticaTemplate) => {
     const ok = window.confirm(
-      `Archivar la plantilla "${t.codigo} — ${t.titulo}"? Las instancias en comisiones no se archivan automáticamente.`,
+      `Archivar la plantilla "${t.codigo}: ${t.titulo}"? Las instancias en comisiones no se archivan automáticamente.`,
     )
     if (!ok) return
     try {
@@ -137,7 +137,7 @@ export function TemplatesView({ getToken }: Props) {
 
   const handleDelete = async (t: TareaPracticaTemplate) => {
     const ok = window.confirm(
-      `Eliminar la plantilla "${t.codigo} — ${t.titulo}"? Soft delete. Las instancias existentes quedan con link muerto al template.`,
+      `Eliminar la plantilla "${t.codigo}: ${t.titulo}"? Soft delete. Las instancias existentes quedan con link muerto al template.`,
     )
     if (!ok) return
     try {
@@ -255,7 +255,7 @@ export function TemplatesView({ getToken }: Props) {
         {/* Modal: editar plantilla (draft solamente) */}
         {modal.kind === "edit" && (
           <TemplateFormModal
-            title={`Editar plantilla — ${modal.template.codigo}`}
+            title={`Editar plantilla: ${modal.template.codigo}`}
             initial={modal.template}
             submitLabel="Guardar cambios"
             onClose={closeModal}
@@ -513,7 +513,7 @@ function TemplateFormModal({
               <div className="space-y-3 text-zinc-300">
                 <p>
                   <strong>Completa los campos</strong> para crear o editar la plantilla. Las
-                  plantillas son fuente canónica a nivel cátedra — al guardarlas, el sistema crea
+                  plantillas son fuente canónica a nivel cátedra: al guardarlas, el sistema crea
                   automáticamente una instancia en cada comision de la materia y periodo elegidos.
                 </p>
                 <ul className="list-disc pl-5 space-y-2">
@@ -845,7 +845,7 @@ function TemplateViewModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`${template.codigo} — ${template.titulo}`}
+      title={`${template.codigo}: ${template.titulo}`}
       size="lg"
     >
       <div className="space-y-4">

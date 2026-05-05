@@ -89,7 +89,7 @@ function DriftBadge() {
 }
 
 function formatShortDate(iso: string | null): string {
-  if (!iso) return "—"
+  if (!iso) return "sin fecha"
   const d = new Date(iso)
   return d.toLocaleDateString("es-AR", {
     day: "2-digit",
@@ -169,7 +169,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
 
   const handleArchive = async (t: TareaPractica) => {
     const ok = window.confirm(
-      `¿Archivar el TP "${t.codigo} — ${t.titulo}"? Los estudiantes no podrán seguir enviando episodios.`,
+      `¿Archivar el TP "${t.codigo}: ${t.titulo}"? Los estudiantes no podrán seguir enviando episodios.`,
     )
     if (!ok) return
     try {
@@ -182,7 +182,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
 
   const handleDelete = async (t: TareaPractica) => {
     const ok = window.confirm(
-      `¿Eliminar el TP "${t.codigo} — ${t.titulo}"? Esta acción es un soft delete.`,
+      `¿Eliminar el TP "${t.codigo}: ${t.titulo}"? Esta acción es un soft delete.`,
     )
     if (!ok) return
     try {
@@ -295,7 +295,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
         {modal.kind === "edit" && (
           <TareaFormModal
             isOpen={true}
-            title={`Editar TP — ${modal.tarea.codigo}`}
+            title={`Editar TP: ${modal.tarea.codigo}`}
             initial={modal.tarea}
             mode="edit"
             onClose={closeModal}
@@ -610,7 +610,7 @@ function TareaFormModal({
             )}
             {driftAck && (
               <p className="mt-2 text-xs italic text-amber-800">
-                Reconocido — al guardar, el TP quedara marcado como drift.
+                Reconocido, al guardar el TP quedara marcado como drift.
               </p>
             )}
           </div>
@@ -788,7 +788,7 @@ function TareaViewModal({
   onShowVersions: () => void
 }) {
   return (
-    <Modal isOpen={true} onClose={onClose} title={`${tarea.codigo} — ${tarea.titulo}`} size="lg">
+    <Modal isOpen={true} onClose={onClose} title={`${tarea.codigo}: ${tarea.titulo}`} size="lg">
       <div className="space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <HelpButton
@@ -836,13 +836,13 @@ function TareaViewModal({
           <div>
             <div className="text-slate-500">Inicio</div>
             <div className="font-medium">
-              {tarea.fecha_inicio ? formatDateTime(tarea.fecha_inicio) : "—"}
+              {tarea.fecha_inicio ? formatDateTime(tarea.fecha_inicio) : "sin fecha"}
             </div>
           </div>
           <div>
             <div className="text-slate-500">Fin</div>
             <div className="font-medium">
-              {tarea.fecha_fin ? formatDateTime(tarea.fecha_fin) : "—"}
+              {tarea.fecha_fin ? formatDateTime(tarea.fecha_fin) : "sin fecha"}
             </div>
           </div>
           <div>
@@ -926,7 +926,7 @@ function VersionsModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`Historial de versiones — ${tarea.codigo}`}
+      title={`Historial de versiones (${tarea.codigo})`}
       size="md"
     >
       <div className="space-y-4">
@@ -939,10 +939,10 @@ function VersionsModal({
                 <p>Muestra la linea de tiempo de todas las versiones del TP:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
-                    <strong>Version actual:</strong> Marcada en azul — es la version activa del TP.
+                    <strong>Version actual:</strong> Marcada en azul, es la version activa del TP.
                   </li>
                   <li>
-                    <strong>Versiones anteriores:</strong> Marcadas en gris — son inmutables y solo
+                    <strong>Versiones anteriores:</strong> Marcadas en gris, son inmutables y solo
                     de referencia.
                   </li>
                   <li>
@@ -951,7 +951,7 @@ function VersionsModal({
                   </li>
                   <li>
                     <strong>Nueva version:</strong> Para modificar el contenido de un TP publicado,
-                    usa el boton "Nueva version" en la lista de TPs — esto crea un nuevo borrador
+                    usa el boton "Nueva version" en la lista de TPs: esto crea un nuevo borrador
                     linkeado por parent_tarea_id.
                   </li>
                 </ul>
@@ -970,7 +970,7 @@ function VersionsModal({
         ) : sorted.length === 0 ? (
           <div className="p-6 text-center text-slate-500 text-sm">Sin versiones registradas.</div>
         ) : (
-          <ol className="relative border-l-2 border-slate-200 dark:border-slate-700 ml-3 space-y-4">
+          <ol className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-4">
             {sorted.map((v) => (
               <li key={v.id} className="ml-4">
                 <span

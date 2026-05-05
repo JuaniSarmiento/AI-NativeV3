@@ -1,6 +1,4 @@
-import { EmptyHero } from "@platform/ui"
-import { createFileRoute } from "@tanstack/react-router"
-import { BookOpen } from "lucide-react"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { z } from "zod"
 import { ProgressionView } from "../views/ProgressionView"
 
@@ -10,21 +8,18 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/progression")({
   validateSearch: searchSchema,
+  beforeLoad: ({ search }) => {
+    if (!search.comisionId) {
+      // Sin comision -> volver a la home (lista de cohortes). Resuelve F8 del
+      // brief docente: el EmptyHero clonado se elimina; el flujo correcto
+      // es entrar desde "Abrir cohorte" en la home.
+      throw redirect({ to: "/" })
+    }
+  },
   component: function ProgressionRoute() {
     const { getToken } = Route.useRouteContext()
     const { comisionId } = Route.useSearch()
-    if (!comisionId) {
-      return (
-        <div className="flex-1 flex items-center justify-center min-h-screen">
-          <EmptyHero
-            icon={<BookOpen className="h-12 w-12" />}
-            title="Empezá eligiendo una comisión"
-            description="Elegí la comisión con la que vas a trabajar para ver progresión, niveles y trabajos prácticos."
-            hint="Después podés cambiarla desde el panel lateral."
-          />
-        </div>
-      )
-    }
+    if (!comisionId) return null
     return <ProgressionView comisionId={comisionId} getToken={getToken} />
   },
 })

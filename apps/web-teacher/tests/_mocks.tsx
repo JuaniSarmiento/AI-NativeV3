@@ -10,7 +10,23 @@
  *     "/api/v1/analytics/episode/": () => mockNLevelResponse,
  *     "/api/v1/comisiones": () => ({ data: [], meta: { cursor_next: null } }),
  *   })
+ *
+ * Adicionalmente expone `renderWithRouter`: muchas views ahora usan
+ * `<Link>` de TanStack Router para drill-down navegacional (volver a la
+ * cohorte, navegar a episode-n-level desde un alumno). El componente
+ * Link requiere RouterProvider en el arbol — sin él tira "Cannot read
+ * properties of null (reading 'isServer')".
  */
+import { render } from "@testing-library/react"
+import { type ReactNode } from "react"
+import {
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  createMemoryHistory,
+  Outlet,
+} from "@tanstack/react-router"
 import { vi } from "vitest"
 
 type Handler = () => unknown
@@ -49,4 +65,28 @@ export function setupFetchMock(
       } as Response)
     }),
   )
+}
+
+/**
+ * Render envuelto en un RouterProvider de TanStack con memory history.
+ * Necesario para views que usan `<Link>` (drill-down). El wrapper monta
+ * la view dentro de la ruta `/` del router test, asi que los Link a
+ * cualquier `to` resuelven sin tirar (TanStack permite navegar a rutas
+ * que no estan registradas, solo no se mueve la URL — suficiente para
+ * los tests E2E unitarios).
+ */
+export function renderWithRouter(node: ReactNode) {
+  const rootRoute = createRootRoute({
+    component: () => <Outlet />,
+  })
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    component: () => node as JSX.Element,
+  })
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([indexRoute]),
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  })
+  return render(<RouterProvider router={router} />)
 }
