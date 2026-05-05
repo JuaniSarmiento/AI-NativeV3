@@ -6,6 +6,251 @@ Bitácora de sesiones de trabajo significativas. Lo que vive acá es **changelog
 
 ---
 
+## 2026-05-04 (Noche) — Auditoría completa con 4 agentes + 4 fixes críticos + smoke E2E + skill `impeccable` instalada + PRODUCT.md/DESIGN.md generados
+
+Sesión posterior al cierre AM/PM del epic `ai-native-completion-and-byok`. El usuario pidió un "análisis completo del proyecto" para saber dónde estamos parados de cara a la defensa doctoral. Ejecutamos auditoría con 4 sub-agentes paralelos contra el stack live (12 servicios + 3 frontends + Postgres con data demo: 3 comisiones, 18 estudiantes, 6 TPs, 94 episodios cerrados, 470 events CTR íntegros).
+
+### Pasos ejecutados (en orden)
+
+1. **Levantamos el stack completo**: infra Docker ya estaba up; lanzamos los 12 servicios Python con `/tmp/launch-piloto.sh` (PIDs trackeados) + `pnpm turbo dev` para los 3 frontends. Health gate: 12/12 `status=ready` en 15s, 3/3 frontends sirviendo HTML 200.
+2. **4 agentes auditoría en paralelo** (backend / frontend / DB / núcleo pedagógico):
+   - **Pedagógico**: 98/98 tests propios passing — invariantes core sólidos (reproducibilidad classifier, labeler v1.2.0, guardrails Fase A, CII longitudinal, attestation tooling, 5 coherencias separadas). Detectó 2 críticos: `compute_chain_hash` divergente entre `packages/contracts` y `ctr-service` + migrations BYOK no aplicadas en DB local.
+   - **DB**: cadena íntegra (470/470 events, genesis correcto). Detectó: sharding CTR es **fantasma en Postgres** (vive solo en Redis Streams), append-only sin trigger DB (solo convención de código), `content_db` VACÍA (RAG nunca probado con data real), 108 vs 116 casbin_rules, attestation stream `XLEN=0` con 94 episodios cerrados (path no se está disparando), nombres `EpisodioCerrado` vs `episodio_cerrado` ambiguos.
+   - **Backend**: 446 tests unit clean, casbin matrix 48/48, `make check-rls` OK. Detectó **bug genuino BYOK SET LOCAL** (`apps/ai-gateway/.../services/byok.py:122` usa bind param que Postgres no acepta — toda la CRUD BYOK rota en runtime aunque tests mockeaban DB), naming confuso `labeler_version` en analytics (3 endpoints reutilizan el campo para 3 versiones distintas).
+   - **Frontend**: Playwright MCP no funcionó (chromium path roto, dejó `~/.claude.json` corregido para próximas sesiones). Audit por API + tests + typecheck. 3/3 frontends carga, drill-down teacher con data coherente. Detectó: `packages/ui/StateMessage.tsx` líneas 28-29 rompe typecheck (turbo cachea y oculta), 5/9 views del web-teacher (G7 ADR-022) no usan HelpButton aunque CLAUDE.md lo declara mandatory, header de auth correcto es `X-User-Roles` (plural), no `X-Role`.
+3. **4 fixes NOW aplicados** (sub-agente dedicado, ~15 min):
+   - Aplicadas migrations `20260504_0001` (test_cases/created_via_ai) + `20260504_0002` (byok_keys) en `academic_main` con override `ACADEMIC_DB_URL=postgresql+asyncpg://postgres:postgres@...` (el default de `alembic/env.py` apunta hardcoded a `academic_user` que NO es owner — pendiente PR aparte).
+   - Re-seed casbin: 108 → 116 policies (incluyendo `byok_key:CRUD × 2 roles`). Restart academic-service para refresh enforcer en memoria.
+   - Bug BYOK SET LOCAL: `text("SET LOCAL ... :tid")` → `text("SELECT set_config('app.current_tenant', :tid, true)")` (semánticamente equivalente, acepta bind). Smoke real: `GET /api/v1/byok/keys` → 200 (antes 500 silencioso).
+   - Bug `compute_chain_hash` divergente: `packages/contracts/.../ctr/hashing.py:46` invertido a `f"{self_hash}{prev}"` (ahora coincide con ctr-service y los 470 events íntegros de la DB). Test cross-package nuevo `packages/contracts/tests/test_chain_hash_canonical_formula.py` con 3 tests + 4 fixtures bit-exact extraídos de un episodio real. Sin este fix, un auditor doctoral que use el helper "oficial" para verificar la cadena obtenía falsos failures sobre cadenas íntegras.
+4. **Mejora estructural #2 — Smoke E2E** (sub-agente dedicado, ~13 min): suite `tests/e2e/smoke/` con 32 tests + 1 skipped (BYOK_MASTER_KEY) — health × 12 + flujo pedagógico (open episode → emit event → close → verify) + BYOK CRUD + analytics (kappa, longitudinal, cuartiles, alertas) + audit alias ADR-031 + chain_e2e (recompute SHA-256 con helper de contracts contra DB real) + governance/ai-gateway. **32/32 passed en <2s**. CI workflow skeleton en `.github/workflows/e2e-smoke.yml` (workflow_dispatch por ahora). `make test-smoke` target nuevo. Atrapa exactamente la clase de bugs que escapan a tests con DB mockeada.
+5. **Skill `impeccable` instalada global**: `npx skills add pbakaus/impeccable` falló por input interactivo; instalación manual a `~/.claude/skills/impeccable/` (SKILL.md + 35 reference files + 4 scripts). Resueltos placeholders `{{scripts_path}}`/`{{command_prefix}}` con script Python (23 archivos, 18 + 45 ocurrencias). Registrada en `~/.claude/CLAUDE.md` global como auto-load para cualquier tarea de UI. Filosofía respetada: gates obligatorios PRODUCT.md + DESIGN.md + shape brief NO se saltean.
+6. **`PRODUCT.md` escrito** al root del repo (decisión: audiencia primaria de la defensa = comité doctoral, audiencia primaria del producto = docentes/alumnos UNSL escalando a N facultades). 5 design principles: (1) modelo N4 visible, (2) auditabilidad visible no oculta, (3) densidad académica > whitespace SaaS, (4) escala como first-class, (5) honestidad técnica explícita. 5 anti-references: Moodle, Coursera marketing, SaaS dashboard genérico, EdTech gamificado, SIU Guaraní. Voice: *riguroso · transparente · pedagógico*.
+7. **`DESIGN.md` escrito** al root (sub-agente, ~12 min, formato Stitch). 32 colors / 6 typography roles / 16 components extraídos de los 3 frontends + `packages/ui`. Estrategia detectada: **Restrained con vocabulario semántico extendido**. Hallazgo importante: **N1-N4 NO son tokens `@theme`**, viven hardcoded en componentes JS (`EpisodeNLevelView::LEVEL_COLORS`, etc.). Bug visual genuino documentado en Don'ts: `StudentLongitudinalView.tsx:251` usa `border-l-4 border-amber-400` (side-stripe banneado por la skill `impeccable`).
+8. **CLAUDE.md corregido** (cirugía mínima sobre las falsedades verificadas): `X-Role` → `X-User-Roles` plural (2 ocurrencias), aclaración del sharding CTR (Redis Streams, NO Postgres), warning del path attestation no disparándose, caveat de HelpButton missing en G7, disambiguation `EpisodioCerrado` vs `episodio_cerrado` (clase Pydantic vs event_type), nuevo gotcha `alembic/env.py` hardcoded a `academic_user`, **nueva sección "Auditoría 2026-05-04"** con highlights completos + reference a PRODUCT.md/DESIGN.md/skill `impeccable` como source of truth de UX/UI.
+9. **Cleanup limpio**: 12 uvicorn + 3 vite matados por PID, puertos del piloto libres, infra Docker (10 containers) sigue arriba como estaba.
+
+### Lo que NO se hizo (deliberadamente, postpuesto a próxima sesión)
+
+- **NO se commiteó nada**. 80 archivos sin commitear: ~50 heredados del epic ai-native-completion (cierre AM/PM de hoy mismo) + ~10 míos de hoy (PRODUCT/DESIGN/CLAUDE/Makefile/smoke E2E/test cross-package + fixes byok.py y hashing.py). Decisión consciente: separar limpio el commit del epic vs los fixes vs el smoke vs los docs UX requiere `git add -p` con cabeza fresca, no a las 9pm.
+- **NO se ejecutó `impeccable shape`** para el redesign del flujo docente→materia→comisión que el usuario originalmente pidió ("darle al frontend un toque más lindo"). PRODUCT.md y DESIGN.md son **prerrequisitos** que la skill exige; el shape es la próxima fase.
+- **NO se diagnosticó por qué attestation no se está disparando** (pero queda anotado como warning crítico en CLAUDE.md).
+
+### Bugs detectados pero NO fixeados (pendientes mañana o esta semana)
+
+- `apps/web-teacher/.../StudentLongitudinalView.tsx:251` usa side-stripe `border-l-4 border-amber-400` (banneado por skill `impeccable`).
+- HelpButton missing en `EpisodeNLevelView`, `StudentLongitudinalView`, `CohortAdversarialView` (+ otras 2 G7).
+- `packages/ui/StateMessage.tsx` líneas 28-29 violación `exactOptionalPropertyTypes` (turbo cachea, no se ve en CI happy path).
+- `apps/academic-service/alembic/env.py` hardcoded a `academic_user` que NO es owner (workaround documentado, PR pendiente).
+- Stream `attestation.requests` con `XLEN=0` después de 94 episodios cerrados (path no se dispara).
+- `evaluation-service` sigue siendo esqueleto con solo `/health` (decisión: o se implementa o se deprecá como `enrollment-service`).
+- Naming confuso `labeler_version` en 3 endpoints distintos de analytics que exponen 3 constantes diferentes.
+
+---
+
+## 2026-05-04 (PM) — Cierre Fase 1 epic `ai-native-completion-and-byok` + archive
+
+Continuación de la sesión AM. El plan que dejamos al cierre AM se ejecutó completo (~3h). Epic archivada en `openspec/changes/archive/2026-05-04-ai-native-completion-and-byok/`. Fuera de los tests RLS que requieren Postgres real, todo verde local.
+
+### Pasos ejecutados (en orden)
+
+1. **Fix `conftest.py`**: agregado `collect_ignore_glob = ["apps/enrollment-service/**"]` raíz. `pytest apps packages -q --co` colecta 916 tests sin errores (antes rompía por `import pandas` del servicio deprecado).
+2. **`materia_id` propagation end-to-end (ADR-040)** — cierra Sec 6.2 de la epic:
+   - `SessionState.materia_id: UUID | None` (cacheado al `open_episode`, sobrevive a serialización Redis con backwards-compat para sesiones legacy).
+   - `AcademicClient.get_comision()` nuevo método (`apps/tutor-service/.../services/academic_client.py`); `ComisionResponse` dataclass nuevo.
+   - `tutor_core.open_episode` resuelve materia via la nueva llamada **fail-soft** (404 / exception → `materia_id=None`, episodio se abre igual y BYOK degrada a tenant_fallback).
+   - `AIGatewayClient.stream(materia_id=...)` opcional, lo forwardea al body del SSE del ai-gateway.
+   - `tutor_core.interact` lee `state.materia_id` y lo pasa por turno (el resolver del ai-gateway lo consume).
+   - 4 tests E2E en `apps/tutor-service/tests/unit/test_materia_id_propagation.py`: happy path con cache, no se re-resuelve por turno (3 turnos = 1 sola llamada a `get_comision`), 404, exception. **NO romper estos tests** al refactorizar el resolver de comisiones.
+   - Bug colateral fixeado: `SessionState.model` y `materia_id` no se serializaban a Redis (la persistencia de `model` era bug pre-existente, salió a la luz al agregar `materia_id`).
+3. **Casbin policies `byok_key:CRUD` (ADR-039)**: 8 policies nuevas en `seeds/casbin_policies.py` (4 superadmin + 4 docente_admin) — total 108 → **116 policies**. Test matrix actualizado con 10 nuevas filas (4 happy superadmin + 4 happy docente_admin + 2 deny docente + 2 deny estudiante). El enforcement runtime sigue via header `X-User-Roles` en `routes/byok.py::_check_admin` (consistente con el patrón del ai-gateway que no consume Casbin DB) — las policies sirven como source of truth de la matriz.
+4. **6 tests TP-gen con mock ai-gateway** (Sec 11.7) — `apps/academic-service/tests/unit/test_tp_generator.py`: materia inválida 400, governance falla 502, ai-gateway falla 502, JSON malformado 502, error estructurado 422, happy path con borrador parseado verificando que `materia_id` propaga al ai-gateway. **De paso descubrió un bug genuino**: `routes/tareas_practicas.py:181` importaba `from academic_service.models.academic import Materia` y el módulo correcto es `models.institucional`. Fix incluido. Sin los tests no había nada que ejercite ese código path.
+5. **Endpoint rotate BYOK** (Sec 7.3): `rotate_byok_key()` en `services/byok.py` re-encripta plaintext y sustituye `encrypted_value` + `fingerprint_last4`. Preserva id/scope/created_at/created_by. 404 si key revocada (caller crea una nueva). Route `POST /api/v1/byok/keys/{id}/rotate` con `RotateKeyRequest` schema.
+6. **Métricas BYOK OTLP** (Sec 13.1-13.2): 3 instrumentos nuevos en `apps/ai-gateway/.../metrics.py` — `byok_key_usage_total{provider, scope_type, resolved_scope}`, `byok_key_resolution_total{resolved_scope}`, histogram `byok_key_resolution_duration_seconds` (SLO p99 < 50ms). Sin `scope_id`/`tenant_id` en labels — cardinality budget verificado (≈100 series por counter). Instrumentadas via helper `_emit()` interno en `resolve_byok_key` que cubre los 4 caminos del resolver (materia / tenant / env_fallback / none).
+7. **Health check `byok_resolver_healthy`** (Sec 5.6): `_check_byok_resolver()` no-critical en `apps/ai-gateway/.../routes/health.py` con 4 estados — BYOK_ENABLED=False (ok), master key válida (ok), master key falta + env fallback (degraded), nada (error). NO escala a critical aún en error porque el resolver ya degrada solo y los handlers devuelven 503 cuando corresponde.
+8. **Sec 16 documental**:
+   - **CLAUDE.md** "Estado actual de implementación": bloque nuevo "Capabilities cerradas en epic `ai-native-completion-and-byok` (2026-05-04)" con resumen de 5 capabilities + bug genuino del classifier explícito.
+   - **CLAUDE.md** "Constantes": `BYOK_MASTER_KEY` (32 bytes base64), `LABELER_VERSION = "1.2.0"` post-epic, `_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}`.
+   - **CLAUDE.md** "Casbin": contador 108 → 116 policies con detalle de los bumps acumulados.
+   - **CLAUDE.md** "Dónde buscar contexto": ADRs **40 al cierre del epic**, descripción de una línea por ADR 033-040.
+   - **historias.md**: HU-125 (BYOK admin), HU-126 (sandbox tests Pyodide), HU-127 (reflexión metacognitiva), HU-128 (TP-gen IA), HU-129 (governance UI).
+   - **reglas.md**: RN-132 (BYOK resolver jerárquico — Alta), RN-133 (reflexión exclusión classifier — Crítica), RN-134 (test hidden no entran a features — Alta). Catálogo de severidades actualizado (Críticas 38→39, Altas 59→61).
+   - **`.env.example`** queda como deferred (acceso al archivo bloqueado por permisos del agente; vars documentadas en CLAUDE.md "Constantes" para que el operador las copie al levantar el piloto).
+
+### Bugs colaterales fixeados al ejecutar el plan
+
+- `routes/tareas_practicas.py::generate_tarea_practica`: import `from academic_service.models.academic import Materia` → `from academic_service.models.institucional import Materia` (bloqueaba el endpoint TP-gen en runtime; sólo salió a la luz porque escribimos los 6 tests).
+- `apps/ctr-service/tests/unit/test_chain_integrity.py::test_mutated_chain_hash_is_detected`: era flaky 1/16 cuando `chain_h[0]` casualmente era `"f"` y la mutación `"f" + chain_h[1:]` no cambiaba nada. Fix: elegir un char nuevo distinto del primero (`"a"` o `"b"`).
+- `apps/analytics-service/tests/unit/test_n_level_distribution_endpoint.py`: assertion sobre `labeler_version == "1.1.0"` quedó stale después del bump v1.1.0 → v1.2.0 de la epic. Actualizado a `"1.2.0"`.
+- `packages/contracts/tests/test_event_types_match_runtime.py`: el set de event classes hardcodeado no incluía las dos nuevas — agregadas `ReflexionCompletada` y `TestsEjecutados` al import + tuple del test.
+
+### Tests al cierre
+
+- **Python**: `uv run pytest apps packages -q` → **916 passed, 4 skipped** (los 4 skips son tests de RLS contra Postgres real, requieren `CTR_STORE_URL_FOR_RLS_TESTS`).
+- **TS**: `pnpm --filter @platform/web-admin --filter @platform/web-teacher test` → 10 web-admin + 13 web-teacher = **23 passed**.
+- Total tests verdes: **939**.
+
+### Lo que queda como `[~]` honesto post-archive
+
+Va al follow-up declarado en el archivo archivado de la epic. **Cuando llegue el deploy real del piloto en UNSL, abrir change nuevo** (sugerido: `byok-operational-frontend`) con scope acotado:
+
+- UI BYOK keys page en web-admin.
+- UI Pyodide en web-student + botón "Correr tests".
+- Wizard TP-gen en web-teacher.
+- Adapters Gemini + Mistral (`uv add google-generativeai mistralai` validado).
+- Cache Redis del resolver (`materia:{id}:facultad_id`, `resolved:*`).
+- Dashboard Grafana provisionado (`byok-overview.json`).
+- Tests E2E con stack completo + LLM real + DB real.
+- `make check-rls` con las 2 tablas BYOK + `make test-rls` BYOK isolation.
+- Procedimiento operacional de rotación de master key en `docs/pilot/runbook.md` (los 5 steps están en ADR-038).
+- `.env.example` con `BYOK_MASTER_KEY` y `BYOK_ENABLED` documentadas.
+
+NO mezclar con la epic actual. Archivar primero, abrir después.
+
+### Pointers críticos del cierre
+
+- Epic archivada: `openspec/changes/archive/2026-05-04-ai-native-completion-and-byok/`
+- `openspec/changes/` queda con sólo `archive/` (epic activa = ninguna).
+- Tests anti-regresión NO romper:
+  - `apps/classifier-service/tests/unit/test_pipeline_reproducibility.py::test_reflexion_completada_no_afecta_clasificacion_ni_features` (RN-133, reproducibilidad bit-a-bit del `classifier_config_hash`).
+  - `apps/tutor-service/tests/unit/test_materia_id_propagation.py` (4 tests, propagación ADR-040 end-to-end).
+  - `packages/contracts/tests/test_event_types_match_runtime.py::test_runtime_emits_only_contract_event_types` (eventos del CTR alineados runtime ↔ contract).
+- `apps/academic-service/src/academic_service/seeds/casbin_policies.py`: **116 policies**, fuente de verdad de la matriz Casbin.
+
+---
+
+## 2026-05-04 — Epic `ai-native-completion-and-byok` (parcial: backend completo, UI deferida) + plan próxima sesión
+
+Sesión basada en `openspec/changes/ai-native-completion-and-byok/`. Decisión del usuario: avanzar `opsx:apply` sobre la epic completa, partiendo en orden de menor a mayor riesgo (reflection → governance → sandbox backend → TP-gen → BYOK fundacional).
+
+### Lo que se cerró (51 tasks ✅ done)
+
+- **Sec 10 `reflection-post-close`** completa: contract `ReflexionCompletada`, endpoint `POST /api/v1/episodes/{id}/reflection` en tutor-service, modal `ReflectionModal.tsx` en web-student, redacción en `academic_export.py` con flag `--include-reflections`, prompt `reflection/v1.0.0`, 11 tests passing.
+- **Sec 12 `governance-ui-admin`** completa: endpoint extendido `/cohort/{id}/adversarial-events` + endpoint nuevo `/governance/events` cross-cohort en analytics-service, página `GovernanceEventsPage.tsx` en web-admin con filtros + CSV export, helpContent, 7 tests E2E. **Bug pre-existente fixeado de paso**: `web-admin` declaraba `@testing-library/jest-dom/vitest` en setup pero la dep no estaba en `package.json` — agregada.
+- **Sec 9 `sandbox-test-cases` BACKEND**: contract `TestsEjecutados`, migración Alembic test_cases JSONB + created_via_ai BOOL, endpoint filter por rol, endpoint `POST /api/v1/episodes/{id}/run-tests` en tutor-service, bulk-import schema, classifier labeler bumpeado v1.1.0 → **v1.2.0** con regla N3/N4 para `tests_ejecutados`. UI Pyodide DEFERIDA.
+- **Sec 11 `tp-generator-ai` BACKEND**: prompt `tp_generator/v1.0.0` + manifest, endpoint `POST /api/v1/tareas-practicas/generate` en academic-service, cliente `AIGatewayClient` + `GovernanceClient` en `services/ai_clients.py`, audit log structlog `tp_generated_by_ai`, schema `TareaPracticaCreate.created_via_ai`. Wizard UI DEFERIDO.
+- **Sec 1-7 `byok-multiprovider` FUNDACIONAL**: helper `crypto.py` AES-256-GCM en platform-ops (10 tests), 2 migraciones Alembic (`byok_keys` + `byok_keys_usage` con RLS), modelo SQLA + resolver jerárquico (materia → tenant → env_fallback) en `apps/ai-gateway/.../services/byok.py`, 4 endpoints CRUD (`/keys`, `/keys`, `/keys/{id}/revoke`, `/keys/{id}/usage`), `materia_id` opcional en `CompleteRequest` schema del ai-gateway (ADR-040 lado gateway), ROUTE_MAP del api-gateway agregado. UI BYOK keys DEFERIDA.
+- **8 ADRs nuevos** (033-040): sandbox Pyodide-only, test_cases JSONB, reflexión privacy, TP-gen caller, governance UI read-only, BYOK AES-GCM, BYOK resolver, materia_id propagation.
+
+### Bug genuino encontrado y cerrado (importante para defensa)
+
+Al escribir el test anti-regresión del classifier ANTES de asumir que la reflexión era inocua, el test **falló**: `ct_summary` cambiaba de `0.54` a `0.56` cuando había un evento `reflexion_completada` con `ts > 5min` post-cierre. El classifier consumía TODOS los eventos del CTR sin filtrar, y la reflexión creaba una nueva ventana de trabajo (pause >5min) que afectaba la métrica de densidad.
+
+**Fix**: `_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}` en `apps/classifier-service/src/classifier_service/services/pipeline.py`, filtrado ANTES del feature extraction. Sin este fix, la **reproducibilidad bit-a-bit del `classifier_config_hash`** estaba expuesta a contaminación silenciosa por eventos side-channel post-cierre.
+
+Documentado en ADR-035. Test en `apps/classifier-service/tests/unit/test_pipeline_reproducibility.py::test_reflexion_completada_no_afecta_clasificacion_ni_features`.
+
+### Bug pre-existente del repo descubierto (NO fixeado todavía)
+
+`pytest apps packages` rompe en collection porque `apps/enrollment-service/` (deprecado por ADR-030) tiene `import pandas` y `pandas` no está instalado en el workspace. El servicio fue sacado de `[tool.uv.workspace].members` pero **no del pytest collection**. Fix una línea en `conftest.py` raíz: `collect_ignore_glob = ["apps/enrollment-service/**"]`.
+
+### Tests passing al cierre
+
+- 85 tests Python (11 reflection + 9 reproducibility + 38 labeler + 17 academic_export + 10 crypto).
+- 10 tests TS (3 HomePage + 7 GovernanceEventsPage).
+- **Total: 95 tests verdes**.
+
+### NO entró en esta sesión (53 tasks marcadas `[~]` con razón concreta)
+
+**UI volumetrica con browser real** (~12 tasks): editor drag-drop test cases en web-teacher (Sec 9.3), Pyodide en web-student + botón "Correr tests" (Sec 9.4-9.5), wizard TP-gen en web-teacher (Sec 11.4), página BYOK keys en web-admin (Sec 8.1-8.7).
+
+**SDKs LLM nuevos** (~5 tasks): adapters Gemini + Mistral (Sec 1.2, 4.1-4.5), tabla pricing per-model. Requiere `uv add google-generativeai mistralai` validado contra context7 + keys reales para test.
+
+**Optimización con Redis** (~4 tasks): cache `materia:{id}:facultad_id` TTL 1h, cache `resolved:*` TTL 5min, invalidación al rotate (Sec 5.2-5.3, 5.5). Optimización post-medición de SLO p99 < 50ms.
+
+**Métricas OTLP + Grafana** (~7 tasks): contadores BYOK + pedagógicos (Sec 13.1-13.5), dashboard `byok-overview.json` provisionado (Sec 13.6-13.7).
+
+**Tests E2E con stack completo** (~5 tasks): superadmin crea key → tutor la usa → métrica incrementa (Sec 15.3), TP-gen → edit → publish → episodio → tests Pyodide (Sec 15.4), reflexión post-close end-to-end (Sec 15.5), smoke post-deploy (Sec 15.7), `make test-rls` BYOK (Sec 15.2).
+
+**Verificación operacional con Postgres real** (~3 tasks): `make check-rls` con las 2 nuevas tablas (Sec 3.6), test de migración reversible en CI (Sec 3.7), `make migrate` confirmando que las dos migraciones aplican limpio.
+
+---
+
+## **PLAN PRÓXIMA SESIÓN — Cerrar Fase 1 de la epic** (todo backend, sin browser/SDK/DB real)
+
+**Objetivo**: dejar el código backend impecable y archivar la epic con `/opsx:archive`. El árbol `openspec/changes/` queda vacío después.
+
+**Estado de entrada**: 51/53 tasks done. Las ~12 tareas siguientes son legítimamente cerrables inline. Los `[~]` que queden post-Fase 1 son **honestos** — declaran follow-up genuino (UI + SDK + DB real).
+
+### Tareas en orden (~2-4h estimado)
+
+1. **Fix bug pytest collection (5 min)**. En `conftest.py` raíz agregar:
+   ```python
+   collect_ignore_glob = ["apps/enrollment-service/**"]
+   ```
+   Verificar con `uv run pytest apps packages -q --co 2>&1 | tail -3` — debe colectar sin errores.
+
+2. **Sec 16 documental (~1h)**:
+   - **CLAUDE.md** "Estado actual de implementación": agregar resumen de las 5 capabilities cerradas en esta sesión, con bullets cortos por capability.
+   - **CLAUDE.md** "Constantes que NO deben inventarse ni cambiarse": agregar `BYOK_MASTER_KEY` (32 bytes, base64) con referencia a `packages/platform-ops/src/platform_ops/crypto.py`.
+   - **CLAUDE.md** "ADRs recientes": bump contador 31/32 → **40 ADRs**, agregar referencias 033-040 con una línea cada uno.
+   - **`.env.example`**: agregar `BYOK_MASTER_KEY=<generar con: openssl rand -base64 32>` y `BYOK_ENABLED=false` con comentarios.
+   - **`historias.md`**: agregar HU-125 (BYOK admin), HU-126 (sandbox tests Pyodide), HU-127 (reflexión metacognitiva), HU-128 (TP-gen IA), HU-129 (governance UI).
+   - **`reglas.md`**: agregar RN-132 (BYOK resolver jerárquico), RN-133 (reflexión exclusión classifier), RN-134 (test hidden no entran a features).
+
+3. **`materia_id` propagation en tutor-service (~30 min)** — cierra ADR-040 end-to-end (Sec 6.2). En `apps/tutor-service/src/tutor_service/services/tutor_core.py::interact`:
+   - Resolver `materia_id` desde `episode.problema_id → tarea_practica.comision_id → comision.materia_id` via `AcademicClient`. Cachear en `SessionState` (campo nuevo `materia_id: UUID | None`) para evitar re-resolver por turno.
+   - Pasar `materia_id` al cliente `AIGatewayClient.stream()` — primero hay que actualizar el cliente para aceptar el parámetro y el endpoint `/stream` del gateway para forwardearlo al payload.
+   - Test E2E: mock que verifica el campo llega del tutor → ai-gateway.
+
+4. **Casbin policy `byok_key:CRUD` (~15 min)** — Sec 7.7. En `apps/academic-service/src/academic_service/seeds/casbin_policies.py`:
+   - Agregar policies para superadmin + docente_admin con `byok_key:CRUD`.
+   - Mover el enforcement del header check (`_check_admin` en `ai-gateway/routes/byok.py`) a usar Casbin via api-gateway, consistente con el resto del repo.
+   - Bump del contador (108 → 109+ policies, según el bump real).
+
+5. **Tests TP-gen con mock ai-gateway (~30 min)** — Sec 11.7. Crear `apps/academic-service/tests/unit/test_tp_generator.py` con patrón de `test_reflexion_completada.py`:
+   - Estudiante con `POST /generate` → 403 (Casbin).
+   - Docente con `materia_id` inválido → 400.
+   - Happy path: docente envía descripción NL → mock del `AIGatewayClient.complete` devuelve JSON estructurado → response 200 con borrador.
+   - Mock devuelve JSON malformed → 502.
+   - Mock devuelve `{"error": "razon"}` → 422.
+
+6. **Endpoint `POST /api/v1/byok/keys/{id}/rotate` (~15 min)** — Sec 7.3. En `apps/ai-gateway/src/ai_gateway/services/byok.py` y `routes/byok.py`:
+   - `rotate_byok_key(tenant_id, key_id, new_plaintext)` — encripta el nuevo plaintext, sustituye `encrypted_value` y `fingerprint_last4`, mantiene id/scope/created_at.
+   - Endpoint POST con request body `{plaintext_value: str}`.
+
+7. **Métricas BYOK contadores (~30 min)** — Sec 13.1-13.2. En `apps/ai-gateway/src/ai_gateway/metrics.py`:
+   - `byok_key_usage_total{provider, scope_type, resolved_scope}` (sin `scope_id` UUID — cardinality).
+   - `byok_key_resolution_total{resolved_scope}` con valores: `materia | tenant | env_fallback | none`.
+   - `byok_key_resolution_duration_seconds` histogram con SLO p99 < 50ms.
+   - Instrumentar el resolver para incrementar.
+
+8. **Health check `byok_resolver_healthy` (~20 min)** — Sec 5.6. En `apps/ai-gateway/src/ai_gateway/routes/health.py`:
+   - Extender el endpoint con `byok_resolver_healthy: bool` y `tenants_without_keys: int`.
+   - Lookup count de tenants únicos en `byok_keys` y comparar con tenants conocidos del academic-service.
+
+9. **Run final verificación (~15 min)**:
+   - `uv run pytest apps packages -q --no-header` debe pasar todo.
+   - `pnpm --filter @platform/web-admin test` debe pasar.
+   - `pnpm --filter @platform/web-student typecheck` y biome OK en archivos tocados.
+   - Si rompí algo en otro servicio, arreglar.
+
+10. **Marcar tareas cerradas en `tasks.md`** y archivar la epic con `/opsx:archive`. Confirmar que `openspec/changes/` queda solo con `archive/`.
+
+### Lo que NO entra en Fase 1 (queda como `[~]` honesto post-archive)
+
+Va al follow-up declarado en el archivo archivado de la epic. Cuando llegue el deploy real del piloto en UNSL, **abrir change nuevo** (sugerido: `byok-operational-frontend`) con scope acotado:
+- UI BYOK keys page en web-admin.
+- UI Pyodide en web-student + botón "Correr tests".
+- Wizard TP-gen en web-teacher.
+- Adapters Gemini + Mistral.
+- Cache Redis del resolver.
+- Dashboard Grafana provisionado.
+- Tests E2E con stack completo + LLM real.
+
+NO mezclar con la epic actual. Archivar primero, abrir después.
+
+### Pointers críticos para arrancar
+
+- Epic activa: `openspec/changes/ai-native-completion-and-byok/`
+- Tasks file: `openspec/changes/ai-native-completion-and-byok/tasks.md` (tiene resumen al final con estado real).
+- ADRs nuevos: `docs/adr/033-*.md` a `docs/adr/040-*.md`.
+- Test crítico anti-regresión: `apps/classifier-service/tests/unit/test_pipeline_reproducibility.py::test_reflexion_completada_no_afecta_clasificacion_ni_features` — NO romper este al refactorizar.
+- Helper crypto BYOK: `packages/platform-ops/src/platform_ops/crypto.py` con 10 tests passing.
+- Resolver BYOK: `apps/ai-gateway/src/ai_gateway/services/byok.py::resolve_byok_key`.
+
+---
+
 ## 2026-04-29 — Iter 2 audi2.md: G12 (bump v1.0.1 prompt) + G10-A (EpisodioAbandonado) + G8a (override anotacion_creada) + 5 stubs ADR diferidos
 
 Sesión basada en `audi2.md` — segunda iteración de la auditoría doctoral. Decisión estratégica del usuario: ejecutar la **"ruta mínima para defensa"** que prescribe el propio documento ([audi2.md:362-378](../audi2.md#L362-L378)): G12 + G10-A + G8a antes de defensa, declarar G9/G11/G13/G14/G15 como agenda confirmatoria con stubs ADR formales. Para G10 el usuario eligió **opción A** (defensa a >6 semanas → emisión real con beforeunload + worker timeout server-side).
