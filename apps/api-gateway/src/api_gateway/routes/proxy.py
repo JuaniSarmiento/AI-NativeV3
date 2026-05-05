@@ -49,6 +49,11 @@ ROUTE_MAP: dict[str, str] = {
     # read del episodio para auditoria docente). Bajo prefix /api/v1/audit
     # para evitar el conflicto con /api/v1/episodes (tutor-service).
     "/api/v1/audit": settings.ctr_service_url,
+    # ADR-038/039 (Sec 7 epic ai-native-completion): BYOK keys CRUD via
+    # ai-gateway. Solo superadmin/docente_admin pueden gestionar — el
+    # ai-gateway enforced via X-User-Roles del header inyectado por este
+    # proxy. ROUTE_MAP cubre /keys + /keys/{id}/{revoke,usage}.
+    "/api/v1/byok": settings.ai_gateway_url,
 }
 
 

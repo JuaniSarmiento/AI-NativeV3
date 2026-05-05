@@ -26,3 +26,5 @@ active:
   default:
     tutor: v1.0.1
     classifier: v1.0.0
+    reflection: v1.0.0
+    tp_generator: v1.0.0

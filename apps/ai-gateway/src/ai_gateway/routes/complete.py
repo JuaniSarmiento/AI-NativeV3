@@ -57,9 +57,16 @@ class Message(BaseModel):
 class CompleteRequest(BaseModel):
     messages: list[Message]
     model: str
-    feature: str  # "tutor" | "classifier" | "evaluation" | ...
+    feature: str  # "tutor" | "classifier" | "evaluation" | "tp_generator" | ...
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1024, ge=1, le=8192)
+    # Sec 6 epic ai-native-completion-and-byok / ADR-040: opcional. Cuando esta
+    # presente, el resolver BYOK busca key con scope=materia primero. Si esta
+    # ausente, fallback a scope=tenant (metrica `byok_key_resolution_total`
+    # con label `resolved_scope="tenant_fallback_no_materia"`). NO breaking —
+    # callers viejos siguen funcionando, solo no se benefician del scope
+    # materia para BYOK.
+    materia_id: UUID | None = Field(default=None)
 
 
 class CompleteResponse(BaseModel):

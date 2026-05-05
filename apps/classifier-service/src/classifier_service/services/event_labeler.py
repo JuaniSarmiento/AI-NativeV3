@@ -64,16 +64,28 @@ from typing import Any, Literal
 
 NLevel = Literal["N1", "N2", "N3", "N4", "meta"]
 
-# v1.1.0 (ADR-023, G8a): introduce override temporal de `anotacion_creada`.
-# Bumpear MINOR aca obliga a re-etiquetar reportes empiricos pero NO toca el
-# CTR (ADR-020 — labeler es derivado en lectura). v1.0.0 sigue accesible para
-# reproducibilidad historica recomputando con la version anterior.
-LABELER_VERSION = "1.1.0"
+# v1.2.0 (Sec 9 epic ai-native-completion / ADR-033/034): introduce regla de
+# etiquetado para `tests_ejecutados`. Bumpear MINOR aca obliga a re-etiquetar
+# reportes empiricos pero NO toca el CTR (ADR-020 — labeler es derivado en lectura).
+# v1.1.0 sigue accesible recomputando con la version anterior.
+#
+# Historico:
+#   1.0.0 — base (Tabla 4.1 de la tesis).
+#   1.1.0 — override temporal de `anotacion_creada` (ADR-023, G8a).
+#   1.2.0 — regla N3/N4 para `tests_ejecutados` (ADR-033/034).
+LABELER_VERSION = "1.2.0"
 
 # Ventanas temporales del override (ADR-023). Decisiones arbitrarias del piloto
 # documentadas en el ADR. Bumpear estas constantes obliga a bumpear LABELER_VERSION.
 ANOTACION_N1_WINDOW_SECONDS = 120.0
 ANOTACION_N4_WINDOW_SECONDS = 60.0
+
+# v1.2.0: ventana post-`tutor_respondio` para que `tests_ejecutados` con
+# todos los tests pass se etiquete N4 (apropiacion reflexiva — el alumno
+# valida sin la influencia inmediata del tutor). >= 60s. < 60s o tests
+# fallidos => N3 (validacion funcional). Spec 9 / scenario "Tests todos
+# pass, sin tutor reciente" / "Tests con fallos".
+TESTS_EJECUTADOS_N4_MIN_DELTA_SECONDS = 60.0
 
 _MIN_EVENTS_FOR_DELTA = 2
 
@@ -90,6 +102,10 @@ EVENT_N_LEVEL_BASE: dict[str, NLevel] = {
     # ADR-019 (G3 Fase A): intento adverso del estudiante en su prompt al tutor.
     # Se mapea a N4 porque ocurre en la dimension de interaccion con la IA.
     "intento_adverso_detectado": "N4",
+    # v1.2.0 (Sec 9 / ADR-033-034): tests Pyodide ejecutados por el alumno.
+    # Base = N3 (validacion funcional). Override a N4 si todos pass + tutor
+    # reciente >= 60s (apropiacion reflexiva). Ver `label_event`.
+    "tests_ejecutados": "N3",
 }
 
 _EDICION_CODIGO_N4_ORIGINS = {"copied_from_tutor", "pasted_external"}
@@ -146,6 +162,23 @@ def label_event(
             delta_open = (context.event_ts - context.episode_started_at).total_seconds()
             if 0.0 <= delta_open < ANOTACION_N1_WINDOW_SECONDS:
                 return "N1"
+    if event_type == "tests_ejecutados":
+        # v1.2.0: regla N3/N4 (Spec 9, ADR-033-034).
+        # - Tests con fallos => N3 siempre (validacion funcional, sin reflexion).
+        # - Todos pass + tutor_respondio reciente (>= 60s ago) => N4
+        #   (apropiacion reflexiva — el alumno valida solo, sin la influencia
+        #   inmediata del tutor).
+        # - Todos pass + tutor reciente (< 60s) o sin tutor todavia => N3.
+        p = payload or {}
+        failed = p.get("test_count_failed")
+        if isinstance(failed, int) and failed > 0:
+            return "N3"
+        if isinstance(failed, int) and failed == 0 and context is not None:
+            if context.last_tutor_respondio_at is not None:
+                delta = (context.event_ts - context.last_tutor_respondio_at).total_seconds()
+                if delta >= TESTS_EJECUTADOS_N4_MIN_DELTA_SECONDS:
+                    return "N4"
+        # Sin contexto o sin failed conocido o tutor demasiado reciente => base N3.
     return base
 
 

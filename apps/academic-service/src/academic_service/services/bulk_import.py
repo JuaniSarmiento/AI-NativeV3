@@ -221,11 +221,31 @@ class BulkImportService:
                         column="rubrica",
                         message="rubrica must be valid JSON",
                     )
+            # ADR-034 (Sec 9 epic): test_cases es JSONB; el bulk-import lo
+            # acepta como columna CSV con un JSON array stringified.
+            test_cases_raw = row.get("test_cases")
+            if test_cases_raw is not None and test_cases_raw.strip() != "":
+                try:
+                    parsed = json.loads(test_cases_raw.strip())
+                except json.JSONDecodeError:
+                    return None, BulkImportRowError(
+                        row_number=0,
+                        column="test_cases",
+                        message="test_cases must be valid JSON array",
+                    )
+                if not isinstance(parsed, list):
+                    return None, BulkImportRowError(
+                        row_number=0,
+                        column="test_cases",
+                        message="test_cases must be a JSON array",
+                    )
 
         try:
             coerced = _coerce_row(entity, row)
             if entity == "tareas_practicas" and "rubrica" in coerced:
                 coerced["rubrica"] = json.loads(coerced["rubrica"])
+            if entity == "tareas_practicas" and "test_cases" in coerced:
+                coerced["test_cases"] = json.loads(coerced["test_cases"])
         except (json.JSONDecodeError, ValueError) as exc:
             return None, BulkImportRowError(
                 row_number=0, column=None, message=f"Fila no parseable: {exc}"

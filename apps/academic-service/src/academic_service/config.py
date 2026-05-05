@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     )
     db_echo: bool = Field(default=False)
 
+    # External services (Sec 11 epic ai-native-completion: TP-gen IA)
+    governance_service_url: str = Field(default="http://127.0.0.1:8010")
+    ai_gateway_url: str = Field(default="http://127.0.0.1:8011")
+    tp_generator_prompt_version: str = Field(default="v1.0.0")
+    tp_generator_default_model: str = Field(default="claude-sonnet-4-6")
+
 
 @lru_cache
 def get_settings() -> Settings:

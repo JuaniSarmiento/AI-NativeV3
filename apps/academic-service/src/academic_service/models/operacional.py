@@ -211,6 +211,22 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
         Boolean, nullable=False, default=False, server_default=sa.false()
     )
 
+    # ADR-034 (Sec 9 epic ai-native-completion): test cases ejecutables como
+    # JSONB. Cada elemento: {id, name, type, code, expected, is_public, weight}.
+    # is_public=false NO viaja al cliente (filtrado en el endpoint de get).
+    # El classifier IGNORA resultados de tests is_public=false (preserva
+    # reproducibilidad bit-a-bit del classifier_config_hash).
+    test_cases: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+    )
+
+    # ADR-036 (Sec 11): TRUE si la TP fue creada via el wizard de generacion
+    # asistida por IA y el docente la edito-y-publico. Trazabilidad academica
+    # para defensa doctoral (que TPs del piloto involucraron IA en su autoria).
+    created_via_ai: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+
     created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
 
     template: Mapped[TareaPracticaTemplate | None] = relationship(back_populates="instances")
@@ -282,6 +298,12 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
         ForeignKey("tareas_practicas_templates.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
+    )
+
+    # ADR-034 (Sec 9 epic ai-native-completion): test cases del template,
+    # heredados por las instancias auto-creadas en cada comision.
+    test_cases: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
     )
 
     created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)

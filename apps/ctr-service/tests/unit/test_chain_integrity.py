@@ -80,7 +80,10 @@ def test_mutated_chain_hash_is_detected() -> None:
     """Mutar un byte del chain_hash de un evento intermedio → detectado."""
     events = _build_chain(n=5)
     event, self_h, chain_h = events[1]
-    mutated_chain = "f" + chain_h[1:]
+    # Elegir un char distinto del primero — el test era flaky 1/16 cuando
+    # chain_h[0] casualmente era "f" y la mutación no cambiaba nada.
+    new_first = "a" if chain_h[0] != "a" else "b"
+    mutated_chain = new_first + chain_h[1:]
     assert mutated_chain != chain_h
     events[1] = (event, self_h, mutated_chain)
 

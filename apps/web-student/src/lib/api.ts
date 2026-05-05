@@ -320,6 +320,40 @@ export async function emitAnotacionCreada(
   return (await r.json()) as EventEmitResponse
 }
 
+/**
+ * Envia la reflexion metacognitiva post-cierre del episodio (ADR-035).
+ *
+ * Es OPCIONAL y NO BLOQUEANTE — el cierre del episodio ya fue appendeado
+ * al CTR antes de que se llame esta funcion. El backend valida que el
+ * episodio este en estado=closed (responde 409 si no) y que cada campo
+ * sea <=500 chars (responde 422 si no).
+ *
+ * Cada campo puede ir vacio (el alumno puede dejar uno o varios en blanco).
+ */
+export async function submitReflection(
+  episodeId: string,
+  payload: {
+    que_aprendiste: string
+    dificultad_encontrada: string
+    que_haria_distinto: string
+    prompt_version: string
+    tiempo_completado_ms: number
+  },
+  getToken?: TokenGetter,
+): Promise<EventEmitResponse> {
+  const r = await fetch(`/api/v1/episodes/${episodeId}/reflection`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) {
+    const err = new Error(`submit reflection failed: ${r.status}`)
+    ;(err as Error & { status?: number }).status = r.status
+    throw err
+  }
+  return (await r.json()) as EventEmitResponse
+}
+
 // ── Tareas Prácticas (TPs) disponibles para el estudiante ─────────────
 
 /**

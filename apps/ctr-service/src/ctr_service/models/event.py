@@ -100,7 +100,10 @@ class Event(Base, TenantMixin):
     event_type: Mapped[str] = mapped_column(String(60), nullable=False)
     # "episodio_abierto" | "prompt_enviado" | "codigo_ejecutado" |
     # "tutor_respondio" | "anotacion_creada" | "cambio_de_estrategia" |
-    # "episodio_cerrado" | ...
+    # "episodio_cerrado" | "episodio_abandonado" | "edicion_codigo" |
+    # "lectura_enunciado" | "intento_adverso_detectado" |
+    # "reflexion_completada" (ADR-035, post-cierre, append-only) |
+    # "tests_ejecutados" (ADR-033/034, sandbox client-side, conteos sin detalle) | ...
 
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Timestamp del emisor (no el de persistencia)

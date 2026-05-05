@@ -208,3 +208,80 @@ def test_episodio_vacio_no_crashea() -> None:
         "apropiacion_superficial",
         "apropiacion_reflexiva",
     }
+
+
+# ── Anti-regresion: reflexion_completada NO entra al classifier (ADR-035) ──
+
+
+def test_reflexion_completada_no_afecta_clasificacion_ni_features() -> None:
+    """Episodio con/sin `reflexion_completada` produce features identicas.
+
+    Invariante doctoral (ADR-035): la reflexion metacognitiva post-cierre es
+    side-channel — el classifier la ignora. Si este test falla, alguien
+    metio reflexion_completada en EVENT_N_LEVEL_BASE / ct.py / ccd.py / cii.py
+    y rompio reproducibilidad bit-a-bit.
+    """
+    base_events = [
+        _ev(0, "episodio_abierto", 0),
+        _ev(
+            1,
+            "prompt_enviado",
+            1,
+            {"content": "qué es recursión", "prompt_kind": "solicitud_directa"},
+        ),
+        _ev(2, "tutor_respondio", 2, {"content": "..."}),
+        _ev(3, "codigo_ejecutado", 4),
+        _ev(4, "anotacion_creada", 5, {"content": "ya entendí"}),
+        _ev(5, "episodio_cerrado", 12, {"reason": "completed"}),
+    ]
+    # Mismo episodio + reflexion appendeada DESPUES del cierre (seq=6).
+    events_with_reflection = base_events + [
+        _ev(
+            6,
+            "reflexion_completada",
+            15,
+            {
+                "que_aprendiste": "como pensar el caso base",
+                "dificultad_encontrada": "tracking del stack mental",
+                "que_haria_distinto": "dibujar arbol de llamadas",
+                "prompt_version": "reflection/v1.0.0",
+                "tiempo_completado_ms": 5500,
+            },
+        ),
+    ]
+
+    r_sin = classify_episode_from_events(base_events)
+    r_con = classify_episode_from_events(events_with_reflection)
+
+    # Resultado de clasificacion identico
+    assert r_sin.appropriation == r_con.appropriation
+    assert r_sin.reason == r_con.reason
+    # Features identicas — esta es la propiedad realmente fuerte
+    assert r_sin.ct_summary == r_con.ct_summary
+    assert r_sin.ccd_mean == r_con.ccd_mean
+    assert r_sin.ccd_orphan_ratio == r_con.ccd_orphan_ratio
+    assert r_sin.cii_stability == r_con.cii_stability
+    assert r_sin.cii_evolution == r_con.cii_evolution
+
+
+def test_reflexion_completada_es_meta_en_event_labeler() -> None:
+    """label_event('reflexion_completada', ...) devuelve 'meta'.
+
+    El labeler tiene fallback a 'meta' para event_types desconocidos, pero la
+    invariante es lo suficientemente importante como para tener test explicito —
+    si alguien agrega reflexion_completada a EVENT_N_LEVEL_BASE con un nivel real
+    (N1/N2/N3/N4), este test falla y obliga a justificar el cambio en un ADR.
+    """
+    from classifier_service.services.event_labeler import label_event
+
+    level = label_event(
+        "reflexion_completada",
+        payload={
+            "que_aprendiste": "x",
+            "dificultad_encontrada": "y",
+            "que_haria_distinto": "z",
+            "prompt_version": "reflection/v1.0.0",
+            "tiempo_completado_ms": 1000,
+        },
+    )
+    assert level == "meta"

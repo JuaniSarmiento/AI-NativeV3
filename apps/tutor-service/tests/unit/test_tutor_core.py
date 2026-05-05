@@ -91,7 +91,10 @@ class FakeAIGatewayClient:
         tenant_id: UUID,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        materia_id: UUID | None = None,
     ) -> AsyncIterator[str]:
+        # Capturar materia_id para tests que verifican propagación ADR-040
+        self.last_materia_id = materia_id
         for chunk in self.response_chunks:
             yield chunk
 

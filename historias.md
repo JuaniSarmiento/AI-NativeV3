@@ -2450,6 +2450,11 @@ Tabla de referencia HU → Fase → Servicio(s) → Tests o artefactos asociados
 | HU-122 | invar | classifier-service | test 5 coherencias separadas |
 | HU-123 | invar | platform-ops | test FeatureNotDeclaredError |
 | HU-124 | invar | identity-service + platform-ops | test LDAP READ_ONLY |
+| HU-125 | epic ai-native-completion | ai-gateway + web-admin | gestión BYOK keys (CRUD + rotate + revoke + usage) — backend OK, UI DEFERIDA |
+| HU-126 | epic ai-native-completion | tutor-service + web-student | sandbox tests Pyodide client-side — backend OK (`POST /run-tests` + evento CTR), Pyodide UI DEFERIDO |
+| HU-127 | epic ai-native-completion | tutor-service + web-student | reflexión metacognitiva post-cierre — modal opcional + evento `reflexion_completada` excluido del classifier |
+| HU-128 | epic ai-native-completion | academic-service + ai-gateway | TP-gen IA — endpoint `/generate` con audit log structlog, wizard UI DEFERIDO |
+| HU-129 | epic ai-native-completion | analytics-service + web-admin | governance UI con filtros cross-cohort + CSV export ASCII |
 
 ---
 

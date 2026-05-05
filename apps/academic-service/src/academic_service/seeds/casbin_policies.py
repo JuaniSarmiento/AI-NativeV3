@@ -72,6 +72,15 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:superadmin", "*", "tarea_practica_template:*", "read"),
     ("role:superadmin", "*", "tarea_practica_template:*", "update"),
     ("role:superadmin", "*", "tarea_practica_template:*", "delete"),
+    # ADR-039 (Sec 7.7 epic ai-native-completion-and-byok): BYOK keys son
+    # admin-only. La verificacion runtime vive en `apps/ai-gateway/.../routes/byok.py`
+    # (header X-User-Roles) por simplicidad — agregamos las policies aca para que
+    # la matriz documente quien deberia poder gestionarlas y prep para enforcement
+    # via Casbin desde el api-gateway en una iteracion futura.
+    ("role:superadmin", "*", "byok_key:*", "create"),
+    ("role:superadmin", "*", "byok_key:*", "read"),
+    ("role:superadmin", "*", "byok_key:*", "update"),
+    ("role:superadmin", "*", "byok_key:*", "delete"),
     ("role:superadmin", "*", "audit:*", "read"),
     # ── Docente admin: gestión institucional completa de su tenant ────
     # (dom "*" acá es metafórico — en F5 se filtra por tenant)
@@ -115,6 +124,11 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente_admin", "*", "tarea_practica_template:*", "read"),
     ("role:docente_admin", "*", "tarea_practica_template:*", "update"),
     ("role:docente_admin", "*", "tarea_practica_template:*", "delete"),
+    # BYOK keys — admin del tenant gestiona keys del scope tenant/materia/facultad.
+    ("role:docente_admin", "*", "byok_key:*", "create"),
+    ("role:docente_admin", "*", "byok_key:*", "read"),
+    ("role:docente_admin", "*", "byok_key:*", "update"),
+    ("role:docente_admin", "*", "byok_key:*", "delete"),
     ("role:docente_admin", "*", "audit:*", "read"),
     # ── Docente: solo comisiones asignadas + lectura del árbol ─────────
     ("role:docente", "*", "universidad:*", "read"),

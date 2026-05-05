@@ -31,6 +31,20 @@ class TareaPracticaResponse:
     fecha_fin: datetime | None
 
 
+@dataclass
+class ComisionResponse:
+    """Subset de campos de Comision que el tutor-service necesita.
+
+    ADR-040: el tutor consume `materia_id` para propagarlo al ai-gateway en cada
+    turno (resolver BYOK con scope=materia primero, fallback a scope=tenant).
+    """
+
+    id: UUID
+    tenant_id: UUID
+    materia_id: UUID
+    periodo_id: UUID
+
+
 class AcademicClient:
     """Cliente del academic-service.
 
@@ -80,6 +94,48 @@ class AcademicClient:
             estado=data["estado"],
             fecha_inicio=_parse_datetime(data.get("fecha_inicio")),
             fecha_fin=_parse_datetime(data.get("fecha_fin")),
+        )
+
+    async def get_comision(
+        self,
+        comision_id: UUID,
+        tenant_id: UUID,
+        caller_id: UUID,
+    ) -> ComisionResponse | None:
+        """Obtiene una Comision por id.
+
+        ADR-040 (Sec 6.2): se invoca al abrir un episodio para resolver
+        `materia_id` y cachearlo en `SessionState`. Si la comision no existe
+        (404) o el caller no tiene permiso (4xx), devuelve None — el caller
+        degrada a `materia_id=None` (BYOK fallback a scope=tenant).
+
+        Returns:
+            ComisionResponse si existe (HTTP 200).
+            None si la comision no existe (HTTP 404).
+
+        Raises:
+            httpx.HTTPStatusError: en caso de 5xx.
+        """
+        headers = {
+            "X-User-Id": str(caller_id),
+            "X-Tenant-Id": str(tenant_id),
+            "X-User-Email": "tutor-service@platform.internal",
+            "X-User-Roles": "tutor_service",
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/v1/comisiones/{comision_id}",
+                headers=headers,
+            )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        return ComisionResponse(
+            id=UUID(data["id"]),
+            tenant_id=UUID(data["tenant_id"]),
+            materia_id=UUID(data["materia_id"]),
+            periodo_id=UUID(data["periodo_id"]),
         )
 
 

@@ -41,6 +41,11 @@ MATRIX = [
     ("role:superadmin", "comision:abc", "update", True),
     ("role:superadmin", "tarea_practica_template:tpl1", "create", True),
     ("role:superadmin", "tarea_practica_template:tpl1", "delete", True),
+    # ADR-039 (epic ai-native-completion-and-byok): BYOK keys son admin-only.
+    ("role:superadmin", "byok_key:abc", "create", True),
+    ("role:superadmin", "byok_key:abc", "read", True),
+    ("role:superadmin", "byok_key:abc", "update", True),
+    ("role:superadmin", "byok_key:abc", "delete", True),
     # Docente admin: gestiona su tenant
     ("role:docente_admin", "carrera:x", "create", True),
     ("role:docente_admin", "carrera:x", "read", True),
@@ -51,6 +56,10 @@ MATRIX = [
     ("role:docente_admin", "tarea_practica_template:tpl1", "create", True),
     ("role:docente_admin", "tarea_practica_template:tpl1", "update", True),
     ("role:docente_admin", "tarea_practica_template:tpl1", "delete", True),
+    ("role:docente_admin", "byok_key:abc", "create", True),
+    ("role:docente_admin", "byok_key:abc", "read", True),
+    ("role:docente_admin", "byok_key:abc", "update", True),
+    ("role:docente_admin", "byok_key:abc", "delete", True),
     # Docente: lectura del árbol académico, sin modificar
     ("role:docente", "comision:abc", "read", True),
     ("role:docente", "comision:abc", "create", False),
@@ -62,6 +71,9 @@ MATRIX = [
     ("role:docente", "tarea_practica_template:tpl1", "read", True),
     ("role:docente", "tarea_practica_template:tpl1", "update", True),
     ("role:docente", "tarea_practica_template:tpl1", "delete", True),
+    # Docente NO gestiona BYOK keys — admin-only.
+    ("role:docente", "byok_key:abc", "create", False),
+    ("role:docente", "byok_key:abc", "read", False),
     # Estudiante: muy limitado
     ("role:estudiante", "comision:abc", "read", True),
     ("role:estudiante", "comision:abc", "create", False),
@@ -73,6 +85,9 @@ MATRIX = [
     ("role:estudiante", "tarea_practica_template:tpl1", "create", False),
     ("role:estudiante", "tarea_practica_template:tpl1", "update", False),
     ("role:estudiante", "tarea_practica_template:tpl1", "delete", False),
+    # Estudiante NO ve ni gestiona BYOK keys — datos sensibles del tenant.
+    ("role:estudiante", "byok_key:abc", "read", False),
+    ("role:estudiante", "byok_key:abc", "create", False),
 ]
 
 

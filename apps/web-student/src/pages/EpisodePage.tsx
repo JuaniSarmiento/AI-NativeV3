@@ -4,6 +4,7 @@ import { BookOpen } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CodeEditor } from "../components/CodeEditor"
 import { ComisionSelector } from "../components/ComisionSelector"
+import { ReflectionModal } from "../components/ReflectionModal"
 import { TareaSelector } from "../components/TareaSelector"
 import {
   type AvailableTarea,
@@ -61,6 +62,11 @@ export default function EpisodePage() {
     if (typeof window === "undefined") return false
     return Boolean(window.sessionStorage.getItem(ACTIVE_EPISODE_KEY))
   })
+  // ADR-035: estado del modal de reflexion post-cierre. Se abre tras el
+  // closeEpisode exitoso y guardamos el episodeId que acabamos de cerrar
+  // para que la reflexion apunte al CTR correcto (el setEpisodeId(null)
+  // de handleClose limpia el state principal).
+  const [reflectionTargetId, setReflectionTargetId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = useCallback(() => {
@@ -253,8 +259,13 @@ export default function EpisodePage() {
       setError(`Error cerrando: ${e}`)
       return
     }
+    // ADR-035: el cierre ya fue appendeado al CTR — disparamos el modal de
+    // reflexion DESPUES, asincrono y opcional. La clasificacion sigue su
+    // camino en paralelo (best-effort).
+    const closedEpisodeId = episodeId
+    setReflectionTargetId(closedEpisodeId)
     try {
-      const c = await classifyEpisode(episodeId)
+      const c = await classifyEpisode(closedEpisodeId)
       setClassification(c)
     } catch {
       // Clasificación es best-effort — en dev el pipeline puede no estar
@@ -438,6 +449,11 @@ export default function EpisodePage() {
           </section>
         </div>
       )}
+      <ReflectionModal
+        isOpen={reflectionTargetId !== null}
+        episodeId={reflectionTargetId}
+        onClose={() => setReflectionTargetId(null)}
+      />
     </div>
   )
 }

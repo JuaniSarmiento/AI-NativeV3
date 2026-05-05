@@ -35,9 +35,13 @@ def _ev(
 
 
 def test_mapping_base_cubre_todos_los_event_types_del_contrato() -> None:
-    """Sanity check: el mapping cubre los 10 event_type que existen hoy en
-    `packages/contracts/src/platform_contracts/ctr/events.py`. Si se agrega
-    uno nuevo (ej. nuevos eventos de G2/G6), este test recuerda actualizar el mapping."""
+    """Sanity check: el mapping cubre los 11 event_type clasificables que
+    existen hoy en `packages/contracts/src/platform_contracts/ctr/events.py`.
+    Si se agrega uno nuevo, este test recuerda actualizar el mapping (o
+    agregarlo a `_EXCLUDED_FROM_FEATURES` si es side-channel — ej.
+    `reflexion_completada` que NO aparece aca por diseno: ADR-035 lo excluye
+    explicitamente del classifier para preservar reproducibilidad bit-a-bit).
+    """
     expected_types = {
         "episodio_abierto",
         "episodio_cerrado",
@@ -49,6 +53,7 @@ def test_mapping_base_cubre_todos_los_event_types_del_contrato() -> None:
         "prompt_enviado",
         "tutor_respondio",
         "intento_adverso_detectado",  # ADR-019, G3 Fase A
+        "tests_ejecutados",  # v1.2.0, ADR-033/034 (Sec 9 epic ai-native-completion)
     }
     assert set(EVENT_N_LEVEL_BASE.keys()) == expected_types
 
@@ -440,3 +445,122 @@ def test_distribution_incluye_labeler_version() -> None:
     r = n_level_distribution([_ev(0, "lectura_enunciado", 0)])
     assert r["labeler_version"] == LABELER_VERSION
     assert isinstance(r["labeler_version"], str)
+
+
+# ---------------------------------------------------------------------------
+# tests_ejecutados (Sec 9 epic ai-native-completion / ADR-033/034, v1.2.0)
+# ---------------------------------------------------------------------------
+
+
+def test_tests_ejecutados_sin_contexto_es_n3() -> None:
+    """Sin contexto, tests_ejecutados es base N3 (validacion funcional)."""
+    from classifier_service.services.event_labeler import label_event
+
+    assert (
+        label_event(
+            "tests_ejecutados",
+            payload={"test_count_failed": 0, "test_count_passed": 5, "test_count_total": 5},
+        )
+        == "N3"
+    )
+
+
+def test_tests_ejecutados_con_fallos_es_n3_aunque_haya_tutor_reciente() -> None:
+    """Si fallaron tests, NO promueve a N4 (no es apropiacion reflexiva)."""
+    from datetime import UTC, datetime, timedelta
+
+    from classifier_service.services.event_labeler import EpisodeContext, label_event
+
+    base = datetime(2026, 5, 4, 10, 0, 0, tzinfo=UTC)
+    ctx = EpisodeContext(
+        event_ts=base + timedelta(seconds=120),  # 120s post-tutor (>= 60s)
+        episode_started_at=base - timedelta(minutes=5),
+        last_tutor_respondio_at=base,  # tutor 120s atras
+    )
+    assert (
+        label_event(
+            "tests_ejecutados",
+            payload={"test_count_failed": 2, "test_count_passed": 3, "test_count_total": 5},
+            context=ctx,
+        )
+        == "N3"
+    )
+
+
+def test_tests_ejecutados_todos_pass_y_tutor_lejano_es_n4() -> None:
+    """Todos pass + tutor_respondio >= 60s ago => N4 (apropiacion reflexiva)."""
+    from datetime import UTC, datetime, timedelta
+
+    from classifier_service.services.event_labeler import EpisodeContext, label_event
+
+    base = datetime(2026, 5, 4, 10, 0, 0, tzinfo=UTC)
+    ctx = EpisodeContext(
+        event_ts=base + timedelta(seconds=120),  # 120s post-tutor (>= 60s)
+        episode_started_at=base - timedelta(minutes=5),
+        last_tutor_respondio_at=base,
+    )
+    assert (
+        label_event(
+            "tests_ejecutados",
+            payload={"test_count_failed": 0, "test_count_passed": 5, "test_count_total": 5},
+            context=ctx,
+        )
+        == "N4"
+    )
+
+
+def test_tests_ejecutados_todos_pass_pero_tutor_muy_reciente_es_n3() -> None:
+    """Todos pass + tutor_respondio < 60s ago => N3 (no es reflexivo,
+    es validacion inmediata post-tutor)."""
+    from datetime import UTC, datetime, timedelta
+
+    from classifier_service.services.event_labeler import EpisodeContext, label_event
+
+    base = datetime(2026, 5, 4, 10, 0, 0, tzinfo=UTC)
+    ctx = EpisodeContext(
+        event_ts=base + timedelta(seconds=30),  # 30s post-tutor (< 60s)
+        episode_started_at=base - timedelta(minutes=5),
+        last_tutor_respondio_at=base,
+    )
+    assert (
+        label_event(
+            "tests_ejecutados",
+            payload={"test_count_failed": 0, "test_count_passed": 5, "test_count_total": 5},
+            context=ctx,
+        )
+        == "N3"
+    )
+
+
+def test_tests_ejecutados_sin_tutor_previo_es_n3() -> None:
+    """Todos pass + sin tutor_respondio previo => N3 (no hay baseline para
+    medir apropiacion reflexiva)."""
+    from datetime import UTC, datetime
+
+    from classifier_service.services.event_labeler import EpisodeContext, label_event
+
+    ctx = EpisodeContext(
+        event_ts=datetime(2026, 5, 4, 10, 0, 0, tzinfo=UTC),
+        episode_started_at=datetime(2026, 5, 4, 9, 55, 0, tzinfo=UTC),
+        last_tutor_respondio_at=None,
+    )
+    assert (
+        label_event(
+            "tests_ejecutados",
+            payload={"test_count_failed": 0, "test_count_passed": 5, "test_count_total": 5},
+            context=ctx,
+        )
+        == "N3"
+    )
+
+
+def test_labeler_version_bumpeo_a_1_2_x() -> None:
+    """v1.2.x introduce regla de tests_ejecutados (Sec 9 epic, ADR-033/034)."""
+    parts = LABELER_VERSION.split(".")
+    major = int(parts[0])
+    minor = int(parts[1])
+    assert major == 1
+    assert minor >= 2, (
+        f"LABELER_VERSION es {LABELER_VERSION} pero la regla N3/N4 de "
+        "tests_ejecutados (ADR-033/034) requiere v1.2.0 o superior."
+    )

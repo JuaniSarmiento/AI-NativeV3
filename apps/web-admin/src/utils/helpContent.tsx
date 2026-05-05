@@ -442,4 +442,50 @@ export const helpContent: HelpContentMap = {
       </div>
     </div>
   ),
+
+  governanceEvents: (
+    <div className="space-y-4 text-zinc-300">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Eventos de gobernanza</p>
+      <p>
+        Vista institucional cross-cohort de los <strong>intentos adversos detectados</strong> por el
+        guardrails Fase A del tutor (ADR-019, RN-129). El sistema matchea el prompt del estudiante
+        contra un corpus regex ANTES de pegarle al LLM y emite un evento side-channel al CTR — NO
+        bloquea el flow, el prompt llega al modelo igual.
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>Categorias:</strong> jailbreak_indirect, jailbreak_substitution,
+          jailbreak_fiction, persuasion_urgency, prompt_injection. Cada una refleja una tactica
+          distinta.
+        </li>
+        <li>
+          <strong>Severidad 1-5:</strong> escala del corpus. Sev &gt;=3 dispara refuerzo pedagogico
+          inyectado al prompt del tutor (Seccion 8.5.1 de la tesis).
+        </li>
+        <li>
+          <strong>Filtros cascade:</strong> facultad =&gt; materia =&gt; periodo. La pagina permite
+          slice institucional o granular hasta una comision especifica.
+        </li>
+        <li>
+          <strong>Exportar CSV:</strong> conjunto filtrado actual con headers ASCII (cp1252-safe en
+          Windows). Filename incluye timestamp ISO + filtros.
+        </li>
+      </ul>
+      <div className="bg-zinc-800 p-4 rounded-lg mt-4 border border-zinc-700">
+        <p className="text-blue-400 font-medium">Solo lectura:</p>
+        <p className="text-sm mt-1">
+          ADR-037. La pagina NO permite mutaciones ni workflow "marcar revisado" — eso queda
+          diferido a piloto-2 con tabla governance_event_reviews. El CTR es append-only por diseno.
+        </p>
+      </div>
+      <div className="bg-zinc-800 p-4 rounded-lg mt-2 border border-zinc-700">
+        <p className="text-orange-400 font-medium">Que NO es:</p>
+        <p className="text-sm mt-1">
+          NO es deteccion de plagio. NO es deteccion automatica de mala-conducta. Es un instrumento
+          de visibilidad pedagogica: el docente/admin puede ver patrones agregados de presion sobre
+          el tutor, no individuos a sancionar.
+        </p>
+      </div>
+    </div>
+  ),
 }

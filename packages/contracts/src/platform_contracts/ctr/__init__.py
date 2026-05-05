@@ -11,6 +11,8 @@ from platform_contracts.ctr.events import (
     IntentoAdversoDetectado,
     LecturaEnunciado,
     PromptEnviado,
+    ReflexionCompletada,
+    TestsEjecutados,
     TutorRespondio,
 )
 from platform_contracts.ctr.hashing import (
@@ -32,6 +34,8 @@ __all__ = [
     "IntentoAdversoDetectado",
     "LecturaEnunciado",
     "PromptEnviado",
+    "ReflexionCompletada",
+    "TestsEjecutados",
     "TutorRespondio",
     "compute_chain_hash",
     "compute_self_hash",

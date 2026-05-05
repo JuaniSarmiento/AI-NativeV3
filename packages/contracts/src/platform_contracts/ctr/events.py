@@ -213,3 +213,74 @@ class CodigoEjecutadoPayload(BaseModel):
 class CodigoEjecutado(CTRBaseEvent):
     event_type: Literal["codigo_ejecutado"] = "codigo_ejecutado"
     payload: CodigoEjecutadoPayload
+
+
+# ── Reflexion metacognitiva post-cierre (ADR-035) ───────────────────────
+#
+# Se appendea al CTR DESPUES de `episodio_cerrado`. El CTR es append-only:
+# un episodio con `estado=closed` sigue aceptando eventos posteriores y la
+# cadena criptografica continua (chain_hash sigue ligando seq+1 al anterior).
+#
+# Privacy: el contenido textual viaja como string libre. El export academico
+# (`packages/platform-ops/academic_export.py`) redacta los 3 campos textuales
+# por default; investigador con consentimiento usa `--include-reflections`.
+#
+# Anti-regresion clave: el classifier IGNORA estos eventos. Test en
+# `apps/classifier-service/tests/unit/test_pipeline_reproducibility.py` valida
+# que dos episodios identicos (uno con reflexion, otro sin) producen mismo
+# `classifier_config_hash` y mismas features.
+class ReflexionCompletadaPayload(BaseModel):
+    que_aprendiste: str = Field(max_length=500)
+    dificultad_encontrada: str = Field(max_length=500)
+    que_haria_distinto: str = Field(max_length=500)
+    prompt_version: str = Field(
+        description=(
+            "Identificador del cuestionario, ej. 'reflection/v1.0.0'. "
+            "Permite distinguir reflexiones capturadas con cuestionarios "
+            "diferentes en analisis longitudinal."
+        )
+    )
+    tiempo_completado_ms: int = Field(
+        ge=0,
+        description="Milisegundos transcurridos desde que el modal abrio hasta el submit.",
+    )
+
+
+class ReflexionCompletada(CTRBaseEvent):
+    event_type: Literal["reflexion_completada"] = "reflexion_completada"
+    payload: ReflexionCompletadaPayload
+
+
+# ── Tests ejecutados (sandbox + test cases, ADR-033 / ADR-034) ──────────
+#
+# Evento side-channel de gobernanza pedagogica: el alumno corrio tests
+# publicos sobre su codigo en Pyodide. NO incluye la lista detallada por
+# test (solo conteos) — el classifier consume conteos publicos, no resultados
+# por test individual. Tests hidden quedan en piloto-1 con `tests_hidden=0`
+# siempre (no se ejecutan client-side); su agenda piloto-2 esta en ADR-033.
+class TestsEjecutadosPayload(BaseModel):
+    test_count_total: int = Field(ge=0, description="Total de tests ejecutados (publicos)")
+    test_count_passed: int = Field(ge=0)
+    test_count_failed: int = Field(ge=0)
+    tests_publicos: int = Field(ge=0, description="Tests con is_public=true ejecutados")
+    tests_hidden: int = Field(
+        ge=0,
+        description=(
+            "Siempre 0 en piloto-1 — los tests hidden NO se ejecutan client-side. "
+            "Reservado para piloto-2 cuando se implemente sandbox-service."
+        ),
+    )
+    chunks_used_hash: str | None = Field(
+        default=None,
+        pattern=r"^[a-f0-9]{64}$",
+        description=(
+            "Propagado del ultimo `prompt_enviado` del episodio para correlacionar "
+            "ejecucion de tests con el contexto RAG vigente. None si no hubo prompt."
+        ),
+    )
+    ejecucion_ms: int = Field(ge=0, description="Duracion total de la corrida en ms")
+
+
+class TestsEjecutados(CTRBaseEvent):
+    event_type: Literal["tests_ejecutados"] = "tests_ejecutados"
+    payload: TestsEjecutadosPayload

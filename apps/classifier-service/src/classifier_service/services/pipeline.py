@@ -55,6 +55,18 @@ def compute_classifier_config_hash(
     return hashlib.sha256(canonical).hexdigest()
 
 
+# ADR-035: eventos side-channel que el CTR persiste pero el classifier IGNORA.
+# Mantenerlos fuera del feature extraction es lo que preserva reproducibilidad
+# bit-a-bit del `classifier_config_hash` cuando se introducen senales nuevas
+# (reflexion metacognitiva, attestation requests, etc.) post-cierre del episodio.
+# Cada entrada de este set debe estar respaldada por un ADR.
+_EXCLUDED_FROM_FEATURES = frozenset(
+    {
+        "reflexion_completada",  # ADR-035
+    }
+)
+
+
 def classify_episode_from_events(
     events: list[dict],
     reference_profile: dict[str, Any] | None = None,
@@ -63,11 +75,18 @@ def classify_episode_from_events(
 
     Esta función es pura y determinista: mismos eventos + mismo profile =
     misma clasificación.
+
+    Eventos en `_EXCLUDED_FROM_FEATURES` se filtran ANTES del feature
+    extraction (ADR-035) — son side-channel del CTR que NO afectan
+    reproducibilidad.
     """
     profile = reference_profile or DEFAULT_REFERENCE_PROFILE
-    ct = ct_features(events)
-    ccd = compute_ccd(events)
-    cii = compute_cii(events)
+    classifier_events = [
+        e for e in events if e.get("event_type") not in _EXCLUDED_FROM_FEATURES
+    ]
+    ct = ct_features(classifier_events)
+    ccd = compute_ccd(classifier_events)
+    cii = compute_cii(classifier_events)
     return classify(ct=ct, ccd=ccd, cii=cii, reference_profile=profile)
 
 

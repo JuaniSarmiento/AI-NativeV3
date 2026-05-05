@@ -3,6 +3,10 @@
 Cardinality rule: `student_pseudonym`/`episode_id`/`prompt_id` PROHIBIDOS.
 Las labels permitidas acá son `tenant_id`, `provider`, `kind` (input/output),
 `reason` (fallback), `feature`.
+
+ADR-039 (Sec 13.1-13.2 epic ai-native-completion-and-byok): contadores BYOK
+NUNCA llevan `scope_id` (UUID) como label — explosion de cardinality. Se usa
+`resolved_scope` (enum acotado: materia | tenant | env_fallback | none).
 """
 
 from __future__ import annotations
@@ -54,6 +58,31 @@ ai_gateway_requests_total = _meter.create_counter(
     unit="1",
 )
 
+# ── BYOK metrics (Sec 13.1-13.2, ADR-039) ─────────────────────────────────
+
+# Uso de keys BYOK por scope. Labels: provider, scope_type (tenant|materia|...),
+# resolved_scope (lo mismo, redundante por compat con dashboard ya planeado).
+# NO scope_id — cardinality budget.
+byok_key_usage_total = _meter.create_counter(
+    "byok_key_usage_total",
+    description="Veces que se uso una BYOK key por scope.",
+    unit="1",
+)
+
+# Resolucion del resolver jerarquico. resolved_scope ∈ {materia,tenant,env_fallback,none}.
+byok_key_resolution_total = _meter.create_counter(
+    "byok_key_resolution_total",
+    description="Resoluciones de BYOK keys agrupadas por scope final.",
+    unit="1",
+)
+
+# Latencia del resolver (lookup DB + decrypt). SLO p99 < 50ms.
+byok_key_resolution_duration_seconds = _meter.create_histogram(
+    "byok_key_resolution_duration_seconds",
+    description="Latencia del resolver BYOK (DB lookup + decrypt).",
+    unit="s",
+)
+
 
 __all__ = [
     "ai_gateway_budget_remaining_usd",
@@ -62,4 +91,7 @@ __all__ = [
     "ai_gateway_request_duration_seconds",
     "ai_gateway_requests_total",
     "ai_gateway_tokens_total",
+    "byok_key_resolution_duration_seconds",
+    "byok_key_resolution_total",
+    "byok_key_usage_total",
 ]

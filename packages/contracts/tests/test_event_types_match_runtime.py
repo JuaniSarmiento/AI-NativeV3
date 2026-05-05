@@ -28,6 +28,8 @@ from platform_contracts.ctr.events import (
     IntentoAdversoDetectado,
     LecturaEnunciado,
     PromptEnviado,
+    ReflexionCompletada,
+    TestsEjecutados,
     TutorRespondio,
 )
 
@@ -50,6 +52,8 @@ def _contract_event_types() -> set[str]:
         EdicionCodigo,
         CodigoEjecutado,
         IntentoAdversoDetectado,
+        ReflexionCompletada,
+        TestsEjecutados,
     )
     return {cls.model_fields["event_type"].default for cls in classes}
 

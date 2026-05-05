@@ -19,6 +19,9 @@ class TareaPracticaBase(BaseModel):
     fecha_fin: datetime | None = None
     peso: Decimal = Field(default=Decimal("1.0"), ge=0, le=1)
     rubrica: dict[str, Any] | None = None
+    # ADR-034 (Sec 9): test cases ejecutables. Cada elemento:
+    # {id, name, type, code, expected, is_public, weight}.
+    test_cases: list[dict[str, Any]] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_dates(self) -> TareaPracticaBase:
@@ -33,6 +36,8 @@ class TareaPracticaBase(BaseModel):
 
 class TareaPracticaCreate(TareaPracticaBase):
     comision_id: UUID
+    # ADR-036 (Sec 11): TRUE si el wizard TP-gen IA fue el origen.
+    created_via_ai: bool = False
 
 
 class TareaPracticaUpdate(BaseModel):
@@ -43,6 +48,7 @@ class TareaPracticaUpdate(BaseModel):
     fecha_fin: datetime | None = None
     peso: Decimal | None = Field(default=None, ge=0, le=1)
     rubrica: dict[str, Any] | None = None
+    test_cases: list[dict[str, Any]] | None = None
 
 
 class TareaPracticaOut(TareaPracticaBase):
@@ -56,6 +62,7 @@ class TareaPracticaOut(TareaPracticaBase):
     parent_tarea_id: UUID | None = None
     template_id: UUID | None = None
     has_drift: bool = False
+    created_via_ai: bool = False
     created_by: UUID
     created_at: datetime
     deleted_at: datetime | None = None

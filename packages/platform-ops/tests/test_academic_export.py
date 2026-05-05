@@ -362,3 +362,126 @@ async def test_export_es_byte_identico_con_mismo_salt_y_misma_data() -> None:
     assert sorted(e.episode_alias for e in d1.episodes) == sorted(
         e.episode_alias for e in d2.episodes
     )
+
+
+# ── ADR-035: include_reflections + audit log ────────────────────────────
+
+
+def _build_cohort_with_reflections():
+    """Cohorte sintetica con un episodio que tiene `reflexion_completada`."""
+    comision_id = uuid4()
+    student = uuid4()
+    ep = uuid4()
+
+    now = datetime.now(UTC)
+    ts_open = (now - timedelta(days=2)).isoformat().replace("+00:00", "Z")
+    ts_close = (now - timedelta(days=2, minutes=-25)).isoformat().replace("+00:00", "Z")
+    ts_reflect = (now - timedelta(days=2, minutes=-30)).isoformat().replace("+00:00", "Z")
+
+    episodes = [
+        {
+            "id": str(ep),
+            "comision_id": str(comision_id),
+            "student_pseudonym": str(student),
+        }
+    ]
+    events_by_episode = {
+        str(ep): [
+            {"seq": 0, "event_type": "episodio_abierto", "ts": ts_open, "payload": {}},
+            {"seq": 1, "event_type": "prompt_enviado", "ts": ts_open, "payload": {}},
+            {"seq": 2, "event_type": "tutor_respondio", "ts": ts_open, "payload": {}},
+            {"seq": 3, "event_type": "codigo_ejecutado", "ts": ts_open, "payload": {}},
+            {"seq": 4, "event_type": "episodio_cerrado", "ts": ts_close, "payload": {}},
+            {
+                "seq": 5,
+                "event_type": "reflexion_completada",
+                "ts": ts_reflect,
+                "payload": {
+                    "que_aprendiste": "como pensar el caso base",
+                    "dificultad_encontrada": "el tracking del stack mental",
+                    "que_haria_distinto": "dibujar el arbol primero",
+                    "prompt_version": "reflection/v1.0.0",
+                    "tiempo_completado_ms": 5500,
+                },
+            },
+        ]
+    }
+    classifications = {
+        str(ep): {
+            "appropiation": "apropiacion_superficial",
+            "classifier_config_hash": "d" * 64,
+            "ct_summary": 0.5,
+            "ccd_mean": 0.5,
+            "ccd_orphan_ratio": 0.3,
+            "cii_stability": 0.5,
+            "cii_evolution": 0.5,
+        }
+    }
+
+    ds = FakeCohortDataSource(
+        episodes=episodes,
+        events_by_episode=events_by_episode,
+        classifications=classifications,
+    )
+    return ds, comision_id
+
+
+async def test_include_reflections_false_por_default_redacta_textos() -> None:
+    """Sin flag explicito, los 3 campos textuales se reemplazan por '[redacted]'."""
+    ds, comision_id = _build_cohort_with_reflections()
+    exporter = AcademicExporter(ds, salt="research_salt_analysis_2026")
+    dataset = await exporter.export_cohort(comision_id)
+
+    ep = dataset.episodes[0]
+    assert ep.reflection_count == 1
+    assert len(ep.reflections) == 1
+    r = ep.reflections[0]
+    # Metadata SIEMPRE viaja (no identificable)
+    assert r["prompt_version"] == "reflection/v1.0.0"
+    assert r["tiempo_completado_ms"] == 5500
+    # Textos redactados
+    assert r["que_aprendiste"] == "[redacted]"
+    assert r["dificultad_encontrada"] == "[redacted]"
+    assert r["que_haria_distinto"] == "[redacted]"
+
+
+async def test_include_reflections_true_expone_textos_y_emite_audit_log(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Con flag explicito, los textos viajan integros y se emite audit log.
+
+    El audit log obligatorio se captura via stdout porque structlog escribe
+    a su propio sink (configurado por el observability bootstrap en runtime).
+    En tests, consume_existing flush + capsys.readouterr() es suficiente para
+    verificar que la linea se emitio.
+    """
+    ds, comision_id = _build_cohort_with_reflections()
+    exporter = AcademicExporter(ds, salt="research_salt_analysis_2026")
+
+    dataset = await exporter.export_cohort(comision_id, include_reflections=True)
+
+    ep = dataset.episodes[0]
+    r = ep.reflections[0]
+    assert r["que_aprendiste"] == "como pensar el caso base"
+    assert r["dificultad_encontrada"] == "el tracking del stack mental"
+    assert r["que_haria_distinto"] == "dibujar el arbol primero"
+
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "reflections_exported_with_consent" in combined, (
+        "Audit log 'reflections_exported_with_consent' no fue emitido"
+    )
+
+
+async def test_include_reflections_false_no_emite_audit_log(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Sin flag, no se emite audit log (no hay consent que registrar)."""
+    ds, comision_id = _build_cohort_with_reflections()
+    exporter = AcademicExporter(ds, salt="research_salt_analysis_2026")
+
+    await exporter.export_cohort(comision_id)
+
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "reflections_exported_with_consent" not in combined

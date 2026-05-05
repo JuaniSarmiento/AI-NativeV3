@@ -40,6 +40,10 @@ class SessionState:
     classifier_config_hash: str = ""
     curso_config_hash: str = ""
     model: str = ""  # seleccionado por feature flag en open_episode
+    # ADR-040 (Sec 6.2 epic ai-native-completion-and-byok): cacheado al abrir el
+    # episodio para no re-resolver `episode → tarea → comision → materia` en
+    # cada turno. None = no se pudo resolver (degrada a tenant_fallback en BYOK).
+    materia_id: UUID | None = None
     # ADR-025: epoch UTC de la ultima actividad. Lo refresca `set()` (que
     # lo invocan `open_episode` y `next_seq`). Sirve al worker de abandono
     # para detectar sesiones inactivas y emitir EpisodioAbandonado(reason=timeout).
@@ -58,6 +62,7 @@ class SessionManager:
         if raw is None:
             return None
         data = json.loads(raw)
+        materia_raw = data.get("materia_id")
         return SessionState(
             episode_id=UUID(data["episode_id"]),
             tenant_id=UUID(data["tenant_id"]),
@@ -69,6 +74,10 @@ class SessionManager:
             prompt_system_version=data["prompt_system_version"],
             classifier_config_hash=data["classifier_config_hash"],
             curso_config_hash=data["curso_config_hash"],
+            model=data.get("model", ""),
+            # ADR-040: sesiones legacy (pre-Sec 6.2) no tienen materia_id
+            # — fallback a None (degrada a tenant_fallback en BYOK).
+            materia_id=UUID(materia_raw) if materia_raw else None,
             # last_activity_at puede no existir en sesiones pre-ADR-025
             # — fallback a time.time() para que sesiones legacy NO disparen
             # abandono inmediato en el primer pase del worker.
@@ -92,6 +101,8 @@ class SessionManager:
             "prompt_system_version": state.prompt_system_version,
             "classifier_config_hash": state.classifier_config_hash,
             "curso_config_hash": state.curso_config_hash,
+            "model": state.model,
+            "materia_id": str(state.materia_id) if state.materia_id else None,
             "last_activity_at": state.last_activity_at,
         }
         await self.redis.setex(self._key(state.episode_id), SESSION_TTL, json.dumps(data))

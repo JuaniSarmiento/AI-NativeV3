@@ -5,6 +5,8 @@ GET  /api/v1/episodes/{id}               estado del episodio (recovery del front
 POST /api/v1/episodes/{id}/message       SSE con la respuesta del tutor
 POST /api/v1/episodes/{id}/close         cerrar episodio (emite evento cierre)
 POST /api/v1/episodes/{id}/abandoned     ADR-025: emite EpisodioAbandonado (idempotente)
+POST /api/v1/episodes/{id}/reflection    ADR-035: emite ReflexionCompletada (post-cierre, opcional)
+POST /api/v1/episodes/{id}/run-tests     ADR-033/034: emite TestsEjecutados (conteos de Pyodide)
 """
 
 from __future__ import annotations
@@ -606,5 +608,147 @@ async def emit_anotacion_creada(
         # Sesión inexistente o eliminada (cierre/expiración) → episodio
         # ya no acepta eventos.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    return {"status": "accepted", "seq": str(seq)}
+
+
+class RunTestsRequest(BaseModel):
+    """Conteos de la corrida de tests Pyodide (ADR-033/034, Sec 9 epic).
+
+    El cliente NO manda la lista detallada de tests ni el codigo del alumno —
+    solo conteos agregados. Defensa de privacidad + cardinalidad del CTR.
+    Tests `is_public=false` quedan opacos al cliente (filtrados en el
+    endpoint de `tareas-practicas/{id}/test-cases?include_hidden=false`),
+    asi que `tests_hidden` debe llegar 0 en piloto-1.
+    """
+
+    test_count_total: int = Field(ge=0)
+    test_count_passed: int = Field(ge=0)
+    test_count_failed: int = Field(ge=0)
+    tests_publicos: int = Field(ge=0)
+    tests_hidden: int = Field(
+        ge=0,
+        le=0,
+        description="Siempre 0 en piloto-1 — los tests hidden no se ejecutan client-side.",
+    )
+    ejecucion_ms: int = Field(ge=0, le=10 * 60 * 1000)  # cap a 10min
+    chunks_used_hash: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+@router.post(
+    "/{episode_id}/run-tests",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def emit_tests_ejecutados(
+    episode_id: UUID,
+    req: RunTestsRequest,
+    user: User = Depends(require_role("estudiante", "docente", "docente_admin", "superadmin")),
+) -> dict[str, str]:
+    """Emite tests_ejecutados al CTR con conteos del cliente Pyodide.
+
+    Estados:
+      - 202: evento aceptado, devuelve seq.
+      - 409: episodio cerrado, expirado o inexistente.
+      - 422: payload invalido (conteos inconsistentes, tests_hidden!=0).
+
+    El user_id autoritativo es el del estudiante (header X-User-Id) — la
+    ejecucion es del estudiante, su accion directa.
+    """
+    tutor = _get_tutor()
+    try:
+        seq = await tutor.emit_tests_ejecutados(
+            episode_id=episode_id,
+            user_id=user.id,
+            test_count_total=req.test_count_total,
+            test_count_passed=req.test_count_passed,
+            test_count_failed=req.test_count_failed,
+            tests_publicos=req.tests_publicos,
+            tests_hidden=req.tests_hidden,
+            ejecucion_ms=req.ejecucion_ms,
+            chunks_used_hash=req.chunks_used_hash,
+        )
+    except ValueError as e:
+        msg = str(e)
+        # 422 si conteos inconsistentes; 409 si sesion no existe.
+        if "Conteos inconsistentes" in msg or "tests_hidden" in msg:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
+    return {"status": "accepted", "seq": str(seq)}
+
+
+class ReflectionRequest(BaseModel):
+    """Cuerpo del POST /api/v1/episodes/{id}/reflection (ADR-035).
+
+    Cuestionario opcional metacognitivo que el estudiante responde post-cierre
+    del episodio. Cada campo libre <=500 chars; el frontend ya recorta pero
+    el backend valida defensivo. `prompt_version` identifica el cuestionario
+    activo (ej. "reflection/v1.0.0") para distinguir reflexiones tomadas con
+    versiones distintas en analisis longitudinal.
+    """
+
+    que_aprendiste: str = Field(min_length=0, max_length=500)
+    dificultad_encontrada: str = Field(min_length=0, max_length=500)
+    que_haria_distinto: str = Field(min_length=0, max_length=500)
+    prompt_version: str = Field(
+        default="reflection/v1.0.0",
+        max_length=64,
+        description="Identificador del cuestionario, ej. 'reflection/v1.0.0'.",
+    )
+    tiempo_completado_ms: int = Field(
+        ge=0,
+        le=24 * 3600 * 1000,
+        description=(
+            "Milisegundos transcurridos entre apertura del modal y submit. "
+            "Cap a 24h por sanity (modales reales son <5min)."
+        ),
+    )
+
+
+@router.post("/{episode_id}/reflection", status_code=status.HTTP_202_ACCEPTED)
+async def emit_reflexion_completada(
+    episode_id: UUID,
+    req: ReflectionRequest,
+    user: User = Depends(require_role("estudiante", "docente", "docente_admin", "superadmin")),
+) -> dict[str, str]:
+    """Emite reflexion_completada al CTR DESPUES del cierre del episodio (ADR-035).
+
+    Modal opcional metacognitivo. El cierre del episodio NO espera la
+    respuesta — son flujos independientes. El CTR es append-only: un episodio
+    con `estado=closed` sigue aceptando eventos posteriores y la cadena
+    criptografica continua (chain_hash sigue ligando seq+1 al anterior).
+
+    Privacy: el contenido textual viaja como string libre. El export academico
+    (`packages/platform-ops/academic_export.py`) redacta los 3 campos por
+    default; investigador con consentimiento usa `--include-reflections`.
+
+    Estados:
+      - 202: evento aceptado, devuelve seq asignado.
+      - 404: episodio no encontrado o de otro tenant.
+      - 409: episodio no esta cerrado (la reflexion solo se acepta post-cierre).
+      - 422: payload invalido (campos > 500 chars o tiempo_completado_ms negativo).
+
+    El user_id autoritativo es el del estudiante (header X-User-Id) — la
+    reflexion es del estudiante, su autoria.
+    """
+    tutor = _get_tutor()
+    try:
+        seq = await tutor.record_reflexion_completada(
+            episode_id=episode_id,
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            que_aprendiste=req.que_aprendiste,
+            dificultad_encontrada=req.dificultad_encontrada,
+            que_haria_distinto=req.que_haria_distinto,
+            prompt_version=req.prompt_version,
+            tiempo_completado_ms=req.tiempo_completado_ms,
+        )
+    except ValueError as e:
+        msg = str(e)
+        # 404 si el episodio no existe o es de otro tenant; 409 si no esta cerrado.
+        if "no encontrado" in msg or "otro tenant" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg)
 
     return {"status": "accepted", "seq": str(seq)}

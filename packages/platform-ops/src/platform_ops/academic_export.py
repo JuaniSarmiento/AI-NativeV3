@@ -64,9 +64,18 @@ class EpisodeRecord:
     prompt_count: int = 0
     code_execution_count: int = 0
     annotation_count: int = 0
+    reflection_count: int = 0
 
     # Opcionalmente, texto de prompts/respuestas (si include_prompts=True)
     prompts: list[dict] = field(default_factory=list)
+
+    # ADR-035: reflexiones metacognitivas post-cierre. Por default los 3 campos
+    # textuales (`que_aprendiste`, `dificultad_encontrada`, `que_haria_distinto`)
+    # se reemplazan por "[redacted]". `prompt_version` y `tiempo_completado_ms`
+    # se preservan siempre — son metadata no identificable. Solo con flag
+    # explicito `include_reflections=True` los textos viajan integros y la
+    # exportacion emite audit log structlog `reflections_exported_with_consent`.
+    reflections: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -115,8 +124,10 @@ class CohortDataset:
                         "prompts": e.prompt_count,
                         "code_executions": e.code_execution_count,
                         "annotations": e.annotation_count,
+                        "reflections": e.reflection_count,
                     },
                     "prompts": e.prompts,
+                    "reflections": e.reflections,
                 }
                 for e in self.episodes
             ],
@@ -164,6 +175,7 @@ class AcademicExporter:
         comision_id: UUID,
         period_days: int = 90,
         include_prompts: bool = False,
+        include_reflections: bool = False,
     ) -> CohortDataset:
         """Exporta la cohorte.
 
@@ -172,6 +184,15 @@ class AcademicExporter:
             period_days: ventana de episodios cerrados
             include_prompts: si True, incluye texto de prompts/respuestas
               (INCREMENTA EL RIESGO DE RE-IDENTIFICACIÓN). Default False.
+            include_reflections: ADR-035. Si True, los 3 campos textuales de
+              `reflexion_completada` (que_aprendiste / dificultad_encontrada /
+              que_haria_distinto) viajan integros en el dataset Y la exportacion
+              emite audit log structlog `reflections_exported_with_consent`.
+              Default False — los campos se reemplazan por "[redacted]" pero
+              prompt_version y tiempo_completado_ms se preservan (metadata
+              no identificable). El estudiante puede haber escrito info
+              identificable en texto libre, asi que el opt-in requiere
+              consentimiento explicito documentado.
         """
         now = datetime.now(UTC)
         since = now - timedelta(days=period_days)
@@ -200,7 +221,9 @@ class AcademicExporter:
             prompt_count = 0
             code_execution_count = 0
             annotation_count = 0
+            reflection_count = 0
             prompt_records: list[dict] = []
+            reflection_records: list[dict] = []
 
             opened_at = None
             closed_at = None
@@ -222,6 +245,34 @@ class AcademicExporter:
                     code_execution_count += 1
                 elif et == "anotacion_creada":
                     annotation_count += 1
+                elif et == "reflexion_completada":
+                    # ADR-035: side-channel post-cierre. Metadata siempre, textos
+                    # solo con consent explicito (`include_reflections=True`).
+                    reflection_count += 1
+                    payload = ev.get("payload") or {}
+                    reflection_records.append(
+                        {
+                            "seq": ev["seq"],
+                            "ts": ev["ts"],
+                            "prompt_version": payload.get("prompt_version"),
+                            "tiempo_completado_ms": payload.get("tiempo_completado_ms"),
+                            "que_aprendiste": (
+                                payload.get("que_aprendiste", "")
+                                if include_reflections
+                                else "[redacted]"
+                            ),
+                            "dificultad_encontrada": (
+                                payload.get("dificultad_encontrada", "")
+                                if include_reflections
+                                else "[redacted]"
+                            ),
+                            "que_haria_distinto": (
+                                payload.get("que_haria_distinto", "")
+                                if include_reflections
+                                else "[redacted]"
+                            ),
+                        }
+                    )
                 elif et == "episodio_abierto":
                     opened_at = ev["ts"]
                 elif et == "episodio_cerrado":
@@ -271,9 +322,38 @@ class AcademicExporter:
                 prompt_count=prompt_count,
                 code_execution_count=code_execution_count,
                 annotation_count=annotation_count,
+                reflection_count=reflection_count,
                 prompts=prompt_records,
+                reflections=reflection_records,
             )
             records.append(record)
+
+        # ADR-035: audit log obligatorio cuando los textos de reflexion viajan
+        # integros. structlog (no logging.warning) — queryable en Loki.
+        if include_reflections:
+            total_reflections = sum(r.reflection_count for r in records)
+            try:
+                import structlog  # noqa: PLC0415
+
+                structlog.get_logger().info(
+                    "reflections_exported_with_consent",
+                    cohort_alias=self.cohort_alias,
+                    comision_id=str(comision_id),
+                    total_episodes=len(records),
+                    total_reflections=total_reflections,
+                    salt_hash=self.salt_hash,
+                )
+            except ImportError:
+                # Fallback al logger stdlib si structlog no esta disponible
+                # (tests que no instalan platform_observability).
+                logger.info(
+                    "reflections_exported_with_consent cohort=%s comision=%s "
+                    "episodes=%d reflections=%d",
+                    self.cohort_alias,
+                    str(comision_id),
+                    len(records),
+                    total_reflections,
+                )
 
         return CohortDataset(
             cohort_alias=self.cohort_alias,

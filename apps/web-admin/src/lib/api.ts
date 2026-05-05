@@ -554,3 +554,58 @@ export const auditApi = {
       method: "POST",
     }),
 }
+
+// ── Governance Events (epic ai-native-completion / Sec 12) ────────────
+
+/**
+ * Vista institucional cross-cohort de eventos `intento_adverso_detectado`
+ * (ADR-019, RN-129). Consume `/api/v1/analytics/governance/events`.
+ */
+export interface GovernanceEvent {
+  episode_id: string
+  student_pseudonym: string
+  comision_id: string
+  ts: string
+  category: string
+  severity: number
+  pattern_id: string
+  matched_text: string
+}
+
+export interface GovernanceEventsResponse {
+  events: GovernanceEvent[]
+  cursor_next: string | null
+  n_total_estimate: number
+  counts_by_category: Record<string, number>
+  counts_by_severity: Record<string, number>
+  filters_applied: Record<string, string | null>
+}
+
+export interface GovernanceEventsFilters {
+  facultad_id?: string
+  materia_id?: string
+  periodo_id?: string
+  severity_min?: number
+  severity_max?: number
+  category?: string
+  cursor?: string
+  limit?: number
+}
+
+export const governanceApi = {
+  listEvents: (filters: GovernanceEventsFilters = {}) => {
+    const qs = new URLSearchParams()
+    if (filters.facultad_id) qs.set("facultad_id", filters.facultad_id)
+    if (filters.materia_id) qs.set("materia_id", filters.materia_id)
+    if (filters.periodo_id) qs.set("periodo_id", filters.periodo_id)
+    if (filters.severity_min !== undefined) qs.set("severity_min", String(filters.severity_min))
+    if (filters.severity_max !== undefined) qs.set("severity_max", String(filters.severity_max))
+    if (filters.category) qs.set("category", filters.category)
+    if (filters.cursor) qs.set("cursor", filters.cursor)
+    if (filters.limit !== undefined) qs.set("limit", String(filters.limit))
+    const query = qs.toString()
+    return request<GovernanceEventsResponse>(
+      `/analytics/governance/events${query ? `?${query}` : ""}`,
+    )
+  },
+}

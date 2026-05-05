@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ai_gateway.config import settings
 from ai_gateway.observability import setup_observability
-from ai_gateway.routes import complete, health
+from ai_gateway.routes import byok, complete, health
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(complete.router)
+app.include_router(byok.router)
 
 
 @app.get("/")

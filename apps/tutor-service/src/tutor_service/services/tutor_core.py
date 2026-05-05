@@ -17,7 +17,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
@@ -127,7 +127,30 @@ class TutorCore:
             self.default_prompt_name, self.default_prompt_version
         )
 
-        # 2. Crear session state en Redis
+        # 2. Resolver materia_id de la comision (ADR-040 Sec 6.2). Cacheamos
+        #    el lookup en SessionState para no re-resolver por turno. Si el
+        #    academic-service no responde o no tiene la comision, degrada a
+        #    None (BYOK fallback a scope=tenant — metrica
+        #    `byok_key_resolution_total{resolved_scope="tenant_fallback_no_materia"}`).
+        materia_id: UUID | None = None
+        if self.academic is not None:
+            try:
+                comision = await self.academic.get_comision(
+                    comision_id=comision_id,
+                    tenant_id=tenant_id,
+                    caller_id=TUTOR_SERVICE_USER_ID,
+                )
+                if comision is not None:
+                    materia_id = comision.materia_id
+            except Exception:
+                # Fail-soft: el episodio se abre igual; BYOK degrada a tenant.
+                logger.warning(
+                    "academic.get_comision failed; materia_id=None for episode_id=%s",
+                    episode_id,
+                    exc_info=True,
+                )
+
+        # 3. Crear session state en Redis
         state = SessionState(
             episode_id=episode_id,
             tenant_id=tenant_id,
@@ -140,6 +163,7 @@ class TutorCore:
             classifier_config_hash=classifier_config_hash,
             curso_config_hash=curso_config_hash,
             model=model or self.default_model,
+            materia_id=materia_id,
         )
         await self.sessions.set(state)
 
@@ -276,13 +300,16 @@ class TutorCore:
 
         messages.append({"role": "user", "content": user_message})
 
-        # 5. Stream del ai-gateway
+        # 5. Stream del ai-gateway. ADR-040 (Sec 6.2): forwardear materia_id
+        # para que el resolver BYOK aplique scope=materia primero (fallback a
+        # scope=tenant si no hay match).
         full_response = ""
         async for chunk in self.ai_gateway.stream(
             messages=messages,
             model=self.default_model,
             tenant_id=state.tenant_id,
             temperature=0.7,
+            materia_id=state.materia_id,
         ):
             full_response += chunk
             yield {"type": "chunk", "content": chunk}
@@ -582,6 +609,164 @@ class TutorCore:
             payload={"duration_seconds": duration_seconds},
         )
         await self.ctr.publish_event(event, state.tenant_id, user_id)
+        return seq
+
+    # ── Tests ejecutados (ADR-033/034, sandbox client-side) ──────────────
+
+    async def emit_tests_ejecutados(
+        self,
+        episode_id: UUID,
+        user_id: UUID,
+        test_count_total: int,
+        test_count_passed: int,
+        test_count_failed: int,
+        tests_publicos: int,
+        tests_hidden: int,
+        ejecucion_ms: int,
+        chunks_used_hash: str | None = None,
+    ) -> int:
+        """Publica un evento `tests_ejecutados` al CTR con los conteos del cliente.
+
+        El cliente (Pyodide en el browser) ejecuta los tests publicos y manda
+        AGREGADOS — el tutor-service NO recibe la lista detallada por test.
+        Esto preserva privacidad (no logueamos codigo del alumno) y reduce
+        cardinalidad del CTR (los conteos alcanzan para features del classifier).
+
+        Tests `is_public=false` quedan en `tests_hidden=0` siempre en piloto-1
+        (no se ejecutan client-side — el endpoint del academic-service los filtra
+        por rol antes de mandarlos al cliente).
+
+        Args:
+            episode_id: episodio activo en el session manager.
+            user_id: estudiante autenticado (su autoria — no service account).
+            test_count_total/passed/failed: agregados de la corrida.
+            tests_publicos: count de tests con is_public=true ejecutados.
+            tests_hidden: siempre 0 en piloto-1 (declarado en ADR-033).
+            ejecucion_ms: duracion total de la corrida en ms.
+            chunks_used_hash: opcional — propagado del ultimo prompt_enviado del
+                episodio para correlacionar con el contexto RAG vigente.
+
+        Raises:
+            ValueError: si el episodio no existe o esta cerrado/expirado.
+        """
+        state = await self.sessions.get(episode_id)
+        if state is None:
+            raise ValueError(f"Episode {episode_id} no existe, está cerrado o expiró")
+
+        if test_count_passed + test_count_failed != test_count_total:
+            raise ValueError(
+                f"Conteos inconsistentes: passed={test_count_passed} + "
+                f"failed={test_count_failed} != total={test_count_total}"
+            )
+        if tests_hidden != 0:
+            raise ValueError(
+                f"tests_hidden debe ser 0 en piloto-1 (recibido {tests_hidden}). "
+                "El client-side NO ejecuta tests is_public=false."
+            )
+
+        payload: dict[str, Any] = {
+            "test_count_total": test_count_total,
+            "test_count_passed": test_count_passed,
+            "test_count_failed": test_count_failed,
+            "tests_publicos": tests_publicos,
+            "tests_hidden": tests_hidden,
+            "ejecucion_ms": ejecucion_ms,
+        }
+        if chunks_used_hash is not None:
+            payload["chunks_used_hash"] = chunks_used_hash
+
+        seq = await self.sessions.next_seq(state)
+        event = self._build_event(
+            state=state,
+            seq=seq,
+            event_type="tests_ejecutados",
+            payload=payload,
+        )
+        # Caller = estudiante (su accion directa), no service account.
+        await self.ctr.publish_event(event, state.tenant_id, user_id)
+        return seq
+
+    # ── Reflexion metacognitiva post-cierre (ADR-035) ────────────────────
+
+    async def record_reflexion_completada(
+        self,
+        episode_id: UUID,
+        tenant_id: UUID,
+        user_id: UUID,
+        que_aprendiste: str,
+        dificultad_encontrada: str,
+        que_haria_distinto: str,
+        prompt_version: str,
+        tiempo_completado_ms: int,
+    ) -> int:
+        """Publica reflexion_completada al CTR DESPUES del cierre del episodio.
+
+        El CTR es append-only: un episodio con `estado=closed` sigue aceptando
+        eventos posteriores y la cadena criptografica continua. La sesion en
+        Redis ya fue borrada por `close_episode`, asi que el seq se obtiene de
+        `events_count` del episodio en el CTR.
+
+        Args:
+            episode_id: episodio cerrado al cual append-ear la reflexion.
+            tenant_id: tenant del estudiante (autoritativo desde X-Tenant-Id).
+            user_id: estudiante autenticado (su autoria — no service account).
+            que_aprendiste, dificultad_encontrada, que_haria_distinto: respuestas
+                del cuestionario (cada una <= 500 chars, validado en el route).
+            prompt_version: identificador del cuestionario (ej. "reflection/v1.0.0").
+            tiempo_completado_ms: ms transcurridos entre apertura del modal y submit.
+
+        Returns:
+            seq asignado al evento.
+
+        Raises:
+            ValueError: si el episodio no existe o no esta cerrado.
+        """
+        ep = await self.ctr.get_episode(
+            episode_id=episode_id,
+            tenant_id=tenant_id,
+            caller_id=TUTOR_SERVICE_USER_ID,
+        )
+        if ep is None:
+            raise ValueError(f"Episode {episode_id} no encontrado")
+        if str(ep.get("tenant_id")) != str(tenant_id):
+            raise ValueError(f"Episode {episode_id} pertenece a otro tenant")
+        if ep.get("estado") != "closed":
+            raise ValueError(
+                f"Episode {episode_id} no esta cerrado (estado={ep.get('estado')!r}); "
+                "la reflexion solo se acepta post-cierre"
+            )
+
+        events: list[dict] = ep.get("events") or []
+        seq = int(ep["events_count"])
+
+        # prompt_system_version no esta en el Episode — se toma del primer evento
+        # (`episodio_abierto`, seq=0). Si falta por alguna razon, fallback al default.
+        prompt_system_version = self.default_prompt_version
+        for ev in events:
+            if ev.get("seq") == 0 and ev.get("prompt_system_version"):
+                prompt_system_version = ev["prompt_system_version"]
+                break
+
+        event = {
+            "event_uuid": str(uuid4()),
+            "episode_id": str(episode_id),
+            "tenant_id": str(tenant_id),
+            "seq": seq,
+            "event_type": "reflexion_completada",
+            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "payload": {
+                "que_aprendiste": que_aprendiste,
+                "dificultad_encontrada": dificultad_encontrada,
+                "que_haria_distinto": que_haria_distinto,
+                "prompt_version": prompt_version,
+                "tiempo_completado_ms": tiempo_completado_ms,
+            },
+            "prompt_system_hash": str(ep["prompt_system_hash"]),
+            "prompt_system_version": prompt_system_version,
+            "classifier_config_hash": str(ep["classifier_config_hash"]),
+        }
+        # Publicar como el estudiante (su autoria) — NO el service account
+        await self.ctr.publish_event(event, tenant_id, user_id)
         return seq
 
     # ── Validación TareaPractica ────────────────────────────────────────

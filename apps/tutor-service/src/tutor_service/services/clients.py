@@ -128,23 +128,32 @@ class AIGatewayClient:
         tenant_id: UUID,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        materia_id: UUID | None = None,
     ) -> AsyncIterator[str]:
-        """Yieldea chunks de texto desde el SSE del ai-gateway."""
+        """Yieldea chunks de texto desde el SSE del ai-gateway.
+
+        Args:
+            materia_id: ADR-040 (Sec 6.2). Cuando esta presente, el resolver
+                BYOK del ai-gateway busca key con scope=materia primero;
+                fallback a scope=tenant si no hay match. None = legacy o
+                no resoluble — degrada a tenant_fallback.
+        """
         headers = {
             "X-Tenant-Id": str(tenant_id),
             "X-Caller": "tutor-service",
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
         }
-        body = json.dumps(
-            {
-                "messages": messages,
-                "model": model,
-                "feature": "tutor",
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            }
-        )
+        payload: dict[str, object] = {
+            "messages": messages,
+            "model": model,
+            "feature": "tutor",
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if materia_id is not None:
+            payload["materia_id"] = str(materia_id)
+        body = json.dumps(payload)
 
         async with (
             httpx.AsyncClient(timeout=self.timeout) as client,

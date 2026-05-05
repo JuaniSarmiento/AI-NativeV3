@@ -60,6 +60,7 @@ class FakeAIGatewayClient:
         tenant_id: UUID,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        materia_id: UUID | None = None,
     ) -> AsyncIterator[str]:
         yield "ok"
 

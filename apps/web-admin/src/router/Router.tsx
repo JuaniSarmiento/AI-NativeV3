@@ -19,6 +19,7 @@ import {
   Landmark,
   Layers,
   Library,
+  ShieldAlert,
   ShieldCheck,
   Upload,
   Users,
@@ -30,6 +31,7 @@ import { CarrerasPage } from "../pages/CarrerasPage"
 import { ClasificacionesPage } from "../pages/ClasificacionesPage"
 import { ComisionesPage } from "../pages/ComisionesPage"
 import { FacultadesPage } from "../pages/FacultadesPage"
+import { GovernanceEventsPage } from "../pages/GovernanceEventsPage"
 import { HomePage } from "../pages/HomePage"
 import { MateriasPage } from "../pages/MateriasPage"
 import { PeriodosPage } from "../pages/PeriodosPage"
@@ -55,6 +57,7 @@ export type Route =
   | "periodos"
   | "bulk-import"
   | "auditoria"
+  | "governance-events"
 
 export interface NavContext {
   current: Route
@@ -82,7 +85,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Auditoria",
-    items: [{ id: "auditoria", label: "Integridad CTR", icon: ShieldCheck }],
+    items: [
+      { id: "auditoria", label: "Integridad CTR", icon: ShieldCheck },
+      { id: "governance-events", label: "Eventos de gobernanza", icon: ShieldAlert },
+    ],
   },
   {
     label: "Operacional",
@@ -121,6 +127,7 @@ export function Router(): ReactNode {
           {current === "periodos" && <PeriodosPage />}
           {current === "bulk-import" && <BulkImportPage />}
           {current === "auditoria" && <AuditoriaPage />}
+          {current === "governance-events" && <GovernanceEventsPage />}
         </div>
       </main>
     </div>

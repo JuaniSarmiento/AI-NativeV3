@@ -27,6 +27,23 @@ class Settings(BaseSettings):
     # Secrets (no commitear al repo; setear por env var o secret manager)
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    gemini_api_key: str = ""
+    mistral_api_key: str = ""
+
+    # ── BYOK (Sec 5+7 epic ai-native-completion / ADR-038-039) ──────────
+    # Master key (32 bytes base64) para encriptacion AES-GCM at-rest de las
+    # API keys de tenants. Generar con: `openssl rand -base64 32`. Rotacion
+    # via runbook (5 steps, downtime ~30s). NO commitear al repo.
+    byok_master_key: str = ""
+    # Feature flag: si False, el resolver salta directo a env fallback
+    # (modo dev legacy o degradado). Si True y no hay key configurada para
+    # el scope, el resolver intenta env tambien.
+    byok_enabled: bool = False
+    # DB de academic_main donde viven byok_keys + byok_keys_usage. El
+    # resolver necesita session SQLA con tenant RLS aplicado.
+    academic_db_url: str = (
+        "postgresql+asyncpg://academic_user:academic_pass@127.0.0.1:5432/academic_main"
+    )
 
 
 @lru_cache

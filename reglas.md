@@ -1806,15 +1806,63 @@ Ver RN-126 y RN-127 abajo (nuevas, no cubiertas en otras fases).
 
 ---
 
+### RN-132 — Resolver BYOK jerárquico materia → tenant → env_fallback (ADR-039)
+**Categoría**: Cálculo · Configuración
+**Fase origen**: epic ai-native-completion-and-byok (2026-05-04)
+**Servicio(s)**: ai-gateway, packages/platform-ops
+**Severidad**: Alta
+
+**Regla**: El resolver `apps/ai-gateway/.../services/byok.py::resolve_byok_key(tenant_id, provider, materia_id)` busca BYOK keys en orden estricto: (1) `scope=materia` con `scope_id=materia_id` (sólo si `materia_id is not None`); (2) `scope=tenant` con `scope_id=NULL`; (3) env fallback (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/etc según provider). scope=facultad está omitido en piloto-1 (requiere lookup cross-DB `materia.facultad_id`, deferido a piloto-2 con cache Redis). Si `BYOK_ENABLED=False`, salta directo al env fallback. Si `BYOK_MASTER_KEY` no está seteada y `BYOK_ENABLED=True`, también degrada a env fallback (sin master key no podemos desencriptar). El plaintext devuelto en `ResolvedKey` NUNCA se loguea — sólo `key_id` + `scope_resolved` + `provider`. Encriptación `AES-256-GCM` (RFC 5116, ADR-038).
+
+**Justificación**: Multi-tenancy real exige que cada universidad pueda traer sus propias keys (BYOK) con costo a su cargo, y que dentro del tenant el scope materia permita cobrar contra presupuestos por materia (no compartir entre cursos). El env fallback existe para que dev/CI no requieran setup de BYOK_MASTER_KEY ni encriptación — sólo hay que setear `ANTHROPIC_API_KEY` y andar. Las métricas `byok_key_resolution_total{resolved_scope}` permiten alertas operacionales (si una materia que esperaba scope=materia cayó a tenant_fallback, indica config rota).
+
+**Verificación**: `apps/ai-gateway/src/ai_gateway/services/byok.py::resolve_byok_key`; métricas instrumentadas vía `_emit()` interno (cuenta `materia` | `tenant` | `env_fallback` | `none`); test E2E del resolver DEFERIDO (requiere DB real).
+
+**ADR/Doc**: ADR-038 (encriptación), ADR-039 (resolver), ADR-040 (propagación `materia_id`).
+
+---
+
+### RN-133 — Reflexión `reflexion_completada` excluida del feature extraction del classifier
+**Categoría**: Invariante · Reproducibilidad
+**Fase origen**: epic ai-native-completion-and-byok (2026-05-04)
+**Servicio(s)**: classifier-service
+**Severidad**: Crítica
+
+**Regla**: El evento `reflexion_completada` (emitido post-`EpisodioCerrado` por el modal del web-student, ADR-035) **NO** entra al feature extraction del classifier. La exclusión está implementada como conjunto `_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}` en `apps/classifier-service/src/classifier_service/services/pipeline.py` y se filtra **ANTES** del feature extraction. Cualquier evento side-channel post-cierre que se agregue en el futuro (analytics surveys, telemetry, etc.) DEBE agregarse a este set, o contaminará el `classifier_config_hash` con eventos posteriores al cierre del episodio y romperá la reproducibilidad bit-a-bit.
+
+**Justificación**: Sin esta exclusión, una reflexión >5min post-cierre cambia `ct_summary` (la reflexión crea una nueva ventana de trabajo con pause >5min) — verificado durante la implementación de la epic. El bug habría contaminado silenciosamente las re-clasificaciones históricas. La reflexión es valiosa pedagógicamente y vive en el CTR como append-only (queda en la cadena criptográfica para audit), pero NO es señal del trabajo del episodio.
+
+**Verificación**: `apps/classifier-service/tests/unit/test_pipeline_reproducibility.py::test_reflexion_completada_no_afecta_clasificacion_ni_features` (compara dos episodios idénticos uno con/sin reflexión, mismo classifier_config_hash + mismas features); event_labeler.py marca el evento como N-level "meta" en `test_reflexion_completada_es_meta_en_event_labeler`. **NO romper estos tests** al refactorizar el classifier.
+
+**ADR/Doc**: ADR-035.
+
+---
+
+### RN-134 — Tests `is_public=false` no entran al feature extraction (`tests_hidden=0` invariante)
+**Categoría**: Invariante · Reproducibilidad · Privacidad
+**Fase origen**: epic ai-native-completion-and-byok (2026-05-04)
+**Servicio(s)**: classifier-service, tutor-service, academic-service
+**Severidad**: Alta
+
+**Regla**: El client-side (Pyodide en el browser) ejecuta SOLO test_cases con `is_public=true` — los tests `is_public=false` se filtran en `GET /api/v1/tareas-practicas/{id}/test-cases?include_hidden=...` por rol (estudiante 403 con `include_hidden=true`). El endpoint `POST /api/v1/episodes/{id}/run-tests` valida `tests_hidden == 0` (vía `RunTestsRequest.tests_hidden: int = Field(le=0)`) y devuelve 422 si llega cualquier valor distinto. El evento `tests_ejecutados` que se persiste en el CTR lleva los conteos agregados (no el código del estudiante). Con esto, las features del classifier sobre `tests_ejecutados` consumen sólo agregados de tests públicos — preserva reproducibilidad bit-a-bit del `classifier_config_hash` aún cuando la cátedra rota tests hidden entre versiones.
+
+**Justificación**: Tests `is_public=false` son artefactos de evaluación del docente — usarlos para alimentar al classifier viola la separación instrumento-intervención (si el classifier "ve" hidden tests, su comportamiento depende de cuáles tests están escondidos, lo cual cambia mes a mes y rompe re-clasificación histórica). El filtrado por rol en el endpoint también previene leakage del código de evaluación al alumno.
+
+**Verificación**: `apps/academic-service/src/academic_service/routes/tareas_practicas.py::get_test_cases` (filtro por rol); `apps/tutor-service/src/tutor_service/routes/episodes.py::run_tests` (`RunTestsRequest.tests_hidden: int = Field(le=0)`); `apps/classifier-service/src/classifier_service/services/event_labeler.py` versión `1.2.0` (regla N3/N4 sobre `tests_ejecutados`); tests anti-regresión existentes en `apps/classifier-service/tests/unit/`.
+
+**ADR/Doc**: ADR-033, ADR-034.
+
+---
+
 ## Catálogo de severidades
 
-### Reglas Críticas (38)
+### Reglas Críticas (39)
 
-RN-001, RN-002, RN-004, RN-005, RN-006, RN-019, RN-023, RN-024, RN-026, RN-034, RN-035, RN-036, RN-038, RN-039, RN-042, RN-044, RN-047, RN-048, RN-049, RN-050, RN-051, RN-056, RN-057, RN-060, RN-075, RN-076, RN-077, RN-081, RN-083, RN-084, RN-090, RN-091, RN-098, RN-101, RN-107, RN-112, RN-114, RN-117, RN-119, RN-120, RN-121, RN-123, RN-127.
+RN-001, RN-002, RN-004, RN-005, RN-006, RN-019, RN-023, RN-024, RN-026, RN-034, RN-035, RN-036, RN-038, RN-039, RN-042, RN-044, RN-047, RN-048, RN-049, RN-050, RN-051, RN-056, RN-057, RN-060, RN-075, RN-076, RN-077, RN-081, RN-083, RN-084, RN-090, RN-091, RN-098, RN-101, RN-107, RN-112, RN-114, RN-117, RN-119, RN-120, RN-121, RN-123, RN-127, RN-133.
 
-### Reglas Altas (59)
+### Reglas Altas (61)
 
-RN-003, RN-010, RN-011, RN-012, RN-013, RN-014, RN-016, RN-018, RN-020, RN-021, RN-025, RN-030, RN-031, RN-037, RN-040, RN-041, RN-043, RN-045, RN-046, RN-050 (ver crítica también), RN-052, RN-053, RN-054, RN-055, RN-058, RN-059, RN-061, RN-062, RN-064, RN-068, RN-071, RN-072, RN-073, RN-074, RN-078, RN-080 (parcial), RN-082, RN-085, RN-086, RN-087, RN-092, RN-093, RN-094, RN-095, RN-096, RN-097, RN-100, RN-102, RN-103, RN-104, RN-105, RN-108, RN-109, RN-111, RN-113, RN-115, RN-116, RN-118, RN-122, RN-124, RN-125, RN-126, RN-128, RN-129, RN-130, RN-131.
+RN-003, RN-010, RN-011, RN-012, RN-013, RN-014, RN-016, RN-018, RN-020, RN-021, RN-025, RN-030, RN-031, RN-037, RN-040, RN-041, RN-043, RN-045, RN-046, RN-050 (ver crítica también), RN-052, RN-053, RN-054, RN-055, RN-058, RN-059, RN-061, RN-062, RN-064, RN-068, RN-071, RN-072, RN-073, RN-074, RN-078, RN-080 (parcial), RN-082, RN-085, RN-086, RN-087, RN-092, RN-093, RN-094, RN-095, RN-096, RN-097, RN-100, RN-102, RN-103, RN-104, RN-105, RN-108, RN-109, RN-111, RN-113, RN-115, RN-116, RN-118, RN-122, RN-124, RN-125, RN-126, RN-128, RN-129, RN-130, RN-131, RN-132, RN-134.
 
 ### Reglas Medias (34)
 
