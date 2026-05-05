@@ -11,7 +11,12 @@
  * Route.useSearch().
  */
 import { AuditFooter, type NavGroup, Sidebar } from "@platform/ui"
-import { Outlet, createRootRouteWithContext, useNavigate } from "@tanstack/react-router"
+import {
+  Outlet,
+  createRootRouteWithContext,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router"
 import {
   BarChart3,
   ClipboardList,
@@ -63,11 +68,34 @@ const NAV_GROUPS: NavGroup[] = [
 
 function RootLayout() {
   const navigate = useNavigate()
+  const search = useRouterState({
+    select: (s) => s.location.search as Record<string, unknown>,
+  })
+  const searchComisionId = typeof search.comisionId === "string" ? search.comisionId : null
   const handleNavigate = useCallback(
     (id: string) => {
+      // El sidebar navega entre rutas que requieren `comisionId` (search) y rutas
+      // que no. Preservar el comisionId actual entre clicks evita el loop al home.
+      // Fallback a localStorage cuando venimos de /comision/$id (path param) o de
+      // recarga inicial sin search.
+      const fromStorage = typeof window !== "undefined"
+        ? window.localStorage.getItem("selectedComisionId")
+        : null
+      const carry = searchComisionId ?? fromStorage
+      if (carry) {
+        navigate({
+          to: id as never,
+          search: ((prev: Record<string, unknown>) => ({
+            ...prev,
+            comisionId: carry,
+            // biome-ignore lint/suspicious/noExplicitAny: search update dinamico
+          })) as any,
+        })
+        return
+      }
       navigate({ to: id as never })
     },
-    [navigate],
+    [navigate, searchComisionId],
   )
 
   return (
