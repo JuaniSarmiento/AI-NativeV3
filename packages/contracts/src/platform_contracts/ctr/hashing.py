@@ -39,11 +39,17 @@ def compute_self_hash(event: CTRBaseEvent) -> str:
 def compute_chain_hash(self_hash: str, prev_chain_hash: str | None) -> str:
     """Hash que encadena con el evento anterior.
 
+    Formula canonica: chain_hash_n = SHA-256(self_hash_n || prev_chain_hash_{n-1})
+    self primero, prev despues — counterintuitivo, declarado en CLAUDE.md
+    "Constantes que NO deben inventarse". Este orden matchea exactamente
+    `apps/ctr-service/src/ctr_service/services/hashing.py::compute_chain_hash`
+    y es el que produce la cadena criptografica vigente en la DB del piloto.
+
     Para el primer evento del episodio, prev_chain_hash debe ser None
     (se usa GENESIS_HASH).
     """
     prev = prev_chain_hash if prev_chain_hash is not None else GENESIS_HASH
-    concatenated = f"{prev}{self_hash}"
+    concatenated = f"{self_hash}{prev}"
     return hashlib.sha256(concatenated.encode("utf-8")).hexdigest()
 
 
