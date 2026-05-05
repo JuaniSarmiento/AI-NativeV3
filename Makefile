@@ -1,5 +1,5 @@
 .PHONY: help init install dev dev-bootstrap test test-fast test-rls test-adversarial \
-        test-e2e test-e2e-clean test-e2e-headed \
+        test-e2e test-e2e-clean test-e2e-headed test-smoke \
         lint lint-fix typecheck migrate migrate-new setup-dev-perms clean clean-all \
         check-health check-rls generate-service seed-casbin eval-retrieval backup restore \
         onboard-unsl kappa progression export-academic generate-protocol status build check-tools
@@ -120,6 +120,9 @@ test-e2e-clean: ## Re-seedea + corre la suite Playwright (DESTRUCTIVO sobre tena
 
 test-e2e-headed: ## Suite Playwright en modo headed --debug (inspeccion manual)
 	$(PNPM) exec playwright test --config=tests/e2e/playwright.config.ts --headed --debug
+
+test-smoke: ## Smoke E2E API contra stack already-up (12 servicios + DB seedeada)
+	$(UV) run pytest tests/e2e/smoke/ -v -m smoke --tb=short --override-ini="testpaths="
 
 
 ## Calidad
