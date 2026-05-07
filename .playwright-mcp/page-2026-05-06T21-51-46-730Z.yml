@@ -1,0 +1,36 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+    - button "Ayuda" [ref=e9]:
+      - img [ref=e10]
+  - generic [ref=e33]:
+    - link "← Mis materias" [ref=e34] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e35]: "|"
+    - paragraph [ref=e36]: Prog1·Comision Juani·2026
+    - generic [ref=e37]: Prohramacion 1
+  - generic [ref=e131]:
+    - button "Volver a la TP" [ref=e132]:
+      - generic [ref=e133]: ←
+      - text: Volver a la TP
+    - heading "Resultado de tu entrega" [level=2] [ref=e134]
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - paragraph [ref=e138]: NOTA FINAL
+          - paragraph [ref=e139]: "8.00"
+          - paragraph [ref=e140]: / 10
+        - generic [ref=e141]:
+          - paragraph [ref=e142]: Tu docente devolvio la entrega
+          - paragraph [ref=e143]: Revisa el feedback para entender los puntos a mejorar.
+      - generic [ref=e144]:
+        - paragraph [ref=e145]: Feedback del docente
+        - paragraph [ref=e146]: "Buen trabajo. Los tres ejercicios resuelven correctamente los problemas planteados usando condicionales. Mejora posible: validar entradas negativas en el cálculo de descuento."
+  - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+    - generic [ref=e26]: "prompt: tutor/v1.0.0"
+    - generic [ref=e27]: ·
+    - generic [ref=e28]: "classifier: pendiente"
+    - generic [ref=e29]: ·
+    - generic [ref=e30]: "labeler: 1.1.0"
+    - generic [ref=e31]: ·
+    - generic [ref=e32]: "cadena: sin verificacion previa"

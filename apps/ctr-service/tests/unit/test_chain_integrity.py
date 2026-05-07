@@ -66,7 +66,10 @@ def test_mutated_self_hash_is_detected() -> None:
     events = _build_chain(n=5)
     # Mutar self_hash del evento en index=2
     event, self_h, chain_h = events[2]
-    mutated_self = "0" + self_h[1:]  # cambio el primer caracter
+    # Elegir un char distinto del primero — el test era flaky 1/16 cuando
+    # self_h[0] casualmente era "0" y la mutacion no cambiaba nada.
+    new_first = "a" if self_h[0] != "a" else "b"
+    mutated_self = new_first + self_h[1:]
     assert mutated_self != self_h
     events[2] = (event, mutated_self, chain_h)
 

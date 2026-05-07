@@ -36,6 +36,39 @@ if TYPE_CHECKING:
     from academic_service.models.institucional import Materia
 
 
+class Unidad(Base, TenantMixin, TimestampMixin):
+    """Unidad temática de una comisión (ej. "Condicionales", "Funciones").
+
+    Agrupa TPs pedagógicamente para habilitar trazabilidad longitudinal
+    cuando template_id=NULL. Scoped a comisión — un docente de Prog1 y
+    Prog2 tiene unidades independientes por comisión.
+    """
+
+    __tablename__ = "unidades"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    comision_id: Mapped[uuid.UUID] = fk_uuid("comisiones.id")
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    tareas_practicas: Mapped[list[TareaPractica]] = relationship(back_populates="unidad")
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "comision_id", "nombre", name="uq_unidad_nombre"),
+        UniqueConstraint(
+            "tenant_id",
+            "comision_id",
+            "orden",
+            name="uq_unidad_orden",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
+
+
 class Periodo(Base, TenantMixin, TimestampMixin):
     """Período lectivo (ej. 2026-S1, 2026-S2)."""
 
@@ -229,7 +262,15 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
 
     created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
 
+    unidad_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("unidades.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     template: Mapped[TareaPracticaTemplate | None] = relationship(back_populates="instances")
+    unidad: Mapped[Unidad | None] = relationship(back_populates="tareas_practicas")
 
     __table_args__ = (
         UniqueConstraint(

@@ -35,6 +35,20 @@ class InscripcionCreate(InscripcionBase):
     fecha_cierre: date | None = None
 
 
+class InscripcionCreateIndividual(InscripcionBase):
+    """Payload para crear una inscripcion individual via REST.
+
+    A diferencia de `InscripcionCreate` (usada por bulk-import via CSV), no
+    requiere `comision_id` porque ese viene del path param del endpoint
+    `POST /api/v1/comisiones/{comision_id}/inscripciones`. Pensado para los
+    flujos manuales del docente desde el web-teacher.
+    """
+
+    student_pseudonym: UUID
+    nota_final: Decimal | None = Field(default=None, ge=0, le=10)
+    fecha_cierre: date | None = None
+
+
 class InscripcionOut(InscripcionBase):
     model_config = ConfigDict(from_attributes=True)
 

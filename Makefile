@@ -1,7 +1,7 @@
 .PHONY: help init install dev dev-bootstrap test test-fast test-rls test-adversarial \
-        test-e2e test-e2e-clean test-e2e-headed test-smoke \
-        lint lint-fix typecheck migrate migrate-new setup-dev-perms clean clean-all \
-        check-health check-rls generate-service seed-casbin eval-retrieval backup restore \
+        test-e2e test-e2e-clean test-e2e-headed test-smoke test-smoke-local \
+        lint lint-fix typecheck migrate migrate-new setup-dev-perms setup-rls-user clean clean-all \
+        check-health check-rls generate-service seed-casbin seed-smoke eval-retrieval backup restore \
         onboard-unsl kappa progression export-academic generate-protocol status build check-tools
 
 SHELL := /bin/bash
@@ -45,6 +45,7 @@ init: check-tools ## [Primera vez] Bootstrap end-to-end: infra + deps + migrate 
 	@until docker exec platform-postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@$(MAKE) migrate
 	@$(MAKE) setup-dev-perms
+	@$(MAKE) setup-rls-user
 	@$(MAKE) seed-casbin || true
 	@echo ""
 	@echo "==============================================="
@@ -103,10 +104,16 @@ test-fast: ## Solo tests Python (sin frontends) - iteracion rapida
 	    apps/academic-service/tests/integration/test_casbin_matrix.py \
 	    packages/*/tests/ -x
 
-test-rls: ## Tests de aislamiento multi-tenant (requiere Postgres)
-	@test -n "$$CTR_STORE_URL_FOR_RLS_TESTS" || \
-	    (echo "Setear CTR_STORE_URL_FOR_RLS_TESTS primero" && exit 1)
-	$(UV) run pytest packages/platform-ops/tests/test_rls_postgres.py -v
+test-rls: ## Tests de aislamiento multi-tenant (requiere Postgres + usuario non-superuser)
+	@# Default: app_runtime non-superuser/NOBYPASSRLS creado por `make setup-rls-user`.
+	@# CRITICO: NO usar `postgres` aca — superuser bypassa RLS y los tests pasan
+	@# en silencio sin verificar nada (CI miente sobre aislamiento multi-tenant).
+	@if [ -z "$$CTR_STORE_URL_FOR_RLS_TESTS" ]; then \
+	    export CTR_STORE_URL_FOR_RLS_TESTS="postgresql+asyncpg://app_runtime:app_runtime@localhost:5432/ctr_store"; \
+	    echo "CTR_STORE_URL_FOR_RLS_TESTS no seteada; usando default app_runtime@localhost"; \
+	fi; \
+	CTR_STORE_URL_FOR_RLS_TESTS=$${CTR_STORE_URL_FOR_RLS_TESTS:-postgresql+asyncpg://app_runtime:app_runtime@localhost:5432/ctr_store} \
+	    $(UV) run pytest packages/platform-ops/tests/test_rls_postgres.py -v
 
 test-adversarial: ## Tests adversariales contra el tutor
 	$(UV) run pytest -m "adversarial"
@@ -123,6 +130,9 @@ test-e2e-headed: ## Suite Playwright en modo headed --debug (inspeccion manual)
 
 test-smoke: ## Smoke E2E API contra stack already-up (12 servicios + DB seedeada)
 	$(UV) run pytest tests/e2e/smoke/ -v -m smoke --tb=short --override-ini="testpaths="
+
+test-smoke-local: seed-smoke ## Smoke E2E para piloto local: re-seedea + skipea integrity-attestation-service (:8012)
+	SMOKE_SKIP_ATTESTATION_CHECK=1 $(UV) run pytest tests/e2e/smoke/ -v -m smoke --tb=short --override-ini="testpaths="
 
 
 ## Calidad
@@ -159,8 +169,14 @@ migrate-new: ## Nueva migracion. Uso: make migrate-new SERVICE=academic-service 
 setup-dev-perms: ## Otorga permisos a usuarios de servicio y configura GUC app.current_tenant
 	@bash ./scripts/setup-dev-permissions.sh
 
+setup-rls-user: ## Crea usuario app_runtime non-superuser/NOBYPASSRLS para tests de RLS
+	@bash ./scripts/setup-rls-test-user.sh
+
 seed-casbin: ## Carga la matriz Casbin en la DB
 	cd apps/academic-service && $(UV) run python -m academic_service.seeds.casbin_policies
+
+seed-smoke: ## Seed idempotente con UUIDs canónicos para `make test-smoke-local`
+	$(UV) run python scripts/seed-smoke.py
 
 backup: ## Backup manual de las 3 bases
 	@test -n "$$PG_BACKUP_PASSWORD" || (echo "Setear PG_BACKUP_PASSWORD" && exit 1)

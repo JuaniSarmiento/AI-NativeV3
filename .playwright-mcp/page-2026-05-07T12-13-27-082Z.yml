@@ -1,0 +1,50 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+    - button "Ayuda" [ref=e9]:
+      - img [ref=e10]
+  - generic [ref=e33]:
+    - link "← Mis materias" [ref=e34] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e35]: "|"
+    - paragraph [ref=e36]: Prog1·Comision Juani·2026
+    - generic [ref=e37]: Prohramacion 1
+  - generic [ref=e101]:
+    - generic [ref=e102]:
+      - button "Volver a TPs" [ref=e103]:
+        - generic [ref=e104]: ←
+        - text: Volver a TPs
+      - paragraph [ref=e105]: IA-50OF (v1)
+      - 'heading "TP: Clasificador de números según paridad y signo (+2 mas)" [level=2] [ref=e106]'
+      - generic [ref=e107]: En progreso
+    - generic [ref=e109]:
+      - generic [ref=e110]: Ejercicios completados
+      - generic [ref=e111]: 0/3
+    - list [ref=e113]:
+      - listitem [ref=e114]:
+        - generic [ref=e115]:
+          - generic [ref=e116]: "1"
+          - generic [ref=e117]:
+            - paragraph [ref=e118]: "Ejercicio 1: Clasificador de números según paridad y signo"
+            - paragraph [ref=e119]: "Peso: 33%"
+          - button "Empezar" [ref=e120]
+      - listitem [ref=e121]:
+        - generic [ref=e122]:
+          - generic [ref=e123]: "2"
+          - generic [ref=e124]:
+            - paragraph [ref=e125]: "Ejercicio 2: Cálculo de descuento según categoría de cliente"
+            - paragraph [ref=e126]: "Peso: 33%· Completar ejercicio anterior primero"
+      - listitem [ref=e127]:
+        - generic [ref=e128]:
+          - generic [ref=e129]: "3"
+          - generic [ref=e130]:
+            - paragraph [ref=e131]: "Ejercicio 3: Sistema de aprobación de estudiantes"
+            - paragraph [ref=e132]: "Peso: 33%· Completar ejercicio anterior primero"
+  - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+    - generic [ref=e26]: "prompt: tutor/v1.0.0"
+    - generic [ref=e27]: ·
+    - generic [ref=e28]: "classifier: pendiente"
+    - generic [ref=e29]: ·
+    - generic [ref=e30]: "labeler: 1.1.0"
+    - generic [ref=e31]: ·
+    - generic [ref=e32]: "cadena: sin verificacion previa"

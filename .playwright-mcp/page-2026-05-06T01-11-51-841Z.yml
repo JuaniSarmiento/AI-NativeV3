@@ -1,0 +1,204 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+    - generic [ref=e8]:
+      - radiogroup "Modo de visualizacion" [ref=e9]:
+        - radio "Docente" [ref=e10]
+        - radio "Investigador" [checked] [active] [ref=e11]
+      - generic [ref=e13]:
+        - generic [ref=e14]: "Comisión:"
+        - combobox "Comisión:" [ref=e15]:
+          - option "Seleccioná una comisión" [disabled]
+          - option "A-Manana" [selected]
+          - option "B-Tarde"
+          - option "C-Noche"
+          - option "D-Test-E2E"
+  - generic [ref=e16]:
+    - complementary "Navegación principal" [ref=e17]:
+      - generic [ref=e19]: Docente · N4
+      - navigation [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: Inicio
+          - list [ref=e23]:
+            - listitem [ref=e24]:
+              - button "Mis comisiones" [ref=e25]:
+                - img [ref=e26]
+                - generic [ref=e29]: Mis comisiones
+        - generic [ref=e30]:
+          - generic [ref=e31]: Trabajo del docente
+          - list [ref=e32]:
+            - listitem [ref=e33]:
+              - button "Plantillas" [ref=e34]:
+                - img [ref=e35]
+                - generic [ref=e40]: Plantillas
+            - listitem [ref=e41]:
+              - button "Trabajos Prácticos" [ref=e42]:
+                - img [ref=e43]
+                - generic [ref=e46]: Trabajos Prácticos
+            - listitem [ref=e47]:
+              - button "Materiales" [ref=e48]:
+                - img [ref=e49]
+                - generic [ref=e51]: Materiales
+        - generic [ref=e52]:
+          - generic [ref=e53]: Análisis
+          - list [ref=e54]:
+            - listitem [ref=e55]:
+              - button "Progresión" [ref=e56]:
+                - img [ref=e57]
+                - generic [ref=e59]: Progresión
+            - listitem [ref=e60]:
+              - button "Evolución por estudiante" [ref=e61]:
+                - img [ref=e62]
+                - generic [ref=e65]: Evolución por estudiante
+            - listitem [ref=e66]:
+              - button "Niveles N1-N4" [ref=e67]:
+                - img [ref=e68]
+                - generic [ref=e72]: Niveles N1-N4
+            - listitem [ref=e73]:
+              - button "Intentos adversos" [ref=e74]:
+                - img [ref=e75]
+                - generic [ref=e77]: Intentos adversos
+            - listitem [ref=e78]:
+              - button "Inter-rater" [ref=e79]:
+                - img [ref=e80]
+                - generic [ref=e83]: Inter-rater
+        - generic [ref=e84]:
+          - generic [ref=e85]: Operacional
+          - list [ref=e86]:
+            - listitem [ref=e87]:
+              - button "Exportar" [ref=e88]:
+                - img [ref=e89]
+                - generic [ref=e92]: Exportar
+      - button "Colapsar sidebar" [expanded] [ref=e94]:
+        - img [ref=e95]
+        - generic [ref=e97]: Colapsar
+    - main [ref=e98]:
+      - generic [ref=e232]:
+        - generic [ref=e233]:
+          - generic [ref=e234]:
+            - heading "Progresion longitudinal" [level=1] [ref=e367]
+            - paragraph [ref=e236]: Cohorte A-Manana · 6 estudiantes · 5 con datos suficientes (>=3 episodios)
+          - button "Ayuda" [ref=e237]:
+            - img [ref=e238]
+        - generic [ref=e241]:
+          - list [ref=e243]:
+            - listitem [ref=e244]:
+              - generic [ref=e246]:
+                - generic [ref=e247]: "2"
+                - generic [ref=e248]:
+                  - text: Mejorando
+                  - generic [ref=e249]: (33%)
+            - listitem [ref=e250]:
+              - generic [ref=e252]:
+                - generic [ref=e253]: "2"
+                - generic [ref=e254]:
+                  - text: Estable
+                  - generic [ref=e255]: (33%)
+            - listitem [ref=e256]:
+              - generic [ref=e258]:
+                - generic [ref=e259]: "1"
+                - generic [ref=e260]:
+                  - text: En riesgo
+                  - generic [ref=e261]: (17%)
+            - listitem [ref=e262]:
+              - generic [ref=e264]:
+                - generic [ref=e265]: "1"
+                - generic [ref=e266]:
+                  - text: Sin datos
+                  - generic [ref=e267]: (17%)
+          - generic [ref=e268]:
+            - generic [ref=e269]:
+              - generic [ref=e270]: Net progression
+              - generic [ref=e271]: "+0.200"
+            - paragraph [ref=e368]: (mejorando - empeorando) / estudiantes con datos. Rango [-1, +1].
+          - generic [ref=e277]:
+            - generic [ref=e278]:
+              - heading "Trayectorias individuales" [level=2] [ref=e369]
+              - paragraph [ref=e280]: ordenadas por riesgo (en riesgo primero)
+            - list [ref=e288]:
+              - link "b1b1b1b1-000 6 ep. apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva apropiacion_superficial apropiacion_superficial apropiacion_superficial empeorando" [ref=e370] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0005-0005-0005-000000000005
+                - generic [ref=e290]:
+                  - generic [ref=e291]: b1b1b1b1-000
+                  - generic [ref=e371]: 6 ep.
+                - generic [ref=e294]:
+                  - generic "apropiacion_reflexiva" [ref=e372]
+                  - generic "apropiacion_reflexiva" [ref=e373]
+                  - generic "apropiacion_reflexiva" [ref=e374]
+                  - generic "apropiacion_superficial" [ref=e375]
+                  - generic "apropiacion_superficial" [ref=e376]
+                  - generic "apropiacion_superficial" [ref=e377]
+                - generic [ref=e301]: empeorando
+                - generic [ref=e302]: ›
+              - link "b1b1b1b1-000 5 ep. apropiacion_superficial apropiacion_superficial apropiacion_superficial apropiacion_superficial apropiacion_superficial estable" [ref=e378] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0003-0003-0003-000000000003
+                - generic [ref=e304]:
+                  - generic [ref=e305]: b1b1b1b1-000
+                  - generic [ref=e379]: 5 ep.
+                - generic [ref=e308]:
+                  - generic "apropiacion_superficial" [ref=e380]
+                  - generic "apropiacion_superficial" [ref=e381]
+                  - generic "apropiacion_superficial" [ref=e382]
+                  - generic "apropiacion_superficial" [ref=e383]
+                  - generic "apropiacion_superficial" [ref=e384]
+                - generic [ref=e314]: estable
+                - generic [ref=e315]: ›
+              - link "b1b1b1b1-000 5 ep. apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva estable" [ref=e385] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0004-0004-0004-000000000004
+                - generic [ref=e317]:
+                  - generic [ref=e318]: b1b1b1b1-000
+                  - generic [ref=e386]: 5 ep.
+                - generic [ref=e321]:
+                  - generic "apropiacion_reflexiva" [ref=e387]
+                  - generic "apropiacion_reflexiva" [ref=e388]
+                  - generic "apropiacion_reflexiva" [ref=e389]
+                  - generic "apropiacion_reflexiva" [ref=e390]
+                  - generic "apropiacion_reflexiva" [ref=e391]
+                - generic [ref=e327]: estable
+                - generic [ref=e328]: ›
+              - link "b1b1b1b1-000 2 ep. apropiacion_superficial apropiacion_superficial insuficiente" [ref=e392] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0006-0006-0006-000000000006
+                - generic [ref=e330]:
+                  - generic [ref=e331]: b1b1b1b1-000
+                  - generic [ref=e393]: 2 ep.
+                - generic [ref=e334]:
+                  - generic "apropiacion_superficial" [ref=e394]
+                  - generic "apropiacion_superficial" [ref=e395]
+                - generic [ref=e337]: insuficiente
+                - generic [ref=e338]: ›
+              - link "b1b1b1b1-000 6 ep. apropiacion_superficial apropiacion_superficial apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva apropiacion_reflexiva mejorando" [ref=e396] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0001-0001-0001-000000000001
+                - generic [ref=e340]:
+                  - generic [ref=e341]: b1b1b1b1-000
+                  - generic [ref=e397]: 6 ep.
+                - generic [ref=e344]:
+                  - generic "apropiacion_superficial" [ref=e398]
+                  - generic "apropiacion_superficial" [ref=e399]
+                  - generic "apropiacion_reflexiva" [ref=e400]
+                  - generic "apropiacion_reflexiva" [ref=e401]
+                  - generic "apropiacion_reflexiva" [ref=e402]
+                  - generic "apropiacion_reflexiva" [ref=e403]
+                - generic [ref=e351]: mejorando
+                - generic [ref=e352]: ›
+              - link "b1b1b1b1-000 6 ep. delegacion_pasiva delegacion_pasiva apropiacion_superficial apropiacion_superficial apropiacion_reflexiva apropiacion_reflexiva mejorando" [ref=e404] [cursor=pointer]:
+                - /url: /student-longitudinal?comisionId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa&studentId=b1b1b1b1-0002-0002-0002-000000000002
+                - generic [ref=e354]:
+                  - generic [ref=e355]: b1b1b1b1-000
+                  - generic [ref=e405]: 6 ep.
+                - generic [ref=e358]:
+                  - generic "delegacion_pasiva" [ref=e406]
+                  - generic "delegacion_pasiva" [ref=e407]
+                  - generic "apropiacion_superficial" [ref=e408]
+                  - generic "apropiacion_superficial" [ref=e409]
+                  - generic "apropiacion_reflexiva" [ref=e410]
+                  - generic "apropiacion_reflexiva" [ref=e411]
+                - generic [ref=e365]: mejorando
+                - generic [ref=e366]: ›
+  - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e224]:
+    - generic [ref=e225]: "prompt: tutor/v1.0.0"
+    - generic [ref=e226]: ·
+    - generic [ref=e227]: "classifier: pendiente"
+    - generic [ref=e228]: ·
+    - generic [ref=e229]: "labeler: 1.1.0"
+    - generic [ref=e230]: ·
+    - generic [ref=e231]: "cadena: sin verificacion previa"

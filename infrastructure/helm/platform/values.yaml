@@ -19,10 +19,11 @@ services:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { cpu: 500m, memory: 512Mi }
 
-  identity-service:
-    port: 8001
-    replicas: 2
-    strategy: blue-green
+  # identity-service DEPRECATED por ADR-041 (2026-05-07). Auth via api-gateway
+  # (headers X-* + Casbin descentralizado) cubre el caso de uso. Codigo
+  # preservado en disco con README de deprecation; sacado del workspace y del
+  # helm chart. Mismo patron que enrollment-service (ADR-030). Restituible
+  # agregando el bloque de vuelta si se decide revivir el servicio.
 
   academic-service:
     port: 8002

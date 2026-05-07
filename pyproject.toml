@@ -7,7 +7,10 @@ requires-python = ">=3.12,<3.13"
 [tool.uv.workspace]
 members = [
     "apps/api-gateway",
-    "apps/identity-service",
+    # apps/identity-service: DEPRECATED por ADR-041 (2026-05-07). Codigo preservado
+    # en disco con README de deprecation; sacado del workspace para no aparecer en
+    # `uv sync` ni en `pytest apps/*/tests/`. Restituible re-incluyendo esta linea.
+    # Mismo patron que enrollment-service (ADR-030).
     "apps/academic-service",
     # apps/enrollment-service: DEPRECATED por ADR-030. Codigo preservado en disco
     # con README de deprecation; sacado del workspace para no aparecer en

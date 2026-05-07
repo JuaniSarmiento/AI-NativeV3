@@ -1,0 +1,202 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Comisión:"
+      - combobox "Comisión:" [ref=e11]:
+        - option "Seleccioná una comisión" [disabled]
+        - option "Comision Juani" [selected]
+  - generic [ref=e12]:
+    - complementary "Navegación principal" [ref=e13]:
+      - generic [ref=e15]: Docente · N4
+      - navigation [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: Inicio
+          - list [ref=e19]:
+            - listitem [ref=e20]:
+              - button "Mis comisiones" [ref=e21]:
+                - img [ref=e22]
+                - generic [ref=e25]: Mis comisiones
+        - generic [ref=e26]:
+          - generic [ref=e27]: Trabajo del docente
+          - list [ref=e28]:
+            - listitem [ref=e29]:
+              - button "Plantillas" [ref=e30]:
+                - img [ref=e31]
+                - generic [ref=e36]: Plantillas
+            - listitem [ref=e37]:
+              - button "Unidades" [ref=e38]:
+                - img [ref=e39]
+                - generic [ref=e46]: Unidades
+            - listitem [ref=e47]:
+              - button "Trabajos Prácticos" [ref=e48]:
+                - img [ref=e49]
+                - generic [ref=e52]: Trabajos Prácticos
+            - listitem [ref=e53]:
+              - button "Materiales" [ref=e54]:
+                - img [ref=e55]
+                - generic [ref=e57]: Materiales
+        - generic [ref=e58]:
+          - generic [ref=e59]: Análisis
+          - list [ref=e60]:
+            - listitem [ref=e61]:
+              - button "Progresión" [ref=e62]:
+                - img [ref=e63]
+                - generic [ref=e65]: Progresión
+            - listitem [ref=e66]:
+              - button "Evolución por estudiante" [ref=e67]:
+                - img [ref=e68]
+                - generic [ref=e71]: Evolución por estudiante
+            - listitem [ref=e72]:
+              - button "Niveles N1-N4" [ref=e73]:
+                - img [ref=e74]
+                - generic [ref=e78]: Niveles N1-N4
+            - listitem [ref=e79]:
+              - button "Intentos adversos" [ref=e80]:
+                - img [ref=e81]
+                - generic [ref=e83]: Intentos adversos
+            - listitem [ref=e84]:
+              - button "Inter-rater" [ref=e85]:
+                - img [ref=e86]
+                - generic [ref=e89]: Inter-rater
+        - generic [ref=e90]:
+          - generic [ref=e91]: Operacional
+          - list [ref=e92]:
+            - listitem [ref=e93]:
+              - button "Exportar" [ref=e94]:
+                - img [ref=e95]
+                - generic [ref=e98]: Exportar
+      - button "Colapsar sidebar" [expanded] [ref=e100]:
+        - img [ref=e101]
+        - generic [ref=e103]: Colapsar
+    - main [ref=e104]:
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - generic [ref=e107]:
+            - heading "Unidades de trazabilidad" [level=1] [ref=e108]
+            - paragraph [ref=e109]: Organiza los TPs de la comision en unidades tematicas para mejorar el analisis longitudinal.
+          - button "Ayuda" [ref=e110]:
+            - img [ref=e111]
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]: 2 unidades · 13 TPs
+            - button "Nueva unidad" [ref=e117]:
+              - img [ref=e118]
+              - text: Nueva unidad
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - generic [ref=e121]:
+                - button "Condicionales 0 TPs · Estructuras condicionales if/elif/else" [expanded] [ref=e122]:
+                  - img [ref=e168]
+                  - generic [ref=e125]: Condicionales
+                  - generic [ref=e126]: 0 TPs
+                  - generic [ref=e127]: · Estructuras condicionales if/elif/else
+                - generic [ref=e128]:
+                  - button "Editar unidad Condicionales" [ref=e129]:
+                    - img [ref=e130]
+                  - button "Eliminar unidad Condicionales" [ref=e133]:
+                    - img [ref=e134]
+              - generic [ref=e171]: Sin TPs asignados a esta unidad.
+            - generic [ref=e138]:
+              - button "Repetitivas 0 TPs · Bucles while/for" [ref=e139]:
+                - img [ref=e140]
+                - generic [ref=e142]: Repetitivas
+                - generic [ref=e143]: 0 TPs
+                - generic [ref=e144]: · Bucles while/for
+              - generic [ref=e145]:
+                - button "Editar unidad Repetitivas" [ref=e146]:
+                  - img [ref=e147]
+                - button "Eliminar unidad Repetitivas" [ref=e150]:
+                  - img [ref=e151]
+            - generic [ref=e154]:
+              - button "Sin unidad 13 TPs" [expanded] [ref=e155]:
+                - img [ref=e172]
+                - generic [ref=e158]: Sin unidad
+                - generic [ref=e159]: 13 TPs
+              - generic [ref=e174]:
+                - generic [ref=e175]:
+                  - generic [ref=e176]: TP-E2E-a05ec0-02Bucles Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-a05ec0-02" [ref=e178]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e179]:
+                  - generic [ref=e180]: TP-E2E-001Condicionales Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-001" [disabled] [ref=e182]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e183]:
+                  - generic [ref=e184]: 12123Tp Manual
+                  - combobox "Asignar unidad a 12123" [ref=e186]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e187]:
+                  - generic [ref=e188]: TP-E2E-002Bucles Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-002" [ref=e190]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e191]:
+                  - generic [ref=e192]: TP-E2E-14c07c-01Condicionales Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-14c07c-01" [ref=e194]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e195]:
+                  - generic [ref=e196]: "IA-DMRETP: Calculadora de descuentos (+2 mas)"
+                  - combobox "Asignar unidad a IA-DMRE" [ref=e198]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e199]:
+                  - generic [ref=e200]: "IA-TN5PTP: Análisis de frecuencia de palabras en un texto (+1 mas)"
+                  - combobox "Asignar unidad a IA-TN5P" [ref=e202]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e203]:
+                  - generic [ref=e204]: "IA-X6ULTP: Calcular estadísticas descriptivas básicas de un conjunto de datos numéricos (+1 mas)"
+                  - combobox "Asignar unidad a IA-X6UL" [ref=e206]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e207]:
+                  - generic [ref=e208]: "IA-50OFTP: Clasificador de números según paridad y signo (+2 mas)"
+                  - combobox "Asignar unidad a IA-50OF" [ref=e210]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e211]:
+                  - generic [ref=e212]: TP-E2E-14c07c-02Bucles Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-14c07c-02" [ref=e214]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e215]:
+                  - generic [ref=e216]: "IA-F0MZTP: Análisis de temperaturas diarias (+2 mas)"
+                  - combobox "Asignar unidad a IA-F0MZ" [ref=e218]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e219]:
+                  - generic [ref=e220]: TP-E2E-a05ec0-01Condicionales Basicos - Test E2E
+                  - combobox "Asignar unidad a TP-E2E-a05ec0-01" [ref=e222]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+                - generic [ref=e223]:
+                  - generic [ref=e224]: "IA-V36VTP: Clasificación de edad (+2 mas)"
+                  - combobox "Asignar unidad a IA-V36V" [ref=e226]:
+                    - option "Sin unidad" [selected]
+                    - option "Condicionales"
+                    - option "Repetitivas"
+  - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e160]:
+    - generic [ref=e161]: "prompt: tutor/v1.0.0"
+    - generic [ref=e162]: ·
+    - generic [ref=e163]: "classifier: pendiente"
+    - generic [ref=e164]: ·
+    - generic [ref=e165]: "labeler: 1.1.0"
+    - generic [ref=e166]: ·
+    - generic [ref=e167]: "cadena: sin verificacion previa"

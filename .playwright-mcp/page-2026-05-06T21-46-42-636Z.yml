@@ -1,0 +1,72 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+      - button "Ayuda" [ref=e9]:
+        - img [ref=e10]
+    - generic [ref=e728]:
+      - link "← Mis materias" [ref=e729] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e730]: "|"
+      - paragraph [ref=e731]: Prog1·Comision Juani·2026
+      - generic [ref=e732]: Prohramacion 1
+    - generic [ref=e776]:
+      - paragraph [ref=e777]: Trabajos practicos
+      - heading "Tu materia, esta semana." [level=2] [ref=e778]
+      - generic [ref=e779]:
+        - generic [ref=e780]:
+          - paragraph [ref=e781]: Pendiente
+          - generic [ref=e782]: 2 TPs
+        - list [ref=e783]:
+          - listitem [ref=e784]:
+            - article [ref=e785]:
+              - generic [ref=e787]:
+                - paragraph [ref=e788]: 12123 (v1)
+                - heading "Tp Manual" [level=3] [ref=e789]
+              - paragraph [ref=e791]: Tu primera vez con esta TP.
+              - button "Empezar" [ref=e793]
+          - listitem [ref=e794]:
+            - article [ref=e795]:
+              - generic [ref=e797]:
+                - paragraph [ref=e798]: IA-X6UL (v1)
+                - 'heading "TP: Calcular estadísticas descriptivas básicas de un conjunto de datos numéricos (+1 mas)" [level=3] [ref=e799]'
+              - paragraph [ref=e801]: Tu primera vez con esta TP.
+              - button "Empezar" [ref=e803]
+      - generic [ref=e804]:
+        - generic [ref=e805]:
+          - paragraph [ref=e806]: Por corregir
+          - generic [ref=e807]: esperando al docente
+        - list [ref=e808]:
+          - listitem [ref=e809]:
+            - generic [ref=e810]:
+              - generic [ref=e811]:
+                - generic [ref=e812]:
+                  - generic [ref=e813]: IA-V36V
+                  - generic [ref=e814]: v1
+                  - generic [ref=e815]: "TP: Clasificación de edad (+2 mas)"
+                - paragraph [ref=e816]: Entregada el 6/5, 06:46 p. m.
+              - generic [ref=e817]: Esperando correccion
+      - generic [ref=e818]:
+        - generic [ref=e819]:
+          - paragraph [ref=e820]: Listo
+          - generic [ref=e821]: corregidas por el docente
+        - list [ref=e822]:
+          - listitem [ref=e823]:
+            - generic [ref=e824]:
+              - generic [ref=e826]:
+                - generic [ref=e827]: IA-F0MZ
+                - generic [ref=e828]: v1
+                - generic [ref=e829]: "TP: Análisis de temperaturas diarias (+2 mas)"
+                - generic [ref=e830]: Devuelta
+              - button "Ver calificacion" [ref=e831]
+    - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+      - generic [ref=e26]: "prompt: tutor/v1.0.0"
+      - generic [ref=e27]: ·
+      - generic [ref=e28]: "classifier: pendiente"
+      - generic [ref=e29]: ·
+      - generic [ref=e30]: "labeler: 1.1.0"
+      - generic [ref=e31]: ·
+      - generic [ref=e32]: "cadena: sin verificacion previa"
+  - generic [ref=e272]:
+    - alert
+    - alert

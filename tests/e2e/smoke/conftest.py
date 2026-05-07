@@ -12,10 +12,24 @@ este patrón en sus `vite.config.ts`.
 Si en algún momento el JWT validator se activa (env `jwt_issuer` no vacío),
 estas fixtures van a fallar con 401 — habría que generar un Bearer firmado.
 Para piloto-1 dev, headers X-* es suficiente.
+
+Env vars que modulan el comportamiento de la suite:
+  - SMOKE_API_BASE_URL: override de la base url del gateway (default
+    `http://127.0.0.1:8000`).
+  - SMOKE_PG_DSN: override del DSN base de Postgres (default
+    `postgresql://postgres:postgres@127.0.0.1:5432`).
+  - SMOKE_SKIP_ATTESTATION_CHECK: si "1"/"true"/"yes", el gate de health al
+    inicio de la suite NO requiere que el `integrity-attestation-service`
+    (:8012) esté up. Útil en piloto local sin la infra institucional
+    separada (RN-128 declara la attestation eventualmente consistente y
+    NO bloqueante para el cierre del episodio). Cuando se setea, los tests
+    individuales que dependen de ese servicio igual van a fallar — el
+    escape hatch es sólo para evitar el `pytest.exit(returncode=2)` global.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 import uuid
@@ -30,7 +44,7 @@ _HERE = Path(__file__).parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from _helpers import (  # noqa: E402  (path mutation + import en mismo archivo)
+from _helpers import (
     COMISION_A_MANANA,
     DOCENTE_DEMO,
     SERVICES_HEALTH,
@@ -73,9 +87,17 @@ def _headers_for_role(role: str, user_id: str | None = None) -> dict[str, str]:
 
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
-    import os
-
     return os.environ.get("SMOKE_API_BASE_URL", "http://127.0.0.1:8000")
+
+
+def _attestation_check_skipped() -> bool:
+    """Lee `SMOKE_SKIP_ATTESTATION_CHECK` y normaliza a bool.
+
+    Acepta "1", "true", "yes" (case-insensitive). Cualquier otro valor o
+    var no seteada → False.
+    """
+    raw = os.environ.get("SMOKE_SKIP_ATTESTATION_CHECK", "").strip().lower()
+    return raw in {"1", "true", "yes"}
 
 
 @pytest.fixture(scope="session")
@@ -136,9 +158,34 @@ def seeded_episode_id() -> str:
 
 @pytest.fixture(scope="session", autouse=True)
 def _wait_for_health() -> None:
-    """Verifica al inicio que los 12 servicios responden /health."""
+    """Gate de health al arranque de la suite — verifica que los servicios responden /health.
+
+    Comportamiento estándar (failfast):
+      Si algún servicio listado en `SERVICES_HEALTH` no responde o devuelve
+      un status ≠ {200, 503}, llama a `pytest.exit(returncode=2)` y la suite
+      entera no corre. Está pensado para piloto en CI con stack completo.
+
+    Escape hatch para dev local:
+      Setear `SMOKE_SKIP_ATTESTATION_CHECK=1` (o `true`/`yes`) excluye
+      `integrity-attestation-service` (:8012) del gate. Útil en piloto local
+      sin la VPS institucional con la pubkey Ed25519 desplegada — RN-128
+      declara la attestation como side-channel eventualmente consistente,
+      no bloqueante. Los tests individuales que dependan de ese servicio
+      siguen fallando per-test si lo invocan; este flag sólo evita el
+      pytest.exit() global que tira la suite entera.
+    """
+    skip_attestation = _attestation_check_skipped()
+    if skip_attestation:
+        print(
+            "\n[SMOKE WARN] SMOKE_SKIP_ATTESTATION_CHECK activo — "
+            "salteando health check de integrity-attestation-service (:8012). "
+            "Los tests que dependan de ese servicio siguen pudiendo fallar.\n"
+        )
+
     failed: list[str] = []
     for port, name in SERVICES_HEALTH:
+        if skip_attestation and port == 8012:
+            continue
         url = f"http://127.0.0.1:{port}/health"
         try:
             resp = httpx.get(url, timeout=3.0)
@@ -154,7 +201,9 @@ def _wait_for_health() -> None:
             "Pre-condicion de smoke FALLO — los siguientes servicios no estan up:\n"
             + "\n".join(failed)
             + "\n\nPista: arrancalos con `bash scripts/dev-start-all.sh` o tu launcher local.\n"
-            "Cada servicio escribe a /tmp/piloto-logs/<svc>.log."
+            "Cada servicio escribe a /tmp/piloto-logs/<svc>.log.\n"
+            "Para skipear sólo el integrity-attestation-service (piloto local sin "
+            "infra institucional): export SMOKE_SKIP_ATTESTATION_CHECK=1"
         )
         pytest.exit(msg, returncode=2)
 

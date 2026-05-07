@@ -1,0 +1,92 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+      - button "Ayuda" [ref=e9]:
+        - img [ref=e10]
+    - generic [ref=e373]:
+      - generic [ref=e374]: episodio 861015...71b7
+      - generic [ref=e375]: ·
+      - generic [ref=e376]: abierto hace 8s
+      - generic [ref=e377]: ·
+      - generic [ref=e380]: N1 lectura activa
+      - generic [ref=e381]:
+        - button "Ayuda" [ref=e382]:
+          - img [ref=e383]
+        - button "Cerrar episodio" [ref=e386]
+    - generic [ref=e387]:
+      - generic [ref=e388]:
+        - heading "N1 Enunciado" [level=2] [ref=e391]
+        - generic [ref=e392]:
+          - button "IA-V36V — Ejercicio 2 de 3 Ocultar" [ref=e393]:
+            - generic [ref=e394]: IA-V36V — Ejercicio 2 de 3
+            - generic [ref=e395]: Ocultar
+          - generic [ref=e397]:
+            - heading "Aprobación de materia" [level=2] [ref=e398]
+            - paragraph [ref=e399]: "Un profesor quiere automatizar la calificación de sus estudiantes. Escribir un programa que pida al usuario tres notas parciales (números enteros entre 0 y 100) y determine si el estudiante aprueba la materia según las siguientes reglas:"
+            - list [ref=e400]:
+              - listitem [ref=e401]:
+                - strong [ref=e402]: "Aprobación directa:"
+                - text: Promedio >= 70
+              - listitem [ref=e403]:
+                - strong [ref=e404]: "Recuperatorio:"
+                - text: Promedio >= 40 y < 70
+              - listitem [ref=e405]:
+                - strong [ref=e406]: "Desaprobado:"
+                - text: Promedio < 40
+            - paragraph [ref=e407]: "El programa debe imprimir exactamente uno de estos mensajes:"
+            - list [ref=e408]:
+              - listitem [ref=e409]:
+                - code [ref=e475]: "\"Aprobado\""
+              - listitem [ref=e411]:
+                - code [ref=e476]: "\"Recuperatorio\""
+              - listitem [ref=e413]:
+                - code [ref=e477]: "\"Desaprobado\""
+            - paragraph [ref=e415]:
+              - strong [ref=e416]: "Nota:"
+              - text: Redondear el promedio al entero más cercano (usar
+              - code [ref=e478]: round()
+              - text: "). Las notas deben leerse en una sola línea separadas por comas (ej:"
+              - code [ref=e479]: 85,70,90
+              - text: ).
+        - heading "N3 Editor + tests" [level=2] [ref=e421]
+        - generic [ref=e422]:
+          - generic [ref=e423]:
+            - heading "Código (python)" [level=2] [ref=e424]
+            - button "▶ Ejecutar" [ref=e425]
+          - code [ref=e427]:
+            - generic [ref=e428]:
+              - generic [ref=e430]:
+                - generic [ref=e433]: "1"
+                - generic [ref=e435]: "2"
+                - generic [ref=e436]:
+                  - generic [ref=e437] [cursor=pointer]: 
+                  - generic [ref=e438]: "3"
+                - generic [ref=e440]: "4"
+                - generic [ref=e442]: "5"
+              - generic [ref=e451]:
+                - generic [ref=e453]: "# Escribí tu código Python acá"
+                - generic [ref=e456]: "def factorial(n):"
+                - generic [ref=e458]: pass
+              - textbox "Editor content" [ref=e461]
+          - generic [ref=e462]: Presioná Ejecutar para correr el código.
+      - generic [ref=e463]:
+        - heading "N4 Tutor socratico" [level=2] [ref=e466]
+        - generic [ref=e468]:
+          - paragraph [ref=e469]: El tutor no te da la respuesta.
+          - paragraph [ref=e470]: Te hace preguntas para que llegues vos.
+          - paragraph [ref=e471]: "Empezas vos: contale en que estas pensando para resolver esta TP."
+        - generic [ref=e472]:
+          - textbox "Escribi tu mensaje (Enter para enviar)..." [ref=e473]
+          - button "Enviar" [disabled] [ref=e474]
+    - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+      - generic [ref=e26]: "prompt: tutor/v1.0.0"
+      - generic [ref=e27]: ·
+      - generic [ref=e28]: "classifier: pendiente"
+      - generic [ref=e29]: ·
+      - generic [ref=e30]: "labeler: 1.1.0"
+      - generic [ref=e31]: ·
+      - generic [ref=e32]: "cadena: sin verificacion previa"
+  - generic [ref=e272]:
+    - alert
+    - alert

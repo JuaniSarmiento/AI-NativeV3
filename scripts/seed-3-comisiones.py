@@ -113,6 +113,22 @@ CURSO_CONFIG_HASH = hashlib.sha256(b"curso-config-demo-v1").hexdigest()
 TEMPLATE_01_ID = UUID("11110000-0000-0000-0000-000000000001")
 TEMPLATE_02_ID = UUID("11110000-0000-0000-0000-000000000002")
 
+# Estudiantes "narrativos" para defensa (ADR-042 path 1 reforzado): cada uno
+# debe tener >=4 episodios apuntando al MISMO template_id para ejercitar el
+# path longitudinal sin caer borderline contra MIN_EPISODES_FOR_LONGITUDINAL=3
+# (RN-130). Default: A1, A2, A3 (los primeros 3 estudiantes de A-Manana, los
+# mas predecibles del seed). El loop de seed_ctr garantiza el invariante
+# inyectando `EXTRA_NARRATIVE_EPISODES` adicionales por (estudiante, template_01)
+# antes del round-robin original.
+NARRATIVE_STUDENTS_LONGITUDINAL: dict[UUID, int] = {
+    UUID("b1b1b1b1-0001-0001-0001-000000000001"): 4,  # A1
+    UUID("b1b1b1b1-0002-0002-0002-000000000002"): 4,  # A2
+    UUID("b1b1b1b1-0003-0003-0003-000000000003"): 4,  # A3
+}
+# Template canonico para los episodios "narrativos" extra. TEMPLATE_01
+# (recursion/Fibonacci) es el que se usa en la narrativa de defensa.
+NARRATIVE_TEMPLATE_ID = TEMPLATE_01_ID
+
 TEMPLATES_DEMO: list[dict[str, str | float | UUID]] = [
     {
         "id": TEMPLATE_01_ID,
@@ -411,13 +427,18 @@ async def seed_academic(academic_url: str) -> dict[UUID, list[UUID]]:
         async with maker() as session:
             await _set_tenant(session, TENANT_ID)
             # Orden de DELETE respeta FKs:
+            # - calificaciones -> entregas (FK)
+            # - entregas -> tareas_practicas (FK; epic tp-entregas-correccion)
             # - tareas_practicas (instancias) -> tareas_practicas_templates (por template_id FK)
             # - usuarios_comision / inscripciones / tareas_practicas -> comisiones
             # - comisiones -> periodos / materias
             # - materias -> planes_estudio -> carreras -> facultades
             for table in (
+                "calificaciones",
+                "entregas",
                 "tareas_practicas",
                 "tareas_practicas_templates",
+                "unidades",
                 "usuarios_comision",
                 "inscripciones",
                 "comisiones",
@@ -805,6 +826,117 @@ async def seed_ctr(
                         classified_at = closed_at + timedelta(minutes=2)
                         episode_refs.append((episode_id, comision_id, pseudo, classified_at))
 
+            # ADR-042 path 1 reforzado — episodios "narrativos" extra para
+            # garantizar >=NARRATIVE_STUDENTS_LONGITUDINAL[s] por (estudiante,
+            # template_id=NARRATIVE_TEMPLATE_ID). Sin esto, el round-robin del
+            # loop principal deja a algunos estudiantes con 2-3 episodios por
+            # template, borderline contra MIN_EPISODES_FOR_LONGITUDINAL=3.
+            # Las clasificaciones se generan despues por seed_classifications
+            # con appropriation="apropiacion_reflexiva" (cohorte trayectoria
+            # positiva) — coherente con el panel de defensa.
+            narrative_base_time = datetime.now(UTC) - timedelta(days=10)
+            for cohort_idx, cohort in enumerate(COHORTES):
+                comision_id = cast(UUID, cohort["comision_id"])
+                # NARRATIVE_TEMPLATE_ID instance_id depende del cohort_idx
+                narrative_instance_id = _instance_id_for(NARRATIVE_TEMPLATE_ID, cohort_idx)
+                for student_idx, pseudo in enumerate(cohort["students"]):
+                    n_extra = NARRATIVE_STUDENTS_LONGITUDINAL.get(pseudo, 0)
+                    if n_extra <= 0:
+                        continue
+                    for ep_idx in range(n_extra):
+                        opened_at = narrative_base_time + timedelta(
+                            days=ep_idx, hours=cohort_idx * 2 + student_idx
+                        )
+                        closed_at = opened_at + timedelta(minutes=45)
+                        # UUIDs deterministicos disjuntos del round-robin
+                        # (bit alto distinto: 1<<126 vs 1<<127 del loop principal).
+                        # +7 marca "narrative" (los del round-robin terminan en
+                        # multiplos de 100, este offset evita colision).
+                        episode_id = UUID(
+                            int=(
+                                (cohort_idx + 1) * 1_000_000
+                                + (student_idx + 1) * 10_000
+                                + (ep_idx + 1) * 100
+                                + 7  # marker narrative
+                            )
+                            | (1 << 126)
+                        )
+                        events = _build_events_for_episode(
+                            episode_id=episode_id,
+                            tenant_id=TENANT_ID,
+                            comision_id=comision_id,
+                            student_pseudonym=pseudo,
+                            problema_id=narrative_instance_id,
+                            opened_at=opened_at,
+                            closed_at=closed_at,
+                        )
+                        last_chain_hash = events[-1]["chain_hash"]
+                        await session.execute(
+                            text(
+                                "INSERT INTO episodes ("
+                                "id, tenant_id, comision_id, student_pseudonym, problema_id, "
+                                "prompt_system_hash, prompt_system_version, "
+                                "classifier_config_hash, curso_config_hash, "
+                                "estado, opened_at, closed_at, "
+                                "events_count, last_chain_hash, integrity_compromised, meta"
+                                ") VALUES ("
+                                ":id, :t, :c, :s, :pb, "
+                                ":psh, :psv, :cch, :cuch, "
+                                ":estado, :oa, :ca, "
+                                ":ec, :lch, false, '{}'::jsonb"
+                                ")"
+                            ),
+                            {
+                                "id": str(episode_id),
+                                "t": str(TENANT_ID),
+                                "c": str(comision_id),
+                                "s": str(pseudo),
+                                "pb": str(narrative_instance_id),
+                                "psh": PROMPT_SYSTEM_HASH,
+                                "psv": PROMPT_SYSTEM_VERSION,
+                                "cch": CLASSIFIER_CONFIG_HASH,
+                                "cuch": CURSO_CONFIG_HASH,
+                                "estado": "closed",
+                                "oa": opened_at,
+                                "ca": closed_at,
+                                "ec": len(events),
+                                "lch": last_chain_hash,
+                            },
+                        )
+                        for ev in events:
+                            await session.execute(
+                                text(
+                                    "INSERT INTO events ("
+                                    "event_uuid, tenant_id, episode_id, seq, event_type, "
+                                    "ts, payload, self_hash, chain_hash, prev_chain_hash, "
+                                    "prompt_system_hash, prompt_system_version, classifier_config_hash"
+                                    ") VALUES ("
+                                    ":euid, :t, :eid, :seq, :et, "
+                                    ":ts, CAST(:pl AS jsonb), :sh, :ch, :pch, "
+                                    ":psh, :psv, :cch"
+                                    ")"
+                                ),
+                                {
+                                    "euid": str(ev["event_uuid"]),
+                                    "t": str(TENANT_ID),
+                                    "eid": str(episode_id),
+                                    "seq": ev["seq"],
+                                    "et": ev["event_type"],
+                                    "ts": ev["ts_dt"],
+                                    "pl": json.dumps(ev["payload"]),
+                                    "sh": ev["self_hash"],
+                                    "ch": ev["chain_hash"],
+                                    "pch": ev["prev_chain_hash"],
+                                    "psh": PROMPT_SYSTEM_HASH,
+                                    "psv": PROMPT_SYSTEM_VERSION,
+                                    "cch": CLASSIFIER_CONFIG_HASH,
+                                },
+                            )
+                        classified_at = closed_at + timedelta(minutes=2)
+                        episode_refs.append(
+                            (episode_id, comision_id, pseudo, classified_at)
+                        )
+
             await session.commit()
     finally:
         await engine.dispose()
@@ -884,6 +1016,59 @@ async def seed_classifications(
                                 "ca": classified_at,
                             },
                         )
+
+            # ADR-042 path 1 reforzado — clasificaciones de los episodios
+            # "narrativos" extra (ver seed_ctr). Slope ascendente para que
+            # `cii_evolution_longitudinal` devuelva slope no-null y la vista
+            # `StudentLongitudinalView` muestre trayectoria real.
+            for nidx, (episode_id, comision_id, _pseudo, classified_at) in enumerate(
+                episode_refs[idx:], start=idx
+            ):
+                # Patron narrativo positivo: superficial -> reflexiva creciente.
+                # nidx % 4 = 0,1 -> superficial; 2,3 -> reflexiva.
+                # Asi el slope cardinal sobre datos ordinales (delegacion=0,
+                # superficial=1, reflexiva=2) crece monotonicamente.
+                slot = nidx % 4
+                if slot < 2:
+                    appropriation = "apropiacion_superficial"
+                    ct, ccd, orph, stab, evo = 0.55, 0.50, 0.25, 0.55, 0.00
+                else:
+                    appropriation = "apropiacion_reflexiva"
+                    ct, ccd, orph, stab, evo = 0.85, 0.80, 0.05, 0.78, 0.20
+
+                reason = (
+                    f"[NARRATIVE A] Arbol N4 - {appropriation}: "
+                    f"CT={ct:.2f}, CCD={ccd:.2f} (episodio narrativo idx={nidx})"
+                )
+
+                await session.execute(
+                    text(
+                        "INSERT INTO classifications ("
+                        "episode_id, tenant_id, comision_id, classifier_config_hash, "
+                        "appropriation, appropriation_reason, "
+                        "ct_summary, ccd_mean, ccd_orphan_ratio, "
+                        "cii_stability, cii_evolution, "
+                        "features, classified_at, is_current"
+                        ") VALUES ("
+                        ":eid, :t, :c, :cch, :app, :reason, "
+                        ":ct, :ccd, :orph, :stab, :evo, "
+                        "'{}'::jsonb, :ca, true) ON CONFLICT (episode_id, classifier_config_hash) DO NOTHING"
+                    ),
+                    {
+                        "eid": str(episode_id),
+                        "t": str(TENANT_ID),
+                        "c": str(comision_id),
+                        "cch": CLASSIFIER_CONFIG_HASH,
+                        "app": appropriation,
+                        "reason": reason,
+                        "ct": ct,
+                        "ccd": ccd,
+                        "orph": orph,
+                        "stab": stab,
+                        "evo": evo,
+                        "ca": classified_at,
+                    },
+                )
 
             await session.commit()
     finally:

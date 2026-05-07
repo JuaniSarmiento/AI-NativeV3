@@ -36,8 +36,16 @@ class Material(Base, TenantMixin, TimestampMixin):
     __tablename__ = "materiales"
 
     id: Mapped[uuid.UUID] = uuid_pk()
-    comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
-    # No hay FK a comisiones porque esa tabla vive en academic_main (ADR-003).
+    # Migration 20260606_0001 agregó materia_id (UUID nullable) y volvió comision_id
+    # nullable. La materia es ahora la entidad académica de scope para los materiales;
+    # comision_id queda deprecated (drop futuro).
+    comision_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True, index=True
+    )
+    materia_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True, index=True
+    )
+    # No hay FK a comisiones/materias porque esas tablas viven en academic_main (ADR-003).
     # La consistencia se verifica en capa de servicio mediante HTTP a academic-service.
 
     tipo: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -81,8 +89,14 @@ class Chunk(Base, TenantMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     material_id: Mapped[uuid.UUID] = fk_uuid("materiales.id")
-    comision_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
-    # Denormalizado desde Material para permitir filtrar sin join
+    # Migration 20260606_0001: comision_id nullable + materia_id agregado.
+    # Denormalizado desde Material para permitir filtrar sin join.
+    comision_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True, index=True
+    )
+    materia_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True, index=True
+    )
 
     contenido: Mapped[str] = mapped_column(Text, nullable=False)
     contenido_hash: Mapped[str] = mapped_column(String(64), nullable=False)

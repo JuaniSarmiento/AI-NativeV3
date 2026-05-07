@@ -16,7 +16,10 @@ class MaterialOut(BaseModel):
 
     id: UUID
     tenant_id: UUID
-    comision_id: UUID
+    # Migration 20260606_0001 hizo comision_id nullable y agregó materia_id.
+    # Ambos pueden coexistir hasta el drop futuro de comision_id.
+    comision_id: UUID | None = None
+    materia_id: UUID | None = None
     tipo: str
     nombre: str
     tamano_bytes: int
@@ -44,7 +47,9 @@ class ChunkOut(BaseModel):
 
     id: UUID
     material_id: UUID
-    comision_id: UUID
+    # Migration 20260606_0001 hizo comision_id nullable y agregó materia_id.
+    comision_id: UUID | None = None
+    materia_id: UUID | None = None
     contenido: str
     chunk_type: str
     position: int

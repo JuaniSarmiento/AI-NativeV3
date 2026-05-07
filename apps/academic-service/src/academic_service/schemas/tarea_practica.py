@@ -49,6 +49,7 @@ class TareaPracticaUpdate(BaseModel):
     peso: Decimal | None = Field(default=None, ge=0, le=1)
     rubrica: dict[str, Any] | None = None
     test_cases: list[dict[str, Any]] | None = None
+    unidad_id: UUID | None = None
 
 
 class TareaPracticaOut(TareaPracticaBase):
@@ -63,6 +64,7 @@ class TareaPracticaOut(TareaPracticaBase):
     template_id: UUID | None = None
     has_drift: bool = False
     created_via_ai: bool = False
+    unidad_id: UUID | None = None
     created_by: UUID
     created_at: datetime
     deleted_at: datetime | None = None

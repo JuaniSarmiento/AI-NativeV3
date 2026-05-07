@@ -24,6 +24,7 @@ from academic_service.routes import (
     planes,
     tareas_practicas,
     tareas_practicas_templates,
+    unidades,
     universidades,
 )
 
@@ -61,6 +62,7 @@ app.include_router(comisiones.periodos_router)
 app.include_router(comisiones.comisiones_router)
 app.include_router(tareas_practicas.router)
 app.include_router(tareas_practicas_templates.router)
+app.include_router(unidades.router)
 app.include_router(bulk.router)
 
 

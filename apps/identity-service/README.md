@@ -1,47 +1,31 @@
-# identity-service
+# identity-service (DEPRECATED)
 
-Wrapper de la Admin API de Keycloak + gestión de pseudonimización
+**Status**: Deprecated por [ADR-041](../../docs/adr/041-deprecacion-identity-service.md), 2026-05-07.
 
-**Puerto**: 8001
-**Features**: auth, db
+## Por que quedo deprecated
 
-## Desarrollo local
+El servicio nunca tuvo endpoints de negocio reales — solo `/health`, `/ready`, `/live`. Toda la auth de la plataforma vive en `api-gateway` (que emite headers `X-User-Id` / `X-Tenant-Id` / `X-User-Email` / `X-User-Roles`) + Casbin descentralizado en cada servicio (que carga policies de `academic_main.casbin_rules`). La pseudonimizacion vive en `packages/platform-ops/src/platform_ops/privacy.py`.
 
-```bash
-# Desde la raíz del monorepo
-cd apps/identity-service
-uv run uvicorn identity_service.main:app --reload --port 8001
+Mismo patron que `enrollment-service` (deprecated por ADR-030).
 
-# Chequear que responde
-curl http://localhost:8001/health
-```
+## Como revivirlo si en el futuro hace falta
 
-## Tests
+Si emerge un caso de uso real (ej. wrapper REST para Keycloak Admin API que el gateway no cubra, gestion de cuentas server-side, scim provisioning), seguir estos pasos:
 
-```bash
-uv run pytest
-```
+1. Reagregar `"apps/identity-service"` a `[tool.uv.workspace].members` en `pyproject.toml` raiz.
+2. Reagregar bloque `identity-service:` (port 8001) en `infrastructure/helm/platform/values.yaml`.
+3. Implementar los endpoints en `src/identity_service/routes/`.
+4. Agregar al ROUTE_MAP del `api-gateway` (`apps/api-gateway/src/api_gateway/routes/proxy.py`) si los endpoints deben ser publicos para frontends.
+5. Documentar en CLAUDE.md la nueva responsabilidad y marcar ADR-041 como `Superseded por ADR-XXX`.
 
-## Estructura
+## Por que preservamos el codigo
 
-```
-identity-service/
-├── src/identity_service/
-│   ├── __init__.py
-│   ├── main.py           # FastAPI app + lifespan
-│   ├── config.py         # Settings Pydantic
-│   ├── observability.py  # OpenTelemetry + structlog
-│   └── routes/
-│       ├── __init__.py
-│       └── health.py     # /health endpoints
-├── tests/
-│   └── test_health.py
-├── pyproject.toml
-├── Dockerfile
-└── README.md
-```
+- Mantiene git history del servicio.
+- Preserva el patron estructural FastAPI + uvicorn + structlog + observability para revival rapido.
+- Cero costo de mantenimiento (no se levanta, no se sincroniza, no se testea).
 
-## Próximas fases
+## Referencias
 
-Esta es la versión F0 (esqueleto). La lógica se desarrolla en fases siguientes
-según [docs/plan-detallado-fases.md](../../docs/plan-detallado-fases.md).
+- [ADR-041](../../docs/adr/041-deprecacion-identity-service.md) — esta decision.
+- [ADR-030](../../docs/adr/030-deprecate-enrollment-service.md) — deprecacion de `enrollment-service` (mismo patron, antecedente directo).
+- CLAUDE.md "Propiedades criticas" — *"api-gateway es el UNICO source of truth de identidad"*.

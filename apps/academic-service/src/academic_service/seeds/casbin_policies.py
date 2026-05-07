@@ -77,6 +77,10 @@ POLICIES: list[tuple[str, str, str, str]] = [
     # (header X-User-Roles) por simplicidad — agregamos las policies aca para que
     # la matriz documente quien deberia poder gestionarlas y prep para enforcement
     # via Casbin desde el api-gateway en una iteracion futura.
+    ("role:superadmin", "*", "unidad:*", "create"),
+    ("role:superadmin", "*", "unidad:*", "read"),
+    ("role:superadmin", "*", "unidad:*", "update"),
+    ("role:superadmin", "*", "unidad:*", "delete"),
     ("role:superadmin", "*", "byok_key:*", "create"),
     ("role:superadmin", "*", "byok_key:*", "read"),
     ("role:superadmin", "*", "byok_key:*", "update"),
@@ -125,6 +129,10 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente_admin", "*", "tarea_practica_template:*", "update"),
     ("role:docente_admin", "*", "tarea_practica_template:*", "delete"),
     # BYOK keys — admin del tenant gestiona keys del scope tenant/materia/facultad.
+    ("role:docente_admin", "*", "unidad:*", "create"),
+    ("role:docente_admin", "*", "unidad:*", "read"),
+    ("role:docente_admin", "*", "unidad:*", "update"),
+    ("role:docente_admin", "*", "unidad:*", "delete"),
     ("role:docente_admin", "*", "byok_key:*", "create"),
     ("role:docente_admin", "*", "byok_key:*", "read"),
     ("role:docente_admin", "*", "byok_key:*", "update"),
@@ -143,6 +151,10 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente", "*", "tarea_practica:*", "read"),
     ("role:docente", "*", "tarea_practica:*", "update"),
     ("role:docente", "*", "tarea_practica:*", "delete"),
+    ("role:docente", "*", "unidad:*", "create"),
+    ("role:docente", "*", "unidad:*", "read"),
+    ("role:docente", "*", "unidad:*", "update"),
+    ("role:docente", "*", "unidad:*", "delete"),
     ("role:docente", "*", "tarea_practica_template:*", "create"),
     ("role:docente", "*", "tarea_practica_template:*", "read"),
     ("role:docente", "*", "tarea_practica_template:*", "update"),
@@ -158,10 +170,12 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:estudiante", "*", "materia:*", "read"),
     ("role:estudiante", "*", "comision:*", "read"),
     ("role:estudiante", "*", "inscripcion:*", "read"),
+    ("role:estudiante", "*", "unidad:*", "read"),
     ("role:estudiante", "*", "tarea_practica:*", "read"),
     ("role:estudiante", "*", "tarea_practica_template:*", "read"),
     # En F2+: propio material, problemas de sus comisiones, tutor socrático
     # ── Service accounts (cross-service) ─────────────────────────────
+    ("role:tutor_service", "*", "unidad:*", "read"),
     ("role:tutor_service", "*", "tarea_practica:*", "read"),
     ("role:tutor_service", "*", "tarea_practica_template:*", "read"),
 ]

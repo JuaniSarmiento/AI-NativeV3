@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnidadesRouteImport } from './routes/unidades'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as TareasPracticasRouteImport } from './routes/tareas-practicas'
 import { Route as StudentLongitudinalRouteImport } from './routes/student-longitudinal'
@@ -17,9 +18,15 @@ import { Route as MaterialesRouteImport } from './routes/materiales'
 import { Route as KappaRouteImport } from './routes/kappa'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as EpisodeNLevelRouteImport } from './routes/episode-n-level'
+import { Route as CorreccionesRouteImport } from './routes/correcciones'
 import { Route as CohortAdversarialRouteImport } from './routes/cohort-adversarial'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UnidadesRoute = UnidadesRouteImport.update({
+  id: '/unidades',
+  path: '/unidades',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -60,6 +67,11 @@ const EpisodeNLevelRoute = EpisodeNLevelRouteImport.update({
   path: '/episode-n-level',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CorreccionesRoute = CorreccionesRouteImport.update({
+  id: '/correcciones',
+  path: '/correcciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CohortAdversarialRoute = CohortAdversarialRouteImport.update({
   id: '/cohort-adversarial',
   path: '/cohort-adversarial',
@@ -74,6 +86,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
+  '/correcciones': typeof CorreccionesRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -82,10 +95,12 @@ export interface FileRoutesByFullPath {
   '/student-longitudinal': typeof StudentLongitudinalRoute
   '/tareas-practicas': typeof TareasPracticasRoute
   '/templates': typeof TemplatesRoute
+  '/unidades': typeof UnidadesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
+  '/correcciones': typeof CorreccionesRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -94,11 +109,13 @@ export interface FileRoutesByTo {
   '/student-longitudinal': typeof StudentLongitudinalRoute
   '/tareas-practicas': typeof TareasPracticasRoute
   '/templates': typeof TemplatesRoute
+  '/unidades': typeof UnidadesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
+  '/correcciones': typeof CorreccionesRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -107,12 +124,14 @@ export interface FileRoutesById {
   '/student-longitudinal': typeof StudentLongitudinalRoute
   '/tareas-practicas': typeof TareasPracticasRoute
   '/templates': typeof TemplatesRoute
+  '/unidades': typeof UnidadesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/cohort-adversarial'
+    | '/correcciones'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -121,10 +140,12 @@ export interface FileRouteTypes {
     | '/student-longitudinal'
     | '/tareas-practicas'
     | '/templates'
+    | '/unidades'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/cohort-adversarial'
+    | '/correcciones'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -133,10 +154,12 @@ export interface FileRouteTypes {
     | '/student-longitudinal'
     | '/tareas-practicas'
     | '/templates'
+    | '/unidades'
   id:
     | '__root__'
     | '/'
     | '/cohort-adversarial'
+    | '/correcciones'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -145,11 +168,13 @@ export interface FileRouteTypes {
     | '/student-longitudinal'
     | '/tareas-practicas'
     | '/templates'
+    | '/unidades'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CohortAdversarialRoute: typeof CohortAdversarialRoute
+  CorreccionesRoute: typeof CorreccionesRoute
   EpisodeNLevelRoute: typeof EpisodeNLevelRoute
   ExportRoute: typeof ExportRoute
   KappaRoute: typeof KappaRoute
@@ -158,10 +183,18 @@ export interface RootRouteChildren {
   StudentLongitudinalRoute: typeof StudentLongitudinalRoute
   TareasPracticasRoute: typeof TareasPracticasRoute
   TemplatesRoute: typeof TemplatesRoute
+  UnidadesRoute: typeof UnidadesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unidades': {
+      id: '/unidades'
+      path: '/unidades'
+      fullPath: '/unidades'
+      preLoaderRoute: typeof UnidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/templates': {
       id: '/templates'
       path: '/templates'
@@ -218,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EpisodeNLevelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/correcciones': {
+      id: '/correcciones'
+      path: '/correcciones'
+      fullPath: '/correcciones'
+      preLoaderRoute: typeof CorreccionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cohort-adversarial': {
       id: '/cohort-adversarial'
       path: '/cohort-adversarial'
@@ -238,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CohortAdversarialRoute: CohortAdversarialRoute,
+  CorreccionesRoute: CorreccionesRoute,
   EpisodeNLevelRoute: EpisodeNLevelRoute,
   ExportRoute: ExportRoute,
   KappaRoute: KappaRoute,
@@ -246,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudentLongitudinalRoute: StudentLongitudinalRoute,
   TareasPracticasRoute: TareasPracticasRoute,
   TemplatesRoute: TemplatesRoute,
+  UnidadesRoute: UnidadesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

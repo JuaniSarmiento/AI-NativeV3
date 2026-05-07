@@ -102,15 +102,20 @@ class TareaPracticaService:
         await self.session.flush()
         return tarea
 
+    # Campos que se pueden actualizar en TPs published/archived (metadata
+    # organizativa, NO contenido pedagógico inmutable).
+    _MUTABLE_REGARDLESS_OF_ESTADO = {"unidad_id"}
+
     async def update(self, id_: UUID, data: TareaPracticaUpdate, user: User) -> TareaPractica:
         obj = await self.repo.get_or_404(id_)
-        if obj.estado != "draft":
+        changes = data.model_dump(exclude_unset=True)
+        change_keys = set(changes.keys())
+        only_mutable = change_keys <= self._MUTABLE_REGARDLESS_OF_ESTADO
+        if obj.estado != "draft" and not only_mutable:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Tarea en estado '{obj.estado}' es inmutable; cree una nueva versión",
             )
-
-        changes = data.model_dump(exclude_unset=True, exclude_none=True)
 
         # Drift detection (ADR-016): si la instancia viene del template y todavía
         # no está drifteada, ver si alguno de los campos canónicos del patch
@@ -130,7 +135,7 @@ class TareaPracticaService:
         for k, v in changes.items():
             setattr(obj, k, v)
 
-        audit_changes: dict[str, Any] = {"after": changes}
+        audit_changes: dict[str, Any] = {"after": data.model_dump(exclude_unset=True, mode="json")}
         if drift_triggered:
             audit_changes["drift_triggered"] = True
 

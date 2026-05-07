@@ -1,0 +1,58 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+      - button "Ayuda" [ref=e9]:
+        - img [ref=e10]
+    - generic [ref=e728]:
+      - link "← Mis materias" [ref=e729] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e730]: "|"
+      - paragraph [ref=e731]: Prog1·Comision Juani·2026
+      - generic [ref=e732]: Prohramacion 1
+    - generic [ref=e734]:
+      - generic [ref=e735]:
+        - button "Volver a TPs" [ref=e736]:
+          - generic [ref=e737]: ←
+          - text: Volver a TPs
+        - paragraph [ref=e738]: IA-V36V (v1)
+        - 'heading "TP: Clasificación de edad (+2 mas)" [level=2] [ref=e739]'
+        - generic [ref=e740]: Entregada
+      - generic [ref=e742]:
+        - generic [ref=e743]: Ejercicios completados
+        - generic [ref=e744]: 3/3
+      - paragraph [ref=e773]: Pendiente de correccion. Tu docente revisara la entrega proximamente.
+      - list [ref=e747]:
+        - listitem [ref=e748]:
+          - generic [ref=e749]:
+            - generic [ref=e750]: ✓
+            - generic [ref=e751]:
+              - paragraph [ref=e752]: "Ejercicio 1: Clasificación de edad"
+              - paragraph [ref=e753]: "Peso: 33%"
+            - generic [ref=e754]: Completado
+        - listitem [ref=e755]:
+          - generic [ref=e756]:
+            - generic [ref=e757]: ✓
+            - generic [ref=e758]:
+              - paragraph [ref=e759]: "Ejercicio 2: Aprobación de materia"
+              - paragraph [ref=e760]: "Peso: 33%"
+            - generic [ref=e761]: Completado
+        - listitem [ref=e762]:
+          - generic [ref=e763]:
+            - generic [ref=e764]: ✓
+            - generic [ref=e765]:
+              - paragraph [ref=e766]: "Ejercicio 3: Cálculo de descuento"
+              - paragraph [ref=e767]: "Peso: 33%"
+            - generic [ref=e768]: Completado
+      - generic [ref=e774]: TP entregada. Esperando correccion del docente.
+    - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+      - generic [ref=e26]: "prompt: tutor/v1.0.0"
+      - generic [ref=e27]: ·
+      - generic [ref=e28]: "classifier: pendiente"
+      - generic [ref=e29]: ·
+      - generic [ref=e30]: "labeler: 1.1.0"
+      - generic [ref=e31]: ·
+      - generic [ref=e32]: "cadena: sin verificacion previa"
+  - generic [ref=e272]:
+    - alert
+    - alert

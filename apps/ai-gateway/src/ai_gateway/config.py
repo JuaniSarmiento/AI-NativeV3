@@ -21,6 +21,12 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://127.0.0.1:6379/1"  # DB 1 separada del CTR
 
+    # Provider de LLM activo. CLAUDE.md exige `mock` como default dev para que el
+    # test suite y los smoke locales no requieran API keys reales. Override via
+    # env var `LLM_PROVIDER=anthropic` (o el provider real que corresponda) cuando
+    # haya keys configuradas.
+    llm_provider: str = "mock"
+
     # Budgets default por tenant/feature/mes (USD)
     default_monthly_budget_usd: float = 100.0
 

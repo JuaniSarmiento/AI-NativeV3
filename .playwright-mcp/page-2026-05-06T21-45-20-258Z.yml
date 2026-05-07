@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+      - button "Ayuda" [ref=e9]:
+        - img [ref=e10]
+    - generic [ref=e675]:
+      - generic [ref=e676]:
+        - generic [ref=e677]: 🤔
+        - heading "Apropiación superficial" [level=2] [ref=e678]
+        - paragraph [ref=e679]: "Coherencias intermedias (ct=0.67, ccd_mean=0.50, ccd_orphan=0.00, cii_stab=0.50): engagement presente pero sin evidencia suficiente de profundización."
+      - generic [ref=e680]:
+        - heading "Las tres coherencias (N4)" [level=3] [ref=e681]
+        - generic [ref=e682]:
+          - generic [ref=e683]:
+            - heading "Temporal (CT)" [level=4] [ref=e684]
+            - paragraph [ref=e685]: Patrón de trabajo sostenido en el tiempo
+            - generic [ref=e687]:
+              - generic [ref=e688]: "0.67"
+              - generic [ref=e689]: 67%
+          - generic [ref=e692]:
+            - heading "Código ↔ Discurso (CCD)" [level=4] [ref=e693]
+            - paragraph [ref=e694]: Alineación entre acciones y verbalización
+            - generic [ref=e696]:
+              - generic [ref=e697]: "0.50"
+              - generic [ref=e698]: 50%
+            - generic [ref=e701]:
+              - paragraph [ref=e702]: Acciones sin reflexión
+              - generic [ref=e704]:
+                - generic [ref=e705]: "0.00"
+                - generic [ref=e706]: 0%
+          - generic [ref=e708]:
+            - heading "Inter-iteración (CII)" [level=4] [ref=e709]
+            - paragraph [ref=e710]: Estabilidad y evolución entre intentos
+            - generic [ref=e712]:
+              - generic [ref=e713]: "0.50"
+              - generic [ref=e714]: 50%
+            - generic [ref=e717]:
+              - paragraph [ref=e718]: Evolución
+              - generic [ref=e720]:
+                - generic [ref=e721]: "0.50"
+                - generic [ref=e722]: 50%
+      - generic [ref=e725]: "Hash de configuración del clasificador: 96c5ed80059f8faa..."
+      - button "Siguiente ejercicio →" [ref=e727]
+    - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+      - generic [ref=e26]: "prompt: tutor/v1.0.0"
+      - generic [ref=e27]: ·
+      - generic [ref=e28]: "classifier: pendiente"
+      - generic [ref=e29]: ·
+      - generic [ref=e30]: "labeler: 1.1.0"
+      - generic [ref=e31]: ·
+      - generic [ref=e32]: "cadena: sin verificacion previa"
+  - generic [ref=e272]:
+    - alert
+    - alert

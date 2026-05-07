@@ -36,9 +36,11 @@ ROUTE_MAP: dict[str, str] = {
     "/api/v1/comisiones": settings.academic_service_url,
     "/api/v1/periodos": settings.academic_service_url,
     "/api/v1/tareas-practicas": settings.academic_service_url,
+    "/api/v1/unidades": settings.academic_service_url,
     "/api/v1/bulk": settings.academic_service_url,
     # /api/v1/imports REMOVED — ADR-030 deprecation. Usar /api/v1/bulk/inscripciones
     # de academic-service (ADR-029) para el alta masiva de inscripciones.
+    "/api/v1/entregas": settings.evaluation_service_url,
     "/api/v1/materiales": settings.content_service_url,
     "/api/v1/retrieve": settings.content_service_url,
     "/api/v1/episodes": settings.tutor_service_url,

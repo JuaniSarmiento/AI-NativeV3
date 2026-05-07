@@ -144,10 +144,40 @@ class AnthropicProvider(BaseProvider):
 
 @lru_cache(maxsize=1)
 def get_provider(name: str = "") -> BaseProvider:
-    """Factory de providers. name='mock' para tests."""
-    which = (name or os.environ.get("LLM_PROVIDER", "anthropic")).lower()
+    """Factory de providers. name='mock' para tests.
+
+    Resolución de provider:
+        1. Argumento explícito `name` (tests) — si es desconocido, raise ValueError.
+        2. Env var `LLM_PROVIDER` (override de runtime) — si es desconocido,
+           log warning + fallback a mock (para no tirar 502 en dev cuando el
+           `.env` del usuario apunta a un provider no implementado todavía,
+           ej. `mistral`/`gemini` que están DEFERIDOS por epic ai-native-completion).
+        3. `Settings.llm_provider` (default `mock`, ver CLAUDE.md) — mismo
+           comportamiento que (2): unknown → warning + mock.
+    """
+    if name:
+        which = name.lower()
+        from_runtime_config = False
+    elif "LLM_PROVIDER" in os.environ:
+        which = os.environ["LLM_PROVIDER"].lower()
+        from_runtime_config = True
+    else:
+        # Import diferido: evita ciclo si tests parchean settings antes de importar.
+        from ai_gateway.config import settings
+
+        which = settings.llm_provider.lower()
+        from_runtime_config = True
     if which == "mock":
         return MockProvider()
     if which == "anthropic":
         return AnthropicProvider()
+    if from_runtime_config:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Provider '%s' desconocido o no implementado todavía; cayendo a mock. "
+            "Setear LLM_PROVIDER=mock explícitamente para silenciar este warning.",
+            which,
+        )
+        return MockProvider()
     raise ValueError(f"Provider desconocido: {which}")

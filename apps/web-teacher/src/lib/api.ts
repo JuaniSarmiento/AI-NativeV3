@@ -298,6 +298,11 @@ export interface TareaPractica {
   created_by: string
   created_at: string
   updated_at: string
+  // ADR-033/034 — ejercicios JSONB + test cases (nullable — older TPs sin ejercicios)
+  ejercicios?: Array<{ orden: number; titulo: string; descripcion: string }> | null
+  test_cases?: Array<{ id: string; name: string; type: string; code: string; expected: string | null; is_public: boolean; weight: number }> | null
+  // Unidades de trazabilidad — FK nullable a la unidad de la comision
+  unidad_id?: string | null
 }
 
 export interface TareaPracticaCreate {
@@ -882,6 +887,15 @@ export interface CIIEvolutionTemplate {
   insufficient_data: boolean
 }
 
+export interface CIIEvolutionUnidad {
+  unidad_id: string
+  unidad_nombre: string
+  n_episodes: number
+  scores_ordinal: number[]
+  slope: number | null
+  insufficient_data: boolean
+}
+
 export interface CIIEvolutionLongitudinal {
   student_pseudonym: string
   comision_id: string
@@ -889,6 +903,7 @@ export interface CIIEvolutionLongitudinal {
   n_groups_insufficient: number
   n_episodes_total: number
   evolution_per_template: CIIEvolutionTemplate[]
+  evolution_per_unidad: CIIEvolutionUnidad[]
   mean_slope: number | null
   sufficient_data: boolean
   labeler_version: string
@@ -953,6 +968,8 @@ export interface StudentEpisode {
   tarea_codigo: string | null
   tarea_titulo: string | null
   template_id: string | null
+  unidad_id: string | null
+  unidad_nombre: string | null
   opened_at: string | null
   closed_at: string | null
   events_count: number
@@ -1036,6 +1053,341 @@ export async function getStudentAlerts(
     `/api/v1/analytics/student/${studentPseudonym}/alerts?comision_id=${comisionId}`,
     { headers: await authHeaders(getToken) },
   )
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+// ── Unidades de Trazabilidad ──────────────────────────────────────────
+
+export interface Unidad {
+  id: string
+  tenant_id: string
+  comision_id: string
+  nombre: string
+  orden: number
+  descripcion: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UnidadCreate {
+  comision_id: string
+  nombre: string
+  orden: number
+  descripcion?: string | null
+}
+
+export interface UnidadUpdate {
+  nombre?: string
+  descripcion?: string | null
+  orden?: number
+}
+
+export interface UnidadReorderItem {
+  id: string
+  orden: number
+}
+
+interface UnidadListResponse {
+  data: Unidad[]
+  meta: { cursor_next: string | null }
+}
+
+export async function listUnidades(
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<Unidad[]> {
+  const r = await fetch(`/api/v1/unidades?comision_id=${comisionId}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  const body = (await r.json()) as UnidadListResponse
+  return body.data
+}
+
+export async function createUnidad(
+  body: UnidadCreate,
+  getToken?: TokenGetter,
+): Promise<Unidad> {
+  const r = await fetch("/api/v1/unidades", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function updateUnidad(
+  id: string,
+  patch: UnidadUpdate,
+  getToken?: TokenGetter,
+): Promise<Unidad> {
+  const r = await fetch(`/api/v1/unidades/${id}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(patch),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function deleteUnidad(id: string, getToken?: TokenGetter): Promise<void> {
+  const r = await fetch(`/api/v1/unidades/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+}
+
+export async function reorderUnidades(
+  comisionId: string,
+  order: UnidadReorderItem[],
+  getToken?: TokenGetter,
+): Promise<Unidad[]> {
+  const r = await fetch("/api/v1/unidades/reorder", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify({ comision_id: comisionId, items: order }),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function assignTPToUnidad(
+  tpId: string,
+  unidadId: string | null,
+  getToken?: TokenGetter,
+): Promise<TareaPractica> {
+  const r = await fetch(`/api/v1/tareas-practicas/${tpId}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify({ unidad_id: unidadId }),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export const unidadesApi = {
+  list: listUnidades,
+  create: createUnidad,
+  update: updateUnidad,
+  delete: deleteUnidad,
+  reorder: reorderUnidades,
+  assignTP: assignTPToUnidad,
+}
+
+// ── Audit / CTR episodes (read-only para docentes) ──────────────────
+
+export interface CTREvent {
+  event_type: string
+  seq: number
+  payload: Record<string, unknown>
+  ts: string
+}
+
+export interface EpisodeWithEvents {
+  id: string
+  estado: string
+  events: CTREvent[]
+}
+
+export async function getEpisodeEvents(
+  episodeId: string,
+  getToken?: TokenGetter,
+): Promise<EpisodeWithEvents> {
+  const r = await fetch(`/api/v1/audit/episodes/${episodeId}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export function extractFinalCode(events: CTREvent[]): string | null {
+  const codeEvents = events.filter((e) => e.event_type === "edicion_codigo")
+  if (codeEvents.length === 0) return null
+  const last = codeEvents[codeEvents.length - 1]
+  return (last?.payload?.snapshot as string) ?? null
+}
+
+export type EntregaEstado = "draft" | "submitted" | "graded" | "returned"
+
+export interface EjercicioEstado {
+  orden: number
+  completado: boolean
+  episode_id: string | null
+  completado_at: string | null
+}
+
+export interface EntregaDocente {
+  id: string
+  tenant_id: string
+  tarea_practica_id: string
+  comision_id: string
+  student_pseudonym: string
+  estado: EntregaEstado
+  ejercicio_estados: EjercicioEstado[]
+  submitted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EntregaListResponse {
+  data: EntregaDocente[]
+  meta: { cursor_next: string | null }
+}
+
+export interface CalificacionCriterio {
+  nombre: string
+  puntaje: number
+  peso: number
+  comentario: string | null
+}
+
+export interface CalificacionCreate {
+  nota_final: number
+  feedback_general: string
+  detalle_criterios?: CalificacionCriterio[]
+}
+
+export interface Calificacion {
+  id: string
+  entrega_id: string
+  nota_final: number
+  feedback_general: string
+  detalle_criterios: CalificacionCriterio[]
+  graded_at: string
+  graded_by: string
+}
+
+export async function listEntregas(
+  params: {
+    comision_id: string
+    estado?: EntregaEstado
+    tarea_practica_id?: string
+    cursor?: string
+    limit?: number
+  },
+  getToken?: TokenGetter,
+): Promise<EntregaListResponse> {
+  const qs = new URLSearchParams({ comision_id: params.comision_id })
+  if (params.estado) qs.set("estado", params.estado)
+  if (params.tarea_practica_id) qs.set("tarea_practica_id", params.tarea_practica_id)
+  if (params.cursor) qs.set("cursor", params.cursor)
+  if (params.limit) qs.set("limit", String(params.limit))
+  const r = await fetch(`/api/v1/entregas?${qs.toString()}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  const items: EntregaDocente[] = await r.json()
+  return { data: items, meta: { cursor_next: null } }
+}
+
+export async function getEntrega(id: string, getToken?: TokenGetter): Promise<EntregaDocente> {
+  const r = await fetch(`/api/v1/entregas/${id}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function calificarEntrega(
+  entregaId: string,
+  body: CalificacionCreate,
+  getToken?: TokenGetter,
+): Promise<Calificacion> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/calificar`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function devolverEntrega(
+  entregaId: string,
+  getToken?: TokenGetter,
+): Promise<EntregaDocente> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/return`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function getCalificacion(
+  entregaId: string,
+  getToken?: TokenGetter,
+): Promise<Calificacion | null> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/calificacion`, {
+    headers: await authHeaders(getToken),
+  })
+  if (r.status === 404) return null
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export const entregasDocenteApi = {
+  list: listEntregas,
+  get: getEntrega,
+  calificar: calificarEntrega,
+  devolver: devolverEntrega,
+  getCalificacion,
+}
+
+// ── TP Generation con IA (ADR-036) ───────────────────────────────────────────
+
+export type DificultadIA = "basica" | "intermedia" | "avanzada"
+
+export interface TestCaseGenerado {
+  name: string
+  type: string
+  code: string
+  expected: string | null
+  is_public: boolean
+  weight: number
+}
+
+export interface EjercicioGenerado {
+  titulo: string
+  enunciado: string
+  inicial_codigo: string
+  rubrica: Record<string, unknown>
+  test_cases: TestCaseGenerado[]
+}
+
+export interface GenerateTPResponse {
+  ejercicios: EjercicioGenerado[]
+  prompt_version: string
+  tokens_used: number | null
+  tokens_input: number | null
+  tokens_output: number | null
+  provider: string | null
+  model_used: string | null
+  rag_chunks_used: number
+}
+
+export interface GenerateTPRequest {
+  materia_id: string | null
+  descripcion_nl: string
+  num_ejercicios: number
+  dificultad?: DificultadIA
+  contexto?: string
+  comision_id: string
+}
+
+export async function generateTPWithAI(
+  body: GenerateTPRequest,
+  getToken?: TokenGetter,
+): Promise<GenerateTPResponse> {
+  const r = await fetch("/api/v1/tareas-practicas/generate", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
   await throwIfNotOk(r)
   return r.json()
 }

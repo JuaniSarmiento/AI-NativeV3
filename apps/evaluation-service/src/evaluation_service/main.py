@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from evaluation_service.config import settings
 from evaluation_service.observability import setup_observability
-from evaluation_service.routes import health
+from evaluation_service.routes import entregas, health
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 
 # Routes
 app.include_router(health.router)
+app.include_router(entregas.router)
 
 
 @app.get("/")

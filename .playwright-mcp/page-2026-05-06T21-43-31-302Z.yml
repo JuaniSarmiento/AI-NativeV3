@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - heading "Plataforma N4 · UNSL" [level=1] [ref=e7]
+      - button "Ayuda" [ref=e9]:
+        - img [ref=e10]
+    - generic [ref=e333]:
+      - link "← Mis materias" [ref=e334] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e335]: "|"
+      - paragraph [ref=e336]: Prog1·Comision Juani·2026
+      - generic [ref=e337]: Prohramacion 1
+    - generic [ref=e339]:
+      - generic [ref=e340]:
+        - button "Volver a TPs" [ref=e341]:
+          - generic [ref=e342]: ←
+          - text: Volver a TPs
+        - paragraph [ref=e343]: IA-V36V (v1)
+        - 'heading "TP: Clasificación de edad (+2 mas)" [level=2] [ref=e344]'
+        - generic [ref=e345]: En progreso
+      - generic [ref=e347]:
+        - generic [ref=e348]: Ejercicios completados
+        - generic [ref=e349]: 1/3
+      - list [ref=e352]:
+        - listitem [ref=e353]:
+          - generic [ref=e354]:
+            - generic [ref=e355]: ✓
+            - generic [ref=e356]:
+              - paragraph [ref=e357]: "Ejercicio 1: Clasificación de edad"
+              - paragraph [ref=e358]: "Peso: 33%"
+            - generic [ref=e359]: Completado
+        - listitem [ref=e360]:
+          - generic [ref=e361]:
+            - generic [ref=e362]: "2"
+            - generic [ref=e363]:
+              - paragraph [ref=e364]: "Ejercicio 2: Aprobación de materia"
+              - paragraph [ref=e365]: "Peso: 33%"
+            - button "Continuar" [ref=e366]
+        - listitem [ref=e367]:
+          - generic [ref=e368]:
+            - generic [ref=e369]: "3"
+            - generic [ref=e370]:
+              - paragraph [ref=e371]: "Ejercicio 3: Cálculo de descuento"
+              - paragraph [ref=e372]: "Peso: 33%· Completar ejercicio anterior primero"
+    - contentinfo "Trazabilidad y auditabilidad del piloto" [ref=e25]:
+      - generic [ref=e26]: "prompt: tutor/v1.0.0"
+      - generic [ref=e27]: ·
+      - generic [ref=e28]: "classifier: pendiente"
+      - generic [ref=e29]: ·
+      - generic [ref=e30]: "labeler: 1.1.0"
+      - generic [ref=e31]: ·
+      - generic [ref=e32]: "cadena: sin verificacion previa"
+  - generic [ref=e272]:
+    - alert
+    - alert

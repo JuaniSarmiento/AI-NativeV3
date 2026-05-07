@@ -18,6 +18,7 @@ from academic_service.models.operacional import (
     Periodo,
     TareaPractica,
     TareaPracticaTemplate,
+    Unidad,
     UsuarioComision,
 )
 from academic_service.models.transversal import AuditLog, CasbinRule
@@ -38,6 +39,8 @@ __all__ = [
     "TareaPractica",
     "TareaPracticaTemplate",
     "TenantMixin",
+    # Operacional (cont.)
+    "Unidad",
     "TimestampMixin",
     # Institucional
     "Universidad",
