@@ -127,6 +127,43 @@ async def new_version_tarea_practica(
 # ── TP-gen IA (Sec 11 epic ai-native-completion / ADR-036) ─────────────
 
 
+async def _retrieve_rag_context(
+    descripcion_nl: str,
+    materia_id: UUID,
+    tenant_id: UUID,
+    comision_id: UUID | None = None,
+) -> tuple[str, int, str | None]:
+    """Consulta RAG al content-service. Devuelve (context_text, n_chunks, hash).
+
+    Usa materia_id como scope principal (el material pertenece a la materia).
+    """
+    try:
+        from academic_service.config import settings
+        from academic_service.services.ai_clients import ContentClient
+
+        content = ContentClient(settings.content_service_url)
+        retrieval = await content.retrieve(
+            query=descripcion_nl,
+            tenant_id=tenant_id,
+            materia_id=materia_id,
+            comision_id=comision_id,
+            top_k=5,
+        )
+        if not retrieval.chunks:
+            return "", 0, None
+        chunks_text = "\n---\n".join(
+            f"[{c.material_nombre}]\n{c.contenido}" for c in retrieval.chunks
+        )
+        context = (
+            "\n\nMaterial de referencia de la catedra (usa este contenido "
+            "como base para el ejercicio):\n\n" + chunks_text
+        )
+        return context, len(retrieval.chunks), retrieval.chunks_used_hash
+    except Exception as exc:
+        logger.warning("rag_retrieval_failed_for_tp_gen: %s (continuing without RAG)", exc)
+        return "", 0, None
+
+
 class TPGenerateRequest(BaseModel):
     """Request del wizard TP-gen del web-teacher.
 
@@ -138,20 +175,29 @@ class TPGenerateRequest(BaseModel):
 
     materia_id: UUID
     descripcion_nl: str = Field(min_length=10, max_length=2000)
+    num_ejercicios: int = Field(default=1, ge=1, le=10)
     dificultad: Literal["basica", "intermedia", "avanzada"] | None = None
     contexto: str | None = Field(default=None, max_length=2000)
+    comision_id: UUID | None = None
 
 
-class TPGenerateResponse(BaseModel):
+class EjercicioGenerado(BaseModel):
+    titulo: str
     enunciado: str
     inicial_codigo: str
     rubrica: dict[str, Any]
     test_cases: list[dict[str, Any]]
+
+
+class TPGenerateResponse(BaseModel):
+    ejercicios: list[EjercicioGenerado]
     prompt_version: str
     model_used: str
     provider_used: str
     tokens_input: int
     tokens_output: int
+    rag_chunks_used: int
+    rag_chunks_hash: str | None
 
 
 @router.post("/generate", response_model=TPGenerateResponse)
@@ -177,10 +223,11 @@ async def generate_tarea_practica(
     import json
     import time
 
+    from sqlalchemy import select
+
     from academic_service.config import settings
     from academic_service.models.institucional import Materia
     from academic_service.services.ai_clients import AIGatewayClient, GovernanceClient
-    from sqlalchemy import select
 
     # 1. Validar materia
     stmt = select(Materia).where(Materia.id == req.materia_id)
@@ -203,12 +250,20 @@ async def generate_tarea_practica(
             detail="No se pudo resolver el prompt activo del tp_generator",
         ) from exc
 
+    # 2b. RAG: buscar materiales relevantes con materia_id como scope principal
+    rag_context, rag_chunks_used, rag_chunks_hash = await _retrieve_rag_context(
+        req.descripcion_nl, req.materia_id, user.tenant_id, req.comision_id,
+    )
+
     # 3. Construir mensajes para LLM
     user_message_parts = [f"Descripcion: {req.descripcion_nl}"]
+    user_message_parts.append(f"num_ejercicios: {req.num_ejercicios}")
     if req.dificultad:
         user_message_parts.append(f"Dificultad: {req.dificultad}")
     if req.contexto:
         user_message_parts.append(f"Contexto: {req.contexto}")
+    if rag_context:
+        user_message_parts.append(rag_context)
     user_message = "\n\n".join(user_message_parts)
 
     messages = [
@@ -216,41 +271,66 @@ async def generate_tarea_practica(
         {"role": "user", "content": user_message},
     ]
 
-    # 4. Pegar al ai-gateway
+    # 4. Pegar al ai-gateway (con retry si el LLM devuelve error)
     ai = AIGatewayClient(settings.ai_gateway_url)
+    max_attempts = 2
+    parsed: dict = {}
+    result = None
     t0 = time.perf_counter()
-    try:
-        result = await ai.complete(
-            messages=messages,
-            model=settings.tp_generator_default_model,
-            feature="tp_generator",
-            tenant_id=user.tenant_id,
-            materia_id=req.materia_id,
-            temperature=0.7,
-            max_tokens=4000,
-        )
-    except httpx.HTTPError as exc:
-        logger.error("ai_gateway_call_failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="ai-gateway no respondio correctamente",
-        ) from exc
-    latency_ms = int((time.perf_counter() - t0) * 1000)
 
-    # 5. Parsear el JSON estructurado del LLM
-    try:
-        parsed = json.loads(result.content.strip())
-    except json.JSONDecodeError as exc:
-        logger.error(
-            "tp_generator_invalid_json provider=%s model=%s content_preview=%r",
-            result.provider,
-            result.model,
-            result.content[:200],
-        )
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="LLM devolvio JSON invalido (revisar prompt o modelo)",
-        ) from exc
+    for attempt in range(max_attempts):
+        try:
+            result = await ai.complete(
+                messages=messages,
+                model=settings.tp_generator_default_model,
+                feature="tp_generator",
+                tenant_id=user.tenant_id,
+                materia_id=req.materia_id,
+                temperature=0.7,
+                max_tokens=8192,
+                response_format={"type": "json_object"},
+            )
+        except httpx.HTTPError as exc:
+            logger.error("ai_gateway_call_failed: %s", exc)
+            if attempt < max_attempts - 1:
+                continue
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="ai-gateway no respondio correctamente",
+            ) from exc
+
+        # 5. Parsear JSON
+        raw_content = result.content.strip()
+        if not raw_content.startswith("{"):
+            brace_start = raw_content.find("{")
+            brace_end = raw_content.rfind("}")
+            if brace_start != -1 and brace_end > brace_start:
+                raw_content = raw_content[brace_start:brace_end + 1]
+        try:
+            parsed = json.loads(raw_content)
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "tp_generator_invalid_json provider=%s model=%s error=%s raw_start=%r",
+                result.provider,
+                result.model,
+                str(exc),
+                raw_content[:300],
+            )
+            if attempt < max_attempts - 1:
+                continue
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="LLM devolvio JSON invalido (revisar prompt o modelo)",
+            ) from exc
+
+        if "error" in parsed and attempt < max_attempts - 1:
+            logger.warning("tp_generator_llm_returned_error attempt=%d: %s", attempt, parsed["error"])
+            continue
+
+        break
+
+    assert result is not None
+    latency_ms = int((time.perf_counter() - t0) * 1000)
 
     if "error" in parsed:
         raise HTTPException(
@@ -258,18 +338,37 @@ async def generate_tarea_practica(
             detail=f"LLM no pudo generar borrador: {parsed['error']}",
         )
 
-    enunciado = str(parsed.get("enunciado", ""))
-    inicial_codigo = str(parsed.get("inicial_codigo", ""))
-    rubrica = parsed.get("rubrica") or {}
-    test_cases = parsed.get("test_cases") or []
-    if not isinstance(rubrica, dict):
-        rubrica = {}
-    if not isinstance(test_cases, list):
-        test_cases = []
+    raw_ejercicios = parsed.get("ejercicios") or []
+    if not isinstance(raw_ejercicios, list) or not raw_ejercicios:
+        if "enunciado" in parsed:
+            raw_ejercicios = [parsed]
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="LLM no devolvio ejercicios validos",
+            )
+
+    ejercicios = []
+    for i, ej in enumerate(raw_ejercicios):
+        rubrica = ej.get("rubrica") or {}
+        test_cases = ej.get("test_cases") or []
+        if not isinstance(rubrica, dict):
+            rubrica = {}
+        if not isinstance(test_cases, list):
+            test_cases = []
+        ejercicios.append(
+            EjercicioGenerado(
+                titulo=str(ej.get("titulo", f"Ejercicio {i + 1}")),
+                enunciado=str(ej.get("enunciado", "")),
+                inicial_codigo=str(ej.get("inicial_codigo", "")),
+                rubrica=rubrica,
+                test_cases=test_cases,
+            )
+        )
 
     # 6. Audit log structlog (queryable via Loki)
     try:
-        import structlog  # noqa: PLC0415
+        import structlog
 
         structlog.get_logger().info(
             "tp_generated_by_ai",
@@ -283,11 +382,14 @@ async def generate_tarea_practica(
             provider_used=result.provider,
             model_used=result.model,
             cache_hit=result.cache_hit,
+            rag_chunks_used=rag_chunks_used,
+            rag_chunks_hash=rag_chunks_hash,
+            num_ejercicios=len(ejercicios),
         )
     except ImportError:
         logger.info(
             "tp_generated_by_ai tenant=%s user=%s materia=%s prompt=%s "
-            "tokens_in=%d tokens_out=%d latency_ms=%d provider=%s model=%s",
+            "tokens_in=%d tokens_out=%d latency_ms=%d provider=%s model=%s ejercicios=%d",
             user.tenant_id,
             user.id,
             req.materia_id,
@@ -297,18 +399,18 @@ async def generate_tarea_practica(
             latency_ms,
             result.provider,
             result.model,
+            len(ejercicios),
         )
 
     return TPGenerateResponse(
-        enunciado=enunciado,
-        inicial_codigo=inicial_codigo,
-        rubrica=rubrica,
-        test_cases=test_cases,
+        ejercicios=ejercicios,
         prompt_version=prompt_version_full,
         model_used=result.model,
         provider_used=result.provider,
         tokens_input=result.input_tokens,
         tokens_output=result.output_tokens,
+        rag_chunks_used=rag_chunks_used,
+        rag_chunks_hash=rag_chunks_hash,
     )
 
 
@@ -361,6 +463,28 @@ async def get_tarea_practica_test_cases(
         "total_count": len(raw),
         "visible_count": len(visible),
         "include_hidden": include_hidden,
+    }
+
+
+@router.get("/{tarea_id}/ejercicios")
+async def get_tarea_practica_ejercicios(
+    tarea_id: UUID,
+    user: User = Depends(require_permission("tarea_practica", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Devuelve los ejercicios de una TP (tp-entregas-correccion).
+
+    Lista ordenada por `orden`. Array vacío = TP monolítica (sin ejercicios).
+    Accesible para todos los roles con `tarea_practica:read`.
+    """
+    svc = TareaPracticaService(db)
+    obj = await svc.get(tarea_id)
+    ejercicios = list(obj.ejercicios or [])
+    return {
+        "tarea_id": str(tarea_id),
+        "ejercicios": sorted(ejercicios, key=lambda e: e.get("orden", 0)),
+        "count": len(ejercicios),
+        "tiene_ejercicios": len(ejercicios) > 0,
     }
 
 

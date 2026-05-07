@@ -91,6 +91,9 @@ class OpenEpisodeRequest(BaseModel):
     problema_id: UUID
     curso_config_hash: str = Field(min_length=64, max_length=64)
     classifier_config_hash: str = Field(min_length=64, max_length=64)
+    # tp-entregas-correccion (D3): orden del ejercicio dentro de la TP.
+    # None = TP monolítica (comportamiento legacy).
+    ejercicio_orden: int | None = Field(default=None, ge=1)
 
 
 class OpenEpisodeResponse(BaseModel):
@@ -167,6 +170,7 @@ async def open_episode(
         curso_config_hash=req.curso_config_hash,
         classifier_config_hash=req.classifier_config_hash,
         model=model,
+        ejercicio_orden=req.ejercicio_orden,
     )
     return OpenEpisodeResponse(episode_id=episode_id)
 

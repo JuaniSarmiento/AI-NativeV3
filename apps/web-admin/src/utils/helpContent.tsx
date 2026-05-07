@@ -443,6 +443,54 @@ export const helpContent: HelpContentMap = {
     </div>
   ),
 
+  byok: (
+    <div className="space-y-4 text-zinc-300">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">BYOK Keys</p>
+      <p>
+        Bring Your Own Key (BYOK) permite que cada universidad use su propia clave de proveedor LLM
+        (Anthropic, OpenAI, Gemini, Mistral) en vez del presupuesto global del sistema. Las claves
+        se encriptan con AES-256-GCM y nunca se devuelven en claro. (ADR-038, ADR-039)
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>Scope tenant:</strong> La key aplica a toda la universidad. Es el fallback
+          si no hay key de scope materia configurada.
+        </li>
+        <li>
+          <strong>Scope materia:</strong> Sobrescribe el scope tenant para esa materia especifica.
+          Util para materias con presupuesto propio.
+        </li>
+        <li>
+          <strong>Rotar:</strong> Reemplaza el valor encriptado con una nueva API key del proveedor.
+          El fingerprint se actualiza. Las keys en uso del ai-gateway pasan al nuevo valor
+          automaticamente.
+        </li>
+        <li>
+          <strong>Revocar:</strong> Marca la key como inactiva. Irreversible. El resolver BYOK
+          cae al env_fallback si no hay otra key activa para ese scope.
+        </li>
+        <li>
+          <strong>Uso:</strong> Muestra tokens consumidos y costo estimado por periodo mensual.
+        </li>
+      </ul>
+      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
+        <p className="text-orange-400 font-medium">Resolver jerarquico:</p>
+        <p className="text-sm mt-1">
+          El ai-gateway resuelve keys en orden: materia =&gt; tenant =&gt; env_fallback. Si se
+          revocan todas las keys de un scope, el resolver degrada al nivel siguiente.
+        </p>
+      </div>
+      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+        <p className="text-[var(--danger-text)] font-medium">Seguridad:</p>
+        <p className="text-sm mt-1">
+          Las keys BYOK nunca se devuelven en claro por ningun endpoint. Solo se expone el
+          fingerprint (ultimos 4 caracteres). Guardar el plaintext en un gestor de passwords antes
+          de crear la key — una vez creada no hay forma de recuperarla, solo rotarla.
+        </p>
+      </div>
+    </div>
+  ),
+
   governanceEvents: (
     <div className="space-y-4 text-zinc-300">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Eventos de gobernanza</p>

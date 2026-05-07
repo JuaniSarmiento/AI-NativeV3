@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from platform_contracts.academic.schemas import EjercicioSchema, EjerciciosValidator
+
 
 class TareaPracticaBase(BaseModel):
     codigo: str = Field(min_length=1, max_length=20)
@@ -22,6 +24,8 @@ class TareaPracticaBase(BaseModel):
     # ADR-034 (Sec 9): test cases ejecutables. Cada elemento:
     # {id, name, type, code, expected, is_public, weight}.
     test_cases: list[dict[str, Any]] = Field(default_factory=list)
+    # tp-entregas-correccion: ejercicios secuenciales. Vacío = TP monolítica.
+    ejercicios: list[EjercicioSchema] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_dates(self) -> TareaPracticaBase:
@@ -33,11 +37,20 @@ class TareaPracticaBase(BaseModel):
             raise ValueError("fecha_fin debe ser posterior a fecha_inicio")
         return self
 
+    @model_validator(mode="after")
+    def check_ejercicios(self) -> TareaPracticaBase:
+        if self.ejercicios:
+            # Delegates to EjerciciosValidator for full validation
+            EjerciciosValidator(ejercicios=self.ejercicios)
+        return self
+
 
 class TareaPracticaCreate(TareaPracticaBase):
     comision_id: UUID
     # ADR-036 (Sec 11): TRUE si el wizard TP-gen IA fue el origen.
     created_via_ai: bool = False
+    # ADR-041: Unidad temática opcional al crear la TP.
+    unidad_id: UUID | None = None
 
 
 class TareaPracticaUpdate(BaseModel):
@@ -49,7 +62,15 @@ class TareaPracticaUpdate(BaseModel):
     peso: Decimal | None = Field(default=None, ge=0, le=1)
     rubrica: dict[str, Any] | None = None
     test_cases: list[dict[str, Any]] | None = None
+    ejercicios: list[EjercicioSchema] | None = None
+    # ADR-041: asignación opcional a Unidad temática. null = quitar de la Unidad.
     unidad_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def check_ejercicios(self) -> TareaPracticaUpdate:
+        if self.ejercicios:
+            EjerciciosValidator(ejercicios=self.ejercicios)
+        return self
 
 
 class TareaPracticaOut(TareaPracticaBase):
@@ -64,6 +85,7 @@ class TareaPracticaOut(TareaPracticaBase):
     template_id: UUID | None = None
     has_drift: bool = False
     created_via_ai: bool = False
+    # ADR-041: Unidad temática asignada (None = "Sin unidad").
     unidad_id: UUID | None = None
     created_by: UUID
     created_at: datetime

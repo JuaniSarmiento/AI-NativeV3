@@ -5,6 +5,7 @@ from ai_gateway.providers.base import (
     BaseProvider,
     CompletionRequest,
     CompletionResponse,
+    MistralProvider,
     MockProvider,
     get_provider,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "BaseProvider",
     "CompletionRequest",
     "CompletionResponse",
+    "MistralProvider",
     "MockProvider",
     "get_provider",
 ]

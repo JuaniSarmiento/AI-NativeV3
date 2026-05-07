@@ -48,6 +48,12 @@ class SessionState:
     # lo invocan `open_episode` y `next_seq`). Sirve al worker de abandono
     # para detectar sesiones inactivas y emitir EpisodioAbandonado(reason=timeout).
     last_activity_at: float = field(default_factory=time.time)
+    # tp-entregas-correccion: orden del ejercicio dentro de la TP (None = monolítica).
+    ejercicio_orden: int | None = None
+    # tutor-context-rag-rubrica: rubrica formateada para inyectar al LLM. Se
+    # resuelve al abrir el episodio y se cachea aqui (best-effort; None = no
+    # se pudo resolver o la TP no tiene rubrica).
+    rubrica_context: str | None = None
 
 
 class SessionManager:
@@ -82,6 +88,8 @@ class SessionManager:
             # — fallback a time.time() para que sesiones legacy NO disparen
             # abandono inmediato en el primer pase del worker.
             last_activity_at=data.get("last_activity_at", time.time()),
+            # tutor-context-rag-rubrica: sesiones legacy no tienen rubrica_context.
+            rubrica_context=data.get("rubrica_context"),
         )
 
     async def set(self, state: SessionState) -> None:
@@ -104,6 +112,7 @@ class SessionManager:
             "model": state.model,
             "materia_id": str(state.materia_id) if state.materia_id else None,
             "last_activity_at": state.last_activity_at,
+            "rubrica_context": state.rubrica_context,
         }
         await self.redis.setex(self._key(state.episode_id), SESSION_TTL, json.dumps(data))
 

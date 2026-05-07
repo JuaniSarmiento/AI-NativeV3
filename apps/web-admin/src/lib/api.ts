@@ -325,6 +325,7 @@ export interface ComisionCreate {
   materia_id: string
   periodo_id: string
   codigo: string
+  nombre: string
   cupo_maximo?: number
   horario?: Record<string, unknown>
   ai_budget_monthly_usd?: string | number
@@ -415,6 +416,85 @@ export const facultadesApi = {
       body: JSON.stringify(data),
     }),
   delete: (id: string) => request<void>(`/facultades/${id}`, { method: "DELETE" }),
+}
+
+// ── UsuarioComision ──────────────────────────────────────────────────
+
+export interface UsuarioComisionOut {
+  id: string
+  tenant_id: string
+  comision_id: string
+  user_id: string
+  rol: "titular" | "adjunto" | "jtp" | "ayudante" | "corrector"
+  permisos_extra: string[]
+  fecha_desde: string
+  fecha_hasta: string | null
+  created_at: string
+  deleted_at: string | null
+}
+
+export interface UsuarioComisionCreate {
+  user_id: string
+  rol: "titular" | "adjunto" | "jtp" | "ayudante" | "corrector"
+  fecha_desde: string
+  fecha_hasta?: string
+}
+
+// ── Inscripcion (individual) ─────────────────────────────────────────
+
+export interface InscripcionOut {
+  id: string
+  tenant_id: string
+  comision_id: string
+  student_pseudonym: string
+  rol: "regular" | "oyente" | "reinscripcion"
+  estado: "activa" | "cursando" | "aprobado" | "desaprobado" | "abandono"
+  fecha_inscripcion: string
+  nota_final: string | null
+  fecha_cierre: string | null
+  created_at: string
+}
+
+export interface InscripcionCreate {
+  student_pseudonym: string
+  rol?: "regular" | "oyente" | "reinscripcion"
+  estado?: "activa" | "cursando" | "aprobado" | "desaprobado" | "abandono"
+  fecha_inscripcion: string
+  nota_final?: string
+  fecha_cierre?: string
+}
+
+// ── BYOK Keys ────────────────────────────────────────────────────────
+
+export interface ByokKey {
+  id: string
+  tenant_id: string
+  scope_type: "tenant" | "materia" | "facultad"
+  scope_id: string | null
+  provider: string
+  fingerprint_last4: string
+  monthly_budget_usd: number | null
+  created_at: string
+  created_by: string
+  last_used_at: string | null
+  revoked_at: string | null
+}
+
+export interface ByokKeyCreate {
+  scope_type: "tenant" | "materia" | "facultad"
+  scope_id?: string
+  provider: "anthropic" | "gemini" | "mistral" | "openai"
+  plaintext_value: string
+  monthly_budget_usd?: number
+}
+
+export interface ByokKeyUsage {
+  key_id: string
+  yyyymm: string
+  tokens_input_total: number
+  tokens_output_total: number
+  cost_usd_total: number
+  request_count: number
 }
 
 // ── Bulk import (multipart) ──────────────────────────────────────────
@@ -608,4 +688,64 @@ export const governanceApi = {
       `/analytics/governance/events${query ? `?${query}` : ""}`,
     )
   },
+}
+
+// ── BYOK Keys ────────────────────────────────────────────────────────
+
+export const byokApi = {
+  list: (params?: { scope_type?: string; scope_id?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.scope_type) qs.set("scope_type", params.scope_type)
+    if (params?.scope_id) qs.set("scope_id", params.scope_id)
+    const query = qs.toString()
+    return request<ByokKey[]>(`/byok/keys${query ? `?${query}` : ""}`)
+  },
+  create: (data: ByokKeyCreate) => {
+    const { scope_id, monthly_budget_usd, ...rest } = data
+    const clean = {
+      ...rest,
+      ...(scope_id ? { scope_id } : {}),
+      ...(monthly_budget_usd != null ? { monthly_budget_usd } : {}),
+    }
+    return request<ByokKey>("/byok/keys", {
+      method: "POST",
+      body: JSON.stringify(clean),
+    })
+  },
+  rotate: (id: string, plaintext_value: string) =>
+    request<ByokKey>(`/byok/keys/${id}/rotate`, {
+      method: "POST",
+      body: JSON.stringify({ plaintext_value }),
+    }),
+  revoke: (id: string) =>
+    request<void>(`/byok/keys/${id}/revoke`, { method: "POST" }),
+  usage: (id: string) => request<ByokKeyUsage[]>(`/byok/keys/${id}/usage`),
+}
+
+// ── Comision Docentes ─────────────────────────────────────────────────
+
+export const comisionDocentesApi = {
+  list: (comisionId: string) =>
+    request<ListResponse<UsuarioComisionOut>>(`/comisiones/${comisionId}/docentes`),
+  create: (comisionId: string, data: UsuarioComisionCreate) =>
+    request<UsuarioComisionOut>(`/comisiones/${comisionId}/docentes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  delete: (comisionId: string, ucId: string) =>
+    request<void>(`/comisiones/${comisionId}/docentes/${ucId}`, { method: "DELETE" }),
+}
+
+// ── Comision Inscripciones ────────────────────────────────────────────
+
+export const comisionInscripcionesApi = {
+  list: (comisionId: string) =>
+    request<ListResponse<InscripcionOut>>(`/comisiones/${comisionId}/inscripciones`),
+  create: (comisionId: string, data: InscripcionCreate) =>
+    request<InscripcionOut>(`/comisiones/${comisionId}/inscripciones`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  delete: (comisionId: string, inscId: string) =>
+    request<void>(`/comisiones/${comisionId}/inscripciones/${inscId}`, { method: "DELETE" }),
 }

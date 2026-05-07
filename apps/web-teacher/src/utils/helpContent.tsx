@@ -490,4 +490,74 @@ export const helpContent: HelpContentMap = {
       </div>
     </div>
   ),
+
+  unidades: (
+    <div className="space-y-4 text-zinc-300">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Unidades de Trazabilidad</p>
+      <p>
+        Agrupacion tematica de TPs dentro de una comision. Las unidades permiten calcular el slope de
+        apropiacion por tema (ej. "Condicionales", "Funciones") incluso cuando las TPs no comparten
+        un `template_id` (TPs huerfanas de la plantilla de catedra).
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>Nueva unidad:</strong> ingresa nombre (obligatorio) y descripcion opcional. El
+          orden se asigna al final de la lista; se puede reordenar luego.
+        </li>
+        <li>
+          <strong>Asignar TP a unidad:</strong> en el dropdown de cada TP dentro del acordeon
+          selecciona la unidad destino. "Sin unidad" lo desvincula.
+        </li>
+        <li>
+          <strong>Sin unidad:</strong> seccion especial que agrupa TPs que todavia no tienen unidad
+          asignada. Siempre visible para recordar las TPs pendientes de clasificar.
+        </li>
+        <li>
+          <strong>Eliminar unidad:</strong> soft delete. Los TPs asignados quedan en "Sin unidad"
+          automaticamente (ON DELETE SET NULL en la DB).
+        </li>
+        <li>
+          <strong>Evolucion por unidad:</strong> una vez que el alumno cierra episodios sobre TPs
+          de la misma unidad (N&gt;=3), aparece el slope por unidad en la vista "Evolucion longitudinal
+          del estudiante".
+        </li>
+      </ul>
+      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
+        <p className="text-blue-400 font-medium">Diferencia con Templates:</p>
+        <p className="text-sm mt-1">
+          Los templates agrupan TPs de distintas comisiones que comparten el mismo enunciado
+          academico. Las unidades agrupan TPs DENTRO de una comision por tema pedagogico.
+          Ambos ejes son independientes y complementarios para el analisis longitudinal.
+        </p>
+      </div>
+    </div>
+  ),
+
+  correcciones: (
+    <div className="space-y-4 text-zinc-300">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Correcciones</p>
+      <p>
+        Lista las entregas de trabajos practicos de los estudiantes de la comision. Cada fila
+        muestra el estudiante (pseudonimo), la TP, el estado actual y la fecha de entrega.
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>Enviada:</strong> el estudiante entrego todos los ejercicios y espera correccion.
+          Usa el boton "Corregir" para abrir el formulario de calificacion.
+        </li>
+        <li>
+          <strong>Calificada:</strong> ya tiene nota y feedback. Podes usar "Devolver al estudiante"
+          si queres que revise la entrega.
+        </li>
+        <li>
+          <strong>Devuelta:</strong> el estudiante puede ver el feedback y la nota.
+        </li>
+        <li>
+          <strong>Drill-down de episodios:</strong> en la vista de correccion, cada ejercicio
+          completado muestra el id del episodio con un link al panel N1-N4 para ver la traza
+          cognitiva del estudiante.
+        </li>
+      </ul>
+    </div>
+  ),
 }

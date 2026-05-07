@@ -66,10 +66,10 @@ describe("ComisionDelDocenteCard", () => {
     expect(kpis).toHaveTextContent(/alertas/)
     expect(kpis).toHaveTextContent("2")
     expect(kpis).toHaveTextContent(/adversos sem\./)
-    expect(screen.getByTestId("comision-card-cohort-link")).toHaveTextContent(/Abrir cohorte/i)
+    expect(screen.getByTestId("comision-card-cohort-link")).toHaveTextContent(/Ver cohorte/i)
   })
 
-  test("kpi null se renderiza como 'datos insuf.' (no 0 ambiguo)", async () => {
+  test("kpi null se renderiza como '—' (no 0 ambiguo)", async () => {
     renderWithRouter(
       <ComisionDelDocenteCard
         comision={makeComision()}
@@ -80,12 +80,12 @@ describe("ComisionDelDocenteCard", () => {
     const kpis = await screen.findByTestId("comision-card-kpis")
     // alumnos=6 visible
     expect(kpis).toHaveTextContent("6")
-    // episodios + alertas son "datos insuf."
-    const insufMatches = kpis.querySelectorAll("dd")
-    const insufContent = Array.from(insufMatches)
+    // episodios + alertas son "—" (guion largo, honestidad tecnica)
+    const ddMatches = kpis.querySelectorAll("dd")
+    const dashContent = Array.from(ddMatches)
       .map((dd) => dd.textContent ?? "")
-      .filter((t) => t.includes("datos insuf."))
-    expect(insufContent.length).toBeGreaterThanOrEqual(2)
+      .filter((t) => t.includes("—"))
+    expect(dashContent.length).toBeGreaterThanOrEqual(2)
   })
 
   test("CTA 'Abrir cohorte' apunta a /progression con comisionId", async () => {

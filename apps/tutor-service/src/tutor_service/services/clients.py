@@ -75,11 +75,13 @@ class ContentClient:
     async def retrieve(
         self,
         query: str,
-        comision_id: UUID,
         top_k: int,
         tenant_id: UUID,
         caller_id: UUID,
+        materia_id: UUID | None = None,
+        comision_id: UUID | None = None,
     ) -> RetrievalResult:
+        """Retrieve chunks del RAG. Prefiere materia_id; comision_id como fallback."""
         headers = {
             # Service-account headers (F3). En F5 migramos a mTLS.
             "X-User-Id": str(caller_id),
@@ -87,15 +89,19 @@ class ContentClient:
             "X-User-Email": "tutor-service@platform.internal",
             "X-User-Roles": "tutor_service",
         }
+        payload: dict[str, object] = {
+            "query": query,
+            "top_k": top_k,
+            "score_threshold": 0.3,
+        }
+        if materia_id is not None:
+            payload["materia_id"] = str(materia_id)
+        elif comision_id is not None:
+            payload["comision_id"] = str(comision_id)
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             r = await client.post(
                 f"{self.base_url}/api/v1/retrieve",
-                json={
-                    "query": query,
-                    "comision_id": str(comision_id),
-                    "top_k": top_k,
-                    "score_threshold": 0.3,
-                },
+                json=payload,
                 headers=headers,
             )
             r.raise_for_status()

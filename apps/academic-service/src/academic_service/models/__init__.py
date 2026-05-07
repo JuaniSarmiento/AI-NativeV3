@@ -42,6 +42,7 @@ __all__ = [
     # Operacional (cont.)
     "Unidad",
     "TimestampMixin",
+    "Unidad",
     # Institucional
     "Universidad",
     "UsuarioComision",

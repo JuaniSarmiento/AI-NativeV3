@@ -12,6 +12,8 @@ export interface OpenEpisodeRequest {
   problema_id: string
   curso_config_hash: string
   classifier_config_hash: string
+  /** Orden del ejercicio dentro de la TP (1-based). Solo en TPs multi-ejercicio. */
+  ejercicio_orden?: number | null
 }
 
 export interface OpenEpisodeResponse {
@@ -376,6 +378,17 @@ export interface AvailableTarea {
    * Si el docente no la define, viene null y el editor cae a su default.
    */
   inicial_codigo: string | null
+  /**
+   * Lista de ejercicios de la TP. Array vacio = TP monolitica (flujo legacy).
+   * Array con elementos = TP multi-ejercicio: muestra ExerciseListView.
+   */
+  ejercicios: Array<{
+    orden: number
+    titulo: string
+    enunciado_md: string
+    inicial_codigo: string | null
+    peso: number
+  }>
 }
 
 /**
@@ -594,4 +607,180 @@ export async function listMisMaterias(
 
 export const materiasApi = {
   listMine: listMisMaterias,
+}
+
+// ── Entregas y Ejercicios (tp-entregas-correccion) ────────────────────
+
+/**
+ * Un ejercicio individual dentro de una TP multi-ejercicio.
+ * Viene del endpoint GET /api/v1/tareas-practicas/{id}/ejercicios.
+ */
+export interface Ejercicio {
+  orden: number
+  titulo: string
+  enunciado_md: string
+  inicial_codigo: string | null
+  test_cases: unknown[]
+  peso: number
+}
+
+/**
+ * Estado de un ejercicio dentro de una entrega.
+ * Viene del campo `ejercicio_estados` en la entrega.
+ */
+export interface EjercicioEstado {
+  orden: number
+  completado: boolean
+  episode_id: string | null
+  completado_at: string | null
+}
+
+export type EntregaEstado = "draft" | "submitted" | "graded" | "returned"
+
+/**
+ * Una entrega de TP del estudiante.
+ * El campo `ejercicio_estados` es un array paralelo a los ejercicios de la TP.
+ */
+export interface Entrega {
+  id: string
+  tenant_id: string
+  tarea_practica_id: string
+  comision_id: string
+  student_pseudonym: string
+  estado: EntregaEstado
+  ejercicio_estados: EjercicioEstado[]
+  submitted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CalificacionCriterio {
+  nombre: string
+  puntaje: number
+  peso: number
+  comentario: string | null
+}
+
+export interface Calificacion {
+  id: string
+  entrega_id: string
+  nota_final: number
+  feedback_general: string
+  detalle_criterios: CalificacionCriterio[]
+  calificado_at: string
+  calificador_id: string
+}
+
+/**
+ * Crea o recupera una entrega en draft para el estudiante en una TP.
+ * Idempotente: si ya existe, devuelve la existente.
+ */
+export async function createOrGetEntrega(
+  payload: { tarea_practica_id: string; comision_id: string },
+  getToken?: TokenGetter,
+): Promise<Entrega> {
+  const r = await fetch("/api/v1/entregas", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(payload),
+  })
+  if (!r.ok) throw new Error(`create entrega failed: ${r.status}`)
+  return (await r.json()) as Entrega
+}
+
+/**
+ * Envia la entrega (draft → submitted). Requiere que todos los ejercicios
+ * esten completados. Emite CTR tp_entregada.
+ */
+export async function submitEntrega(
+  entregaId: string,
+  getToken?: TokenGetter,
+): Promise<Entrega> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/submit`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+  })
+  if (!r.ok) {
+    const body = await r.text()
+    throw new Error(`submit entrega failed: ${r.status} ${body}`)
+  }
+  return (await r.json()) as Entrega
+}
+
+/**
+ * Trae los ejercicios de una TP. Necesario para mostrar la lista con
+ * enunciados y codigo inicial.
+ */
+export async function listEjerciciosTp(
+  tareaId: string,
+  getToken?: TokenGetter,
+): Promise<Ejercicio[]> {
+  const r = await fetch(`/api/v1/tareas-practicas/${tareaId}/ejercicios`, {
+    headers: await authHeaders(getToken),
+  })
+  if (!r.ok) throw new Error(`list ejercicios failed: ${r.status}`)
+  return (await r.json()) as Ejercicio[]
+}
+
+/**
+ * Trae la calificacion de una entrega. 404 si aun no fue calificada.
+ * Devuelve null si no hay calificacion todavia.
+ */
+export async function getCalificacion(
+  entregaId: string,
+  getToken?: TokenGetter,
+): Promise<Calificacion | null> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/calificacion`, {
+    headers: await authHeaders(getToken),
+  })
+  if (r.status === 404) return null
+  if (!r.ok) throw new Error(`get calificacion failed: ${r.status}`)
+  return (await r.json()) as Calificacion
+}
+
+/**
+ * Trae las entregas del estudiante para una TP, filtrado por comision.
+ * Devuelve null si no hay entrega todavia.
+ */
+export async function getEntregaForTp(
+  tareaId: string,
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<Entrega | null> {
+  const qs = new URLSearchParams({ tarea_practica_id: tareaId, comision_id: comisionId })
+  const r = await fetch(`/api/v1/entregas?${qs.toString()}`, {
+    headers: await authHeaders(getToken),
+  })
+  if (!r.ok) throw new Error(`get entrega failed: ${r.status}`)
+  const body = (await r.json()) as Entrega[]
+  return body[0] ?? null
+}
+
+/**
+ * Marca un ejercicio como completado dentro de una entrega.
+ * Llamado despues de cerrar el episodio del ejercicio correspondiente.
+ * PATCH /api/v1/entregas/{id}/ejercicio/{orden}
+ */
+export async function markEjercicioCompleted(
+  entregaId: string,
+  orden: number,
+  episodeId: string,
+  getToken?: TokenGetter,
+): Promise<Entrega> {
+  const r = await fetch(`/api/v1/entregas/${entregaId}/ejercicio/${orden}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify({ completado: true, episode_id: episodeId }),
+  })
+  if (!r.ok) throw new Error(`mark ejercicio completed failed: ${r.status}`)
+  return (await r.json()) as Entrega
+}
+
+export const entregasApi = {
+  createOrGet: createOrGetEntrega,
+  submit: submitEntrega,
+  getForTp: getEntregaForTp,
+  getCalificacion,
+  listEjerciciosTp,
+  markEjercicioCompleted,
 }

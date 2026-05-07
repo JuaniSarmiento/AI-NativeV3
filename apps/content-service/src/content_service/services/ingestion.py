@@ -88,6 +88,7 @@ class IngestionPipeline:
                 chunk_row = Chunk(
                     tenant_id=material.tenant_id,
                     material_id=material.id,
+                    materia_id=material.materia_id,
                     comision_id=material.comision_id,
                     contenido=final_chunk.contenido,
                     contenido_hash=final_chunk.contenido_hash,
@@ -100,7 +101,7 @@ class IngestionPipeline:
                 self.session.add(chunk_row)
 
             material.estado = "indexed"
-            material.indexed_at = utc_now()
+            material.indexed_at = utc_now().replace(tzinfo=None)
             material.chunks_count = len(chunks)
             material.content_hash = hashlib.sha256(content).hexdigest()
             await self.session.flush()

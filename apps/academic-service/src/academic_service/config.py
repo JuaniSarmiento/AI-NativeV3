@@ -40,8 +40,9 @@ class Settings(BaseSettings):
     # External services (Sec 11 epic ai-native-completion: TP-gen IA)
     governance_service_url: str = Field(default="http://127.0.0.1:8010")
     ai_gateway_url: str = Field(default="http://127.0.0.1:8011")
+    content_service_url: str = Field(default="http://127.0.0.1:8009")
     tp_generator_prompt_version: str = Field(default="v1.0.0")
-    tp_generator_default_model: str = Field(default="claude-sonnet-4-6")
+    tp_generator_default_model: str = Field(default="mistral-small-latest")
 
 
 @lru_cache

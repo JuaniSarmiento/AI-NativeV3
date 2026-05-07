@@ -24,7 +24,10 @@ import { StateMessage } from "@platform/ui"
 import { useEffect, useMemo, useState } from "react"
 import {
   type AvailableTarea,
+  type Entrega,
+  type EntregaEstado,
   type StudentEpisode,
+  entregasApi,
   listStudentEpisodes,
   tareasPracticasApi,
 } from "../lib/api"
@@ -35,28 +38,22 @@ export interface TareaSelectorProps {
 }
 
 interface Zones {
-  continuar: AvailableTarea[]
-  proximas: AvailableTarea[]
+  pendiente: AvailableTarea[]
+  porCorregir: AvailableTarea[]
+  listo: AvailableTarea[]
   vencidas: AvailableTarea[]
 }
 
-function partitionTareas(tareas: AvailableTarea[], episodes: StudentEpisode[]): Zones {
+function partitionTareas(
+  tareas: AvailableTarea[],
+  _episodes: StudentEpisode[],
+  entregasByTareaId: Record<string, Entrega>,
+): Zones {
   const now = Date.now()
-  const continuarIds = new Set<string>()
 
-  // CONTINUAR: TPs con al menos un cierre reciente del estudiante (apropiacion
-  // != delegacion_pasiva). Heuristica simple para el piloto: cualquier
-  // episodio cerrado de la propia TP califica como "ya empezaste" y deberias
-  // poder volver. La idea de "episodio abierto preexistente" requeriria un
-  // endpoint separado y queda como follow-up.
-  for (const ep of episodes) {
-    if (ep.appropriation && ep.problema_id) {
-      continuarIds.add(ep.problema_id)
-    }
-  }
-
-  const continuar: AvailableTarea[] = []
-  const proximas: AvailableTarea[] = []
+  const pendiente: AvailableTarea[] = []
+  const porCorregir: AvailableTarea[] = []
+  const listo: AvailableTarea[] = []
   const vencidas: AvailableTarea[] = []
 
   for (const t of tareas) {
@@ -66,19 +63,23 @@ function partitionTareas(tareas: AvailableTarea[], episodes: StudentEpisode[]): 
       vencidas.push(t)
       continue
     }
-    if (continuarIds.has(t.id)) {
-      continuar.push(t)
-      continue
+
+    const entrega = entregasByTareaId[t.id]
+    if (entrega?.estado === "graded" || entrega?.estado === "returned") {
+      listo.push(t)
+    } else if (entrega?.estado === "submitted") {
+      porCorregir.push(t)
+    } else {
+      pendiente.push(t)
     }
-    proximas.push(t)
   }
 
-  // Ordenamiento: CONTINUAR por deadline asc; PROXIMAS asc; VENCIDAS desc.
-  continuar.sort(byDeadlineAsc)
-  proximas.sort(byDeadlineAsc)
+  pendiente.sort(byDeadlineAsc)
+  porCorregir.sort(byDeadlineAsc)
+  listo.sort(byDeadlineAsc)
   vencidas.sort(byDeadlineDesc)
 
-  return { continuar, proximas, vencidas }
+  return { pendiente, porCorregir, listo, vencidas }
 }
 
 function byDeadlineAsc(a: AvailableTarea, b: AvailableTarea): number {
@@ -99,6 +100,8 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
   const [error, setError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [episodes, setEpisodes] = useState<StudentEpisode[]>([])
+  // Map de tarea_practica_id → entrega (best-effort, no bloquea el selector)
+  const [entregasByTareaId, setEntregasByTareaId] = useState<Record<string, Entrega>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -125,6 +128,31 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
       cancelled = true
     }
   }, [comisionId])
+
+  // Entregas del estudiante: best-effort, para clasificar en zonas.
+  useEffect(() => {
+    if (tareas.length === 0) return
+    let cancelled = false
+
+    void Promise.allSettled(
+      tareas.map((t) =>
+        entregasApi.getForTp(t.id, comisionId).then((entrega) => ({ tareaId: t.id, entrega })),
+      ),
+    ).then((results) => {
+      if (cancelled) return
+      const map: Record<string, Entrega> = {}
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value.entrega) {
+          map[r.value.tareaId] = r.value.entrega
+        }
+      }
+      setEntregasByTareaId(map)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [tareas, comisionId])
 
   // Trayectoria N4 historica: best-effort. Si el endpoint no esta disponible
   // (analytics down, dev mode sin classifier), seguimos sin la zona Continuar.
@@ -166,7 +194,10 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
     }
   }
 
-  const zones = useMemo(() => partitionTareas(tareas, episodes), [tareas, episodes])
+  const zones = useMemo(
+    () => partitionTareas(tareas, episodes, entregasByTareaId),
+    [tareas, episodes, entregasByTareaId],
+  )
 
   if (loading) {
     return (
@@ -214,12 +245,28 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
           Tu materia, esta semana.
         </h2>
 
-        {zones.continuar.length > 0 && (
-          <ZoneContinuar tareas={zones.continuar} episodes={episodes} onSelect={onSelect} />
+        {zones.pendiente.length > 0 && (
+          <ZonePendiente
+            tareas={zones.pendiente}
+            episodes={episodes}
+            entregasByTareaId={entregasByTareaId}
+            onSelect={onSelect}
+          />
         )}
 
-        {zones.proximas.length > 0 && (
-          <ZoneProximas tareas={zones.proximas} onSelect={onSelect} />
+        {zones.porCorregir.length > 0 && (
+          <ZonePorCorregir
+            tareas={zones.porCorregir}
+            entregasByTareaId={entregasByTareaId}
+          />
+        )}
+
+        {zones.listo.length > 0 && (
+          <ZoneListo
+            tareas={zones.listo}
+            entregasByTareaId={entregasByTareaId}
+            onSelect={onSelect}
+          />
         )}
 
         {zones.vencidas.length > 0 && (
@@ -252,50 +299,85 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
   )
 }
 
-// ─── Zona CONTINUAR: card prominente, trayectoria N4 historica ────────
+// ─── Badge de entrega ─────────────────────────────────────────────────
 
-function ZoneContinuar({
+function EntregaBadge({ estado }: { estado: EntregaEstado }) {
+  const labels: Record<EntregaEstado, string> = {
+    draft: "En progreso",
+    submitted: "Entregada",
+    graded: "Calificada",
+    returned: "Devuelta",
+  }
+  const classes: Record<EntregaEstado, string> = {
+    draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
+    submitted: "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300",
+    graded: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300",
+    returned: "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300",
+  }
+  return (
+    <span
+      data-testid={`entrega-badge-${estado}`}
+      className={`text-xs font-mono px-2 py-0.5 rounded ${classes[estado]}`}
+    >
+      {labels[estado]}
+    </span>
+  )
+}
+
+// ─── Zona PENDIENTE: TPs no empezadas o en draft ────────────────────
+
+function ZonePendiente({
   tareas,
   episodes,
+  entregasByTareaId,
   onSelect,
 }: {
   tareas: AvailableTarea[]
   episodes: StudentEpisode[]
+  entregasByTareaId: Record<string, Entrega>
   onSelect: (t: AvailableTarea) => void
 }) {
   return (
-    <section className="mb-10" data-testid="zone-continuar">
+    <section className="mb-10" data-testid="zone-pendiente">
       <div className="flex items-baseline justify-between mb-4">
         <p className="text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          Continuar
+          Pendiente
         </p>
         <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-          {tareas.length} {tareas.length === 1 ? "TP en curso" : "TPs en curso"}
+          {tareas.length} {tareas.length === 1 ? "TP" : "TPs"}
         </span>
       </div>
       <ul className="space-y-3">
-        {tareas.map((t) => (
-          <li key={t.id}>
-            <ContinuarCard tarea={t} episodes={episodes} onSelect={() => onSelect(t)} />
-          </li>
-        ))}
+        {tareas.map((t) => {
+          const entrega = entregasByTareaId[t.id]
+          const hasDraft = entrega?.estado === "draft"
+          return (
+            <li key={t.id}>
+              <PendienteCard
+                tarea={t}
+                episodes={episodes}
+                hasDraft={hasDraft}
+                onSelect={() => onSelect(t)}
+              />
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
 }
 
-function ContinuarCard({
+function PendienteCard({
   tarea,
   episodes,
+  hasDraft,
   onSelect,
 }: {
   tarea: AvailableTarea
   episodes: StudentEpisode[]
+  hasDraft: boolean
   onSelect: () => void
 }) {
-  // Trayectoria: ultimos 3 cierres del alumno con el mismo problema_id.
-  // (Si surge una TP con `template_id` reutilizado entre versiones, se
-  // podria agrupar por template_id; por ahora basta con problema_id.)
   const trajectory = useMemo(() => {
     const matching = episodes
       .filter((ep) => ep.problema_id === tarea.id && ep.appropriation !== null)
@@ -367,75 +449,132 @@ function ContinuarCard({
             e.currentTarget.style.backgroundColor = "var(--color-accent-brand)"
           }}
         >
-          Volver a la TP
+          {hasDraft ? "Continuar" : "Empezar"}
         </button>
       </footer>
     </article>
   )
 }
 
-// ─── Zona PROXIMAS: list items densos, divider tipografico ────────────
+// ─── Zona POR CORREGIR: entregadas, esperando al docente ────────────
 
-function ZoneProximas({
+function ZonePorCorregir({
   tareas,
-  onSelect,
+  entregasByTareaId,
 }: {
   tareas: AvailableTarea[]
-  onSelect: (t: AvailableTarea) => void
+  entregasByTareaId: Record<string, Entrega>
 }) {
   return (
-    <section className="mb-10" data-testid="zone-proximas">
+    <section className="mb-10" data-testid="zone-por-corregir">
       <div className="flex items-baseline gap-3 mb-3 border-b border-slate-200 dark:border-slate-800 pb-1">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
-          Proximas
+        <p className="text-xs font-mono uppercase tracking-wider text-blue-700 dark:text-blue-300">
+          Por corregir
         </p>
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          ordenadas por deadline ascendente
+          esperando al docente
         </span>
       </div>
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-        {tareas.map((t) => (
-          <li key={t.id}>
-            <ProximaItem tarea={t} onSelect={() => onSelect(t)} />
-          </li>
-        ))}
+        {tareas.map((t) => {
+          const entrega = entregasByTareaId[t.id]
+          return (
+            <li key={t.id}>
+              <div
+                data-testid="tp-card"
+                data-tp-codigo={t.codigo}
+                className="py-3 flex items-start gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                      {t.codigo}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">v{t.version}</span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                      {t.titulo}
+                    </span>
+                  </div>
+                  {entrega?.submitted_at && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Entregada el{" "}
+                      {new Date(entrega.submitted_at).toLocaleString("es-AR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+                </div>
+                <span className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  Esperando correccion
+                </span>
+              </div>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
 }
 
-function ProximaItem({ tarea, onSelect }: { tarea: AvailableTarea; onSelect: () => void }) {
-  const excerpt = buildExcerpt(tarea.enunciado)
-  const deadline = formatDeadline(tarea.fecha_fin)
+// ─── Zona LISTO: corregidas por el docente ───────────────────────────
+
+function ZoneListo({
+  tareas,
+  entregasByTareaId,
+  onSelect,
+}: {
+  tareas: AvailableTarea[]
+  entregasByTareaId: Record<string, Entrega>
+  onSelect: (t: AvailableTarea) => void
+}) {
   return (
-    <div
-      data-testid="tp-card"
-      data-tp-codigo={tarea.codigo}
-      className="py-3 flex items-start gap-4"
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-            {tarea.codigo}
-          </span>
-          <span className="text-xs font-mono text-slate-400">v{tarea.version}</span>
-          <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-            {tarea.titulo}
-          </span>
-        </div>
-        {excerpt && (
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1">{excerpt}</p>
-        )}
-        {deadline && <p className={`text-xs mt-1 ${deadline.colorClass}`}>{deadline.label}</p>}
+    <section className="mb-10" data-testid="zone-listo">
+      <div className="flex items-baseline gap-3 mb-3 border-b border-slate-200 dark:border-slate-800 pb-1">
+        <p className="text-xs font-mono uppercase tracking-wider text-green-700 dark:text-green-300">
+          Listo
+        </p>
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          corregidas por el docente
+        </span>
       </div>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="shrink-0 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-      >
-        Empezar
-      </button>
-    </div>
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        {tareas.map((t) => {
+          const entrega = entregasByTareaId[t.id]
+          return (
+            <li key={t.id}>
+              <div
+                data-testid="tp-card"
+                data-tp-codigo={t.codigo}
+                className="py-3 flex items-start gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                      {t.codigo}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">v{t.version}</span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                      {t.titulo}
+                    </span>
+                    {entrega && <EntregaBadge estado={entrega.estado} />}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelect(t)}
+                  className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900"
+                >
+                  Ver calificacion
+                </button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -523,15 +662,6 @@ function appropriationAriaLabel(
 ): string {
   if (!a) return "resultado pendiente"
   return appropriationLabel(a)
-}
-
-/** Toma las primeras ~150 chars / 1 linea util del enunciado. */
-function buildExcerpt(enunciado: string): string {
-  const trimmed = enunciado.trim()
-  if (!trimmed) return ""
-  const firstLine = trimmed.split("\n").find((l) => l.trim().length > 0) ?? ""
-  if (firstLine.length <= 150) return firstLine
-  return `${firstLine.slice(0, 150).trimEnd()}...`
 }
 
 interface DeadlineInfo {

@@ -17,12 +17,43 @@
 import { HelpButton, PageContainer } from "@platform/ui"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
-import { type Material, type MaterialEstado, type MaterialTipo, materialesApi } from "../lib/api"
+import {
+  type Material,
+  type MaterialEstado,
+  type MaterialTipo,
+  comisionesApi,
+  materialesApi,
+} from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
 interface Props {
   comisionId: string
   getToken: () => Promise<string | null>
+}
+
+/**
+ * Resuelve el materia_id de una comision. Fetcha la lista de comisiones
+ * del docente y busca la que matchea. Devuelve null mientras carga.
+ */
+function useMateriaId(comisionId: string): string | null {
+  const [materiaId, setMateriaId] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    comisionesApi
+      .listMine()
+      .then((res) => {
+        if (cancelled) return
+        const c = res.items.find((x) => x.id === comisionId)
+        if (c) setMateriaId(c.materia_id)
+      })
+      .catch(() => {
+        /* degradacion graciosa — materia_id no disponible */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [comisionId])
+  return materiaId
 }
 
 const TERMINAL_STATES: MaterialEstado[] = ["indexed", "failed"]
@@ -81,6 +112,7 @@ function formatRelative(iso: string): string {
 
 export function MaterialesView({ comisionId, getToken }: Props) {
   const comisionLabelText = useComisionLabel(comisionId)
+  const materiaId = useMateriaId(comisionId)
   const [materiales, setMateriales] = useState<Material[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,17 +126,18 @@ export function MaterialesView({ comisionId, getToken }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refreshList = useCallback(async () => {
+    if (!materiaId) return
     setLoading(true)
     setError(null)
     try {
-      const r = await materialesApi.list({ comision_id: comisionId }, getToken)
+      const r = await materialesApi.list({ materia_id: materiaId }, getToken)
       setMateriales(r.data)
     } catch (e) {
       setError(String(e))
     } finally {
       setLoading(false)
     }
-  }, [comisionId, getToken])
+  }, [materiaId, getToken])
 
   useEffect(() => {
     refreshList()
@@ -158,11 +191,11 @@ export function MaterialesView({ comisionId, getToken }: Props) {
   }, [])
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!file || !materiaId) return
     setUploading(true)
     setUploadError(null)
     try {
-      await materialesApi.upload(comisionId, file, getToken)
+      await materialesApi.upload(materiaId, file, getToken)
       setFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ""
       await refreshList()
@@ -247,7 +280,7 @@ export function MaterialesView({ comisionId, getToken }: Props) {
             <button
               type="button"
               onClick={handleUpload}
-              disabled={!file || uploading}
+              disabled={!file || !materiaId || uploading}
               className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
             >
               {uploading ? "Subiendo..." : "Subir"}
@@ -283,7 +316,7 @@ export function MaterialesView({ comisionId, getToken }: Props) {
             <div className="p-8 text-center text-slate-500">Cargando materiales...</div>
           ) : materiales.length === 0 ? (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-500">
-              No hay materiales subidos para esta comisión todavía.
+              No hay materiales subidos para esta materia todavía.
             </div>
           ) : (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">

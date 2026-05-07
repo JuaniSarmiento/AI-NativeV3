@@ -15,12 +15,13 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth.dependencies import User
-from academic_service.models import AuditLog, Comision, Periodo, UsuarioComision
+from academic_service.models import AuditLog, Comision, Inscripcion, Periodo, UsuarioComision
 from academic_service.repositories import (
     ComisionRepository,
     InscripcionRepository,
     MateriaRepository,
     PeriodoRepository,
+    UsuarioComisionRepository,
 )
 from academic_service.schemas.comision import (
     ComisionCreate,
@@ -28,6 +29,8 @@ from academic_service.schemas.comision import (
     PeriodoCreate,
     PeriodoUpdate,
 )
+from academic_service.schemas.inscripcion import InscripcionCreateIndividual
+from academic_service.schemas.usuario_comision import UsuarioComisionCreate
 
 
 class PeriodoService:
@@ -211,6 +214,7 @@ class ComisionService:
         self.materias = MateriaRepository(session)
         self.periodos = PeriodoRepository(session)
         self.inscripciones = InscripcionRepository(session)
+        self.usuarios_comision = UsuarioComisionRepository(session)
 
     async def create(self, data: ComisionCreate, user: User) -> Comision:
         # 1. Validar que la materia existe (RLS la filtra por tenant)
@@ -310,6 +314,146 @@ class ComisionService:
         if periodo_id:
             filters["periodo_id"] = periodo_id
         return await self.repo.list(limit=limit, cursor=cursor, filters=filters)
+
+    # ── Docentes de comision ───────────────────────────────────────────
+
+    async def list_docentes(self, comision_id: UUID) -> builtins.list[UsuarioComision]:
+        """Devuelve los docentes activos (no soft-deleted) de una comision."""
+        await self.repo.get_or_404(comision_id)
+        stmt = (
+            select(UsuarioComision)
+            .where(
+                UsuarioComision.comision_id == comision_id,
+                UsuarioComision.deleted_at.is_(None),
+            )
+            .order_by(UsuarioComision.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def add_docente(
+        self, comision_id: UUID, data: UsuarioComisionCreate, user: User
+    ) -> UsuarioComision:
+        """Crea un UsuarioComision para la comision dada."""
+        comision = await self.repo.get_or_404(comision_id)
+        uc = UsuarioComision(
+            id=uuid4(),
+            tenant_id=comision.tenant_id,
+            comision_id=comision_id,
+            user_id=data.user_id,
+            rol=data.rol,
+            fecha_desde=data.fecha_desde,
+            fecha_hasta=data.fecha_hasta,
+        )
+        self.session.add(uc)
+        audit = AuditLog(
+            tenant_id=comision.tenant_id,
+            user_id=user.id,
+            action="usuario_comision.create",
+            resource_type="usuario_comision",
+            resource_id=uc.id,
+            changes={"after": data.model_dump(mode="json")},
+        )
+        self.session.add(audit)
+        await self.session.flush()
+        await self.session.refresh(uc)
+        return uc
+
+    async def remove_docente(self, comision_id: UUID, uc_id: UUID, user: User) -> None:
+        """Soft-delete de un UsuarioComision."""
+        from academic_service.models.base import utc_now
+
+        stmt = select(UsuarioComision).where(
+            UsuarioComision.id == uc_id,
+            UsuarioComision.comision_id == comision_id,
+            UsuarioComision.deleted_at.is_(None),
+        )
+        result = await self.session.execute(stmt)
+        uc = result.scalar_one_or_none()
+        if uc is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asignacion no encontrada")
+        uc.deleted_at = utc_now()
+        audit = AuditLog(
+            tenant_id=uc.tenant_id,
+            user_id=user.id,
+            action="usuario_comision.delete",
+            resource_type="usuario_comision",
+            resource_id=uc_id,
+            changes={"soft_delete": True},
+        )
+        self.session.add(audit)
+        await self.session.flush()
+
+    # ── Inscripciones de comision ──────────────────────────────────────
+
+    async def list_inscripciones(self, comision_id: UUID) -> builtins.list[Inscripcion]:
+        """Devuelve las inscripciones activas de una comision."""
+        await self.repo.get_or_404(comision_id)
+        stmt = (
+            select(Inscripcion)
+            .where(
+                Inscripcion.comision_id == comision_id,
+                Inscripcion.deleted_at.is_(None),
+            )
+            .order_by(Inscripcion.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def add_inscripcion(
+        self, comision_id: UUID, data: InscripcionCreateIndividual, user: User
+    ) -> Inscripcion:
+        """Crea una Inscripcion para la comision dada."""
+        comision = await self.repo.get_or_404(comision_id)
+        insc = Inscripcion(
+            id=uuid4(),
+            tenant_id=comision.tenant_id,
+            comision_id=comision_id,
+            student_pseudonym=data.student_pseudonym,
+            rol=data.rol,
+            estado=data.estado,
+            fecha_inscripcion=data.fecha_inscripcion,
+            nota_final=data.nota_final,
+            fecha_cierre=data.fecha_cierre,
+        )
+        self.session.add(insc)
+        audit = AuditLog(
+            tenant_id=comision.tenant_id,
+            user_id=user.id,
+            action="inscripcion.create",
+            resource_type="inscripcion",
+            resource_id=insc.id,
+            changes={"after": data.model_dump(mode="json")},
+        )
+        self.session.add(audit)
+        await self.session.flush()
+        await self.session.refresh(insc)
+        return insc
+
+    async def remove_inscripcion(self, comision_id: UUID, insc_id: UUID, user: User) -> None:
+        """Soft-delete de una Inscripcion."""
+        from academic_service.models.base import utc_now
+
+        stmt = select(Inscripcion).where(
+            Inscripcion.id == insc_id,
+            Inscripcion.comision_id == comision_id,
+            Inscripcion.deleted_at.is_(None),
+        )
+        result = await self.session.execute(stmt)
+        insc = result.scalar_one_or_none()
+        if insc is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inscripcion no encontrada")
+        insc.deleted_at = utc_now()
+        audit = AuditLog(
+            tenant_id=insc.tenant_id,
+            user_id=user.id,
+            action="inscripcion.delete",
+            resource_type="inscripcion",
+            resource_id=insc_id,
+            changes={"soft_delete": True},
+        )
+        self.session.add(audit)
+        await self.session.flush()
 
     async def list_for_user(
         self,

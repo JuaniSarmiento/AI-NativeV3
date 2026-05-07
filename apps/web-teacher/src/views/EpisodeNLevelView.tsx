@@ -1,38 +1,15 @@
-/**
- * Vista de drill-down N1-N4 por episodio (ADR-020, RN-130).
- *
- * Cumple componente C3.2 de la tesis (Seccion 6.4) + Seccion 15.2
- * (proporcion de tiempo por nivel). Permite al docente explorar como un
- * estudiante distribuyo su tiempo entre los 4 niveles analiticos.
- *
- * Visualizacion con SVG inline (no chart libs, patron del repo).
- *
- * Tokens: LEVEL_COLORS deriva de var(--color-level-n1..n4 + meta) del theme
- * compartido (packages/ui/src/tokens/theme.css). Los SVG necesitan un string
- * concreto, asi que resolvemos via getComputedStyle al mount.
- *
- * Drill-down: shape docente especifica que el episodeId entra por search
- * param (initialEpisodeId). El form input se preserva al fondo para casos
- * de auditoria donde el docente pega un UUID a mano (use-case secundario).
- */
 import { Button, Input, Label, PageContainer } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
+import { useViewMode } from "../hooks/useViewMode"
 import { type NLevel, type NLevelDistribution, getEpisodeNLevelDistribution } from "../lib/api"
+import { NLEVEL_DOCENTE, NLEVEL_INVESTIGADOR } from "../utils/docenteLabels"
 import { helpContent } from "../utils/helpContent"
 
 interface Props {
   getToken: () => Promise<string | null>
-  /** Si se pasa, se carga automaticamente al montar (drill-down). */
   initialEpisodeId?: string
-}
-
-const LEVEL_LABELS: Record<NLevel, string> = {
-  N1: "N1 - Comprensión/planificación",
-  N2: "N2 - Elaboración estratégica",
-  N3: "N3 - Validación",
-  N4: "N4 - Interacción con IA",
-  meta: "meta - Apertura/cierre",
 }
 
 const LEVEL_TOKEN_VAR: Record<NLevel, string> = {
@@ -43,10 +20,6 @@ const LEVEL_TOKEN_VAR: Record<NLevel, string> = {
   meta: "--color-level-meta",
 }
 
-/**
- * Resuelve los 5 colores de nivel desde los tokens compartidos. Cae a
- * defaults hex slate cuando getComputedStyle no puede resolver (jsdom).
- */
 function resolveLevelColors(): Record<NLevel, string> {
   const fallback: Record<NLevel, string> = {
     N1: "#22c55e",
@@ -61,7 +34,6 @@ function resolveLevelColors(): Record<NLevel, string> {
   ;(Object.keys(LEVEL_TOKEN_VAR) as NLevel[]).forEach((lvl) => {
     const raw = root.getPropertyValue(LEVEL_TOKEN_VAR[lvl]).trim()
     if (raw) {
-      // CSS var ya viene con `oklch(...)` o equivalente. CSS la consume directo.
       out[lvl] = raw.startsWith("oklch") || raw.startsWith("#") ? raw : `var(${LEVEL_TOKEN_VAR[lvl]})`
     } else {
       out[lvl] = fallback[lvl]
@@ -77,96 +49,131 @@ function formatSeconds(s: number): string {
   return `${m}m ${rest.toFixed(0)}s`
 }
 
-function StackedBar({
+function formatMinutes(s: number): string {
+  if (s < 60) return `${Math.round(s)} seg`
+  const m = Math.floor(s / 60)
+  const rest = Math.round(s - m * 60)
+  if (rest === 0) return `${m} min`
+  return `${m} min ${rest} seg`
+}
+
+function dominantLevel(
+  dist: Record<NLevel, number>,
+  labels: Record<string, string>,
+): { level: NLevel; ratio: number; label: string } | null {
+  const total = Object.values(dist).reduce((a, b) => a + b, 0)
+  if (total === 0) return null
+  const levels: NLevel[] = ["N1", "N2", "N3", "N4", "meta"]
+  let max: NLevel = "N1"
+  for (const l of levels) {
+    if ((dist[l] ?? 0) > (dist[max] ?? 0)) max = l
+  }
+  return { level: max, ratio: (dist[max] ?? 0) / total, label: labels[max] ?? max }
+}
+
+function NLevelDistributionChart({
   data,
   colors,
-}: { data: NLevelDistribution; colors: Record<NLevel, string> }) {
+  isDocente,
+}: {
+  data: NLevelDistribution
+  colors: Record<NLevel, string>
+  isDocente: boolean
+}) {
   const total = Object.values(data.distribution_seconds).reduce((a, b) => a + b, 0)
   const levels: NLevel[] = ["N1", "N2", "N3", "N4", "meta"]
+  const levelLabels = isDocente ? NLEVEL_DOCENTE : NLEVEL_INVESTIGADOR
 
   if (total === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-500">
-        Sin datos de duracion. El episodio aun no tiene eventos persistidos o el modo dev del
-        analytics-service no tiene CTR configurado.
+      <div className="rounded-xl border border-dashed border-[#EAEAEA] p-8 text-center text-[#787774] text-sm">
+        {isDocente
+          ? "Todavia no hay datos de esta sesion."
+          : "Sin datos de duracion. El episodio aun no tiene eventos persistidos o el modo dev del analytics-service no tiene CTR configurado."}
       </div>
     )
   }
 
+  const pieData = levels
+    .map((lvl) => ({
+      name: lvl,
+      value: data.distribution_seconds[lvl] ?? 0,
+      color: colors[lvl],
+    }))
+    .filter((d) => d.value > 0)
+
+  const maxSecs = Math.max(...levels.map((l) => data.distribution_seconds[l] ?? 0), 1)
+
   return (
-    <div className="space-y-3">
-      <div
-        className="flex h-12 w-full overflow-hidden rounded-lg border border-slate-200 shadow-sm"
-        aria-label="Distribucion de tiempo por nivel N1-N4"
-      >
-        {levels.map((lvl) => {
-          const secs = data.distribution_seconds[lvl] ?? 0
-          const ratio = total > 0 ? secs / total : 0
-          if (ratio === 0) return null
-          return (
-            <div
-              key={lvl}
-              className="flex items-center justify-center text-xs font-medium text-white"
-              style={{
-                width: `${ratio * 100}%`,
-                backgroundColor: colors[lvl],
-              }}
-              title={`${LEVEL_LABELS[lvl]} - ${formatSeconds(secs)} (${(ratio * 100).toFixed(1)}%)`}
+    <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+      <div className="w-full sm:w-52 shrink-0">
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={pieData}
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={85}
+              paddingAngle={2}
+              dataKey="value"
             >
-              {ratio > 0.08 ? `${(ratio * 100).toFixed(0)}%` : ""}
-            </div>
-          )
-        })}
+              {pieData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value) => [
+                isDocente ? formatMinutes(Number(value)) : formatSeconds(Number(value)),
+                "tiempo",
+              ]}
+              contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #EAEAEA" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
 
-      {/* Labels DEBAJO de la barra (mejora WCAG: el texto siempre es legible
-          con suficiente contraste, el dot color carga la asociacion N4). */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-        {levels.map((lvl) => {
-          const ratio = data.distribution_ratio[lvl] ?? 0
-          if (ratio === 0) return null
-          return (
-            <span key={lvl} className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: colors[lvl] }}
-              />
-              <span className="font-mono">{lvl}</span>
-              <span>{(ratio * 100).toFixed(0)}%</span>
-            </span>
-          )
-        })}
-      </div>
-
-      {/* Detalle por nivel: lista densa, un nivel por linea (no 5-card grid).
-          Resuelve F5 del brief shape. */}
-      <ul className="border-t border-slate-100 pt-3 space-y-2 text-sm">
+      <div className="flex-1 space-y-3">
         {levels.map((lvl) => {
           const secs = data.distribution_seconds[lvl] ?? 0
           const count = data.total_events_per_level[lvl] ?? 0
           const ratio = data.distribution_ratio[lvl] ?? 0
+          const barWidth = (secs / maxSecs) * 100
           return (
-            <li key={lvl} className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: colors[lvl] }}
-              />
-              <span className="font-medium text-slate-900 min-w-[200px]">
-                {LEVEL_LABELS[lvl]}
-              </span>
-              <span className="text-slate-600 font-mono text-xs">
-                {formatSeconds(secs)}
-                <span className="text-slate-400 mx-1.5">·</span>
-                {(ratio * 100).toFixed(1)}%
-                <span className="text-slate-400 mx-1.5">·</span>
-                {count} ev.
-              </span>
-            </li>
+            <div key={lvl}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: colors[lvl] }}
+                  />
+                  <span className="text-sm font-medium text-[#111111]">
+                    {levelLabels[lvl] ?? lvl}
+                  </span>
+                </div>
+                <span className="text-xs text-[#787774] font-mono">
+                  {(ratio * 100).toFixed(1)}%
+                  <span className="mx-1 text-[#EAEAEA]">·</span>
+                  {isDocente ? formatMinutes(secs) : formatSeconds(secs)}
+                  {!isDocente && (
+                    <>
+                      <span className="mx-1 text-[#EAEAEA]">·</span>
+                      {count} ev.
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="h-1.5 bg-[#EAEAEA] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${barWidth}%`, backgroundColor: colors[lvl] }}
+                />
+              </div>
+            </div>
           )
         })}
-      </ul>
+      </div>
     </div>
   )
 }
@@ -177,6 +184,8 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const colors = useMemo(resolveLevelColors, [])
+  const [viewMode] = useViewMode()
+  const isDocente = viewMode === "docente"
 
   const handleSearch = () => {
     if (!episodeIdInput.trim()) return
@@ -189,7 +198,6 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
       .finally(() => setLoading(false))
   }
 
-  // Drill-down navegacional (ADR-022): si la URL trae ?episodeId=X, autocargar.
   useEffect(() => {
     if (!initialEpisodeId) return
     setEpisodeIdInput(initialEpisodeId)
@@ -202,85 +210,157 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
       .finally(() => setLoading(false))
   }, [initialEpisodeId, getToken])
 
+  const dom = data
+    ? dominantLevel(
+        data.distribution_seconds,
+        isDocente ? NLEVEL_DOCENTE : NLEVEL_INVESTIGADOR,
+      )
+    : null
+
   return (
     <PageContainer
-      title="Distribución N1-N4 por episodio"
-      description="Drill-down del tiempo invertido por el estudiante en cada nivel analítico de un episodio (componente C3.2 de la tesis, ADR-020)"
+      title={isDocente ? "Que hizo el alumno en esta sesion" : "Distribucion N1-N4 por episodio"}
+      description={
+        isDocente
+          ? "Mirá en que actividades paso mas tiempo el alumno durante el trabajo practico."
+          : "Drill-down del tiempo invertido por el estudiante en cada nivel analitico de un episodio (componente C3.2 de la tesis, ADR-020)"
+      }
       helpContent={helpContent.episodeNLevel}
     >
       <div className="space-y-6">
-        {/* Estado vacio honesto cuando se llega sin episodeId. */}
         {!initialEpisodeId && !data && !loading && (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600 space-y-2">
-            <p className="font-medium text-slate-700">Llegaste aca sin episodio seleccionado.</p>
+          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774] space-y-2">
+            <p className="font-semibold text-[#111111]">
+              {isDocente
+                ? "No hay ninguna sesion seleccionada."
+                : "Llegaste aca sin episodio seleccionado."}
+            </p>
             <p>
-              Volve a la lista del estudiante (
-              <Link to="/student-longitudinal" className="text-[var(--color-accent-brand)] underline">
-                evolucion del estudiante
-              </Link>
-              ) y eligi un episodio para ver su distribucion N1-N4.
+              {isDocente ? (
+                <>
+                  Volve a la{" "}
+                  <Link
+                    to="/student-longitudinal"
+                    className="text-[var(--color-accent-brand)] underline"
+                  >
+                    vista del alumno
+                  </Link>{" "}
+                  y elegi un trabajo para ver que hizo.
+                </>
+              ) : (
+                <>
+                  Volve a la lista del estudiante (
+                  <Link
+                    to="/student-longitudinal"
+                    className="text-[var(--color-accent-brand)] underline"
+                  >
+                    evolucion del estudiante
+                  </Link>
+                  ) y elegi un episodio para ver su distribucion N1-N4.
+                </>
+              )}
             </p>
-            <p className="text-xs text-slate-500 pt-2 border-t border-slate-100 mt-3">
-              Tambien podes pegar un UUID a mano (auditoria) en el formulario de abajo.
-            </p>
+            {!isDocente && (
+              <p className="text-xs text-[#787774] pt-2 border-t border-[#EAEAEA] mt-3">
+                Tambien podes pegar un UUID a mano (auditoria) en el formulario de abajo.
+              </p>
+            )}
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <div className="font-medium">Error consultando el episodio</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="font-semibold">Error consultando el episodio</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
         )}
 
         {data && (
-          <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-baseline justify-between gap-4 border-b border-slate-100 pb-3">
-              <div>
-                <div className="text-xs uppercase tracking-wider text-slate-500">Episodio</div>
-                <div className="font-mono text-sm text-slate-900 break-all">{data.episode_id}</div>
-              </div>
-              <div className="text-right text-xs text-slate-500 shrink-0">
-                <div>labeler v{data.labeler_version}</div>
+          <>
+            {isDocente && dom && (
+              <DocenteInterpretation dominant={dom} />
+            )}
+            <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+              <div className="flex items-start justify-between gap-4 border-b border-[#EAEAEA] px-6 py-4">
                 <div>
-                  {Object.values(data.total_events_per_level).reduce((a, b) => a + b, 0)} eventos
-                  totales
+                  <div className="text-xs uppercase tracking-wider text-[#787774] mb-1">
+                    {isDocente ? "Sesion" : "Episodio"}
+                  </div>
+                  <div className="font-mono text-sm text-[#111111] break-all">
+                    {isDocente ? data.episode_id.slice(0, 8) : data.episode_id}
+                  </div>
                 </div>
+                {!isDocente && (
+                  <div className="text-right text-xs text-[#787774] shrink-0">
+                    <div>labeler v{data.labeler_version}</div>
+                    <div>
+                      {Object.values(data.total_events_per_level).reduce((a, b) => a + b, 0)}{" "}
+                      eventos
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-5">
+                <NLevelDistributionChart data={data} colors={colors} isDocente={isDocente} />
               </div>
             </div>
-            <StackedBar data={data} colors={colors} />
-          </div>
+          </>
         )}
 
-        {/* Audit fallback: pegar UUID a mano. Colapsado si ya hay data, abierto
-            si no llegamos por drill-down. */}
-        <details className="rounded-lg border border-slate-200 bg-white" open={!initialEpisodeId && !data}>
-          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Buscar otro episodio por UUID
-          </summary>
-          <div className="px-4 pb-4">
-            <Label htmlFor="episode-id-input">UUID del episodio</Label>
-            <div className="mt-2 flex gap-2">
-              <Input
-                id="episode-id-input"
-                value={episodeIdInput}
-                onChange={(e) => setEpisodeIdInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSearch()
-                }}
-                placeholder="ej. 12345678-1234-1234-1234-123456789012"
-                className="flex-1 font-mono text-sm"
-              />
-              <Button onClick={handleSearch} disabled={loading || !episodeIdInput.trim()}>
-                {loading ? "Cargando..." : "Analizar"}
-              </Button>
+        {!isDocente && (
+          <details
+            className="rounded-xl border border-[#EAEAEA] bg-white"
+            open={!initialEpisodeId && !data}
+          >
+            <summary className="cursor-pointer px-6 py-3 text-sm font-medium text-[#111111] hover:bg-[#FAFAFA] transition-colors">
+              Buscar otro episodio por UUID
+            </summary>
+            <div className="px-6 pb-5 pt-2">
+              <Label htmlFor="episode-id-input">UUID del episodio</Label>
+              <div className="mt-2 flex gap-2">
+                <Input
+                  id="episode-id-input"
+                  value={episodeIdInput}
+                  onChange={(e) => setEpisodeIdInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearch()
+                  }}
+                  placeholder="ej. 12345678-1234-1234-1234-123456789012"
+                  className="flex-1 font-mono text-sm"
+                />
+                <Button onClick={handleSearch} disabled={loading || !episodeIdInput.trim()}>
+                  {loading ? "Cargando..." : "Analizar"}
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-[#787774]">
+                El UUID se obtiene desde la lista de episodios del estudiante o del CTR.
+              </p>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
-              El UUID se obtiene desde la lista de episodios del estudiante o del CTR.
-            </p>
-          </div>
-        </details>
+          </details>
+        )}
       </div>
     </PageContainer>
+  )
+}
+
+function DocenteInterpretation({
+  dominant,
+}: {
+  dominant: { level: NLevel; ratio: number; label: string }
+}) {
+  const pct = Math.round(dominant.ratio * 100)
+  const insights: Record<NLevel, string> = {
+    N1: "El alumno paso la mayor parte del tiempo leyendo el enunciado. Puede que le cueste entender la consigna o que sea un problema nuevo para el.",
+    N2: "El alumno dedico bastante tiempo a tomar notas y planificar. Buena senal de estrategia antes de codear.",
+    N3: "El alumno paso la mayor parte del tiempo escribiendo y probando codigo. Esta trabajando activamente en la solucion.",
+    N4: "El alumno paso la mayor parte del tiempo usando el tutor IA. Conviene revisar si esta entendiendo o solo copiando respuestas.",
+    meta: "La mayor parte del tiempo fue de inicio y cierre de sesion. Puede que la sesion haya sido muy corta.",
+  }
+
+  return (
+    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4 text-sm text-[#111111]">
+      <strong>{pct}% del tiempo</strong> lo paso <strong>{dominant.label.toLowerCase()}</strong>.{" "}
+      {insights[dominant.level]}
+    </div>
   )
 }

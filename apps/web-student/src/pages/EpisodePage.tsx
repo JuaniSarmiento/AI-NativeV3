@@ -28,6 +28,7 @@ import {
   emitLecturaEnunciado,
   getEpisodeState,
   getTareaById,
+  markEjercicioCompleted,
   sendMessage,
 } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
@@ -40,13 +41,33 @@ interface Message {
   ts: number
 }
 
+/** Contexto de ejercicio activo para TPs multi-ejercicio. */
+export interface EjercicioContext {
+  entregaId: string
+  ejercicioOrden: number
+}
+
 export interface EpisodeViewProps {
   episodeId: string
   /** Disparado cuando el alumno cierra el episodio o el recovery falla. */
   onExit: () => void
+  /** Si viene de un ejercicio especifico, contiene entregaId y orden. */
+  ejercicioContext?: EjercicioContext
 }
 
-export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
+/**
+ * Resuelve el codigo_inicial para Monaco: ejercicio especifico (multi-ej)
+ * o TP-level (monolitica). null = usar scaffold default del CodeEditor.
+ */
+function resolveCodigoInicial(tarea: AvailableTarea, ejercicioOrden: number | null): string | null {
+  if (ejercicioOrden != null) {
+    const ej = tarea.ejercicios.find((e) => e.orden === ejercicioOrden)
+    if (ej?.inicial_codigo) return ej.inicial_codigo
+  }
+  return tarea.inicial_codigo ?? null
+}
+
+export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeViewProps) {
   const [tarea, setTarea] = useState<AvailableTarea | null>(null)
   const [code, setCode] = useState<string>(
     "# Escribí tu código Python acá\n\ndef factorial(n):\n    pass\n",
@@ -60,6 +81,8 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
   const [closed, setClosed] = useState<boolean>(false)
   const [reflectionTargetId, setReflectionTargetId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const ejercicioOrden = ejercicioContext?.ejercicioOrden ?? null
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -111,7 +134,12 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
           return
         }
         setTarea(t)
-        if (state.last_code_snapshot) setCode(state.last_code_snapshot)
+        if (state.last_code_snapshot) {
+          setCode(state.last_code_snapshot)
+        } else {
+          const initialCode = resolveCodigoInicial(t, ejercicioOrden)
+          if (initialCode) setCode(initialCode)
+        }
         setMessages(
           state.messages.map((m) => ({
             role: m.role === "assistant" ? "tutor" : "user",
@@ -135,7 +163,7 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
     return () => {
       cancelled = true
     }
-  }, [episodeId, onExit])
+  }, [episodeId, onExit, ejercicioOrden])
 
   async function handleSend() {
     if (!input.trim() || streaming) return
@@ -172,6 +200,12 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
     try {
       await closeEpisode(episodeId, "student_finished")
     } catch (e) {
+      const msg = String(e)
+      if (msg.includes("404")) {
+        window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
+        onExit()
+        return
+      }
       setError(`Error cerrando: ${e}`)
       return
     }
@@ -206,8 +240,20 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
     return (
       <ClassificationPanel
         classification={classification}
-        onReset={() => {
+        isMultiExercise={ejercicioContext != null}
+        onReset={async () => {
           setClassification(null)
+          if (ejercicioContext) {
+            try {
+              await markEjercicioCompleted(
+                ejercicioContext.entregaId,
+                ejercicioContext.ejercicioOrden,
+                episodeId,
+              )
+            } catch {
+              // Best-effort: no bloquear la navegacion si falla.
+            }
+          }
           onExit()
         }}
       />
@@ -270,15 +316,25 @@ export function EpisodeView({ episodeId, onExit }: EpisodeViewProps) {
       </div>
 
       {error && (
-        <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-6 py-2 text-sm">
-          {error}
+        <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-6 py-2 text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => {
+              window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
+              onExit()
+            }}
+            className="ml-4 px-3 py-1 text-xs font-medium bg-red-700 text-white rounded hover:bg-red-800"
+          >
+            Salir
+          </button>
         </div>
       )}
 
       <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
         <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <SectionKicker level="N1" label="Enunciado" colorVar="var(--color-level-n1)" />
-          <EnunciadoPanel tarea={tarea} episodeId={episodeId} />
+          <EnunciadoPanel tarea={tarea} episodeId={episodeId} ejercicioOrden={ejercicioContext?.ejercicioOrden ?? null} />
           <SectionKicker level="N3" label="Editor + tests" colorVar="var(--color-level-n3)" />
           <CodeEditor
             initialCode={code}
@@ -508,12 +564,25 @@ function useReadingTimeReporter(episodeId: string | null, enabled: boolean, flus
 function EnunciadoPanel({
   tarea,
   episodeId,
+  ejercicioOrden,
 }: {
   tarea: AvailableTarea
   episodeId: string | null
+  ejercicioOrden: number | null
 }) {
   const [open, setOpen] = useState(true)
   const enunciadoRef = useReadingTimeReporter(episodeId, open && episodeId !== null)
+
+  let displayContent = tarea.enunciado
+  let headerLabel = `${tarea.codigo} (v${tarea.version})`
+
+  if (ejercicioOrden != null && tarea.ejercicios.length > 0) {
+    const ej = tarea.ejercicios.find((e) => e.orden === ejercicioOrden)
+    if (ej) {
+      displayContent = `## ${ej.titulo}\n\n${ej.enunciado_md}`
+      headerLabel = `${tarea.codigo} — Ejercicio ${ejercicioOrden} de ${tarea.ejercicios.length}`
+    }
+  }
 
   return (
     <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
@@ -522,9 +591,7 @@ function EnunciadoPanel({
         onClick={() => setOpen((v) => !v)}
         className="w-full px-4 py-1.5 flex items-center justify-between text-left text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
       >
-        <span>
-          {tarea.codigo} (v{tarea.version})
-        </span>
+        <span>{headerLabel}</span>
         <span>{open ? "Ocultar" : "Mostrar"}</span>
       </button>
       {open && (
@@ -532,7 +599,7 @@ function EnunciadoPanel({
           ref={enunciadoRef}
           className="px-4 py-3 max-h-48 overflow-y-auto text-sm text-slate-700 dark:text-slate-300"
         >
-          <MarkdownRenderer content={tarea.enunciado} />
+          <MarkdownRenderer content={displayContent} />
         </div>
       )}
     </div>
@@ -541,9 +608,11 @@ function EnunciadoPanel({
 
 function ClassificationPanel({
   classification,
+  isMultiExercise,
   onReset,
 }: {
   classification: Classification
+  isMultiExercise?: boolean
   onReset: () => void
 }) {
   const labels: Record<
@@ -619,7 +688,7 @@ function ClassificationPanel({
           onClick={onReset}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
         >
-          Volver a mis materias
+          {isMultiExercise ? "Siguiente ejercicio →" : "Volver a mis materias"}
         </button>
       </div>
     </div>

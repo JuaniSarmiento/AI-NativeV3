@@ -52,6 +52,7 @@ class FakeContentClient:
         top_k: int,
         tenant_id: UUID,
         caller_id: UUID,
+        materia_id: UUID | None = None,
     ) -> RetrievalResult:
         self.called_with.append(
             {

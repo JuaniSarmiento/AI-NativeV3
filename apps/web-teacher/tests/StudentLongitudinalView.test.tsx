@@ -8,7 +8,7 @@
  * - Render de "sin alertas" cuando el estudiante está OK
  */
 import { screen, waitFor } from "@testing-library/react"
-import { afterEach, describe, expect, test, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { StudentLongitudinalView } from "../src/views/StudentLongitudinalView"
 import { renderWithRouter, setupFetchMock } from "./_mocks"
 
@@ -93,6 +93,10 @@ function mockTwoFetches(evo: object, alerts: object) {
   })
 }
 
+beforeEach(() => {
+  localStorage.setItem("analytics-view-mode", "investigador")
+})
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -108,8 +112,8 @@ describe("StudentLongitudinalView", () => {
       />,
     )
     await waitFor(() => {
-      // Resumen denso: "6 episodios totales" (un solo bloque de texto en el strip)
-      expect(screen.getByText(/episodios totales/i)).toBeInTheDocument()
+      // Resumen denso: numero de episodios en el strip de stats (texto exacto del span)
+      expect(screen.getByText("episodios")).toBeInTheDocument()
       expect(screen.getByText("6")).toBeInTheDocument()
     })
   })
@@ -124,7 +128,7 @@ describe("StudentLongitudinalView", () => {
       />,
     )
     await waitFor(() => {
-      expect(screen.getByText(/1 alerta para este estudiante/i)).toBeInTheDocument()
+      expect(screen.getByText(/1 alerta/i)).toBeInTheDocument()
     })
     expect(screen.getByText(/Regresión severa vs\. cohorte/i)).toBeInTheDocument()
     expect(screen.getByText(/Q1 \(peor 25%\)/i)).toBeInTheDocument()

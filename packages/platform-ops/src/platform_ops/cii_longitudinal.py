@@ -121,6 +121,82 @@ def compute_evolution_per_template(
     return result
 
 
+def compute_evolution_per_unidad(
+    classifications: list[dict[str, Any]],
+    unidad_map: dict[Any, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Agrupa por `unidad_id` y calcula slope por grupo.
+
+    Paralelo a `compute_evolution_per_template` pero agrupando por Unidad
+    tematica en vez de template academico. Habilita trazabilidad longitudinal
+    para pilotos donde `template_id=NULL` (AD-4).
+
+    Args:
+        classifications: lista de dicts con al menos las claves:
+            - `problema_id`: UUID o str, apunta a la TareaPractica del episodio.
+            - `unidad_id`: UUID, str o None. None -> grupo "sin_unidad".
+            - `appropriation`: str.
+            - `classified_at`: datetime o str ISO-8601.
+        unidad_map: dict `unidad_id (str) -> {"nombre": str}`. Usado para
+            resolver el `unidad_nombre` de cada grupo. Si la clave no esta,
+            el nombre cae a str(unidad_id). Puede ser None o vacio.
+
+    Returns:
+        Lista de dicts, uno por unidad_id distinto (incluyendo "sin_unidad"
+        si hay TPs sin unidad). Cada dict tiene:
+            - `unidad_id`: str, el UUID/str de la Unidad o "sin_unidad".
+            - `unidad_nombre`: str, nombre legible de la Unidad.
+            - `n_episodes`: int.
+            - `scores_ordinal`: list[int].
+            - `slope`: float | None. None si N < MIN_EPISODES_FOR_LONGITUDINAL.
+            - `insufficient_data`: bool.
+
+    TPs con `unidad_id=None` se agrupan bajo el sentinel "sin_unidad"
+    (nunca se descartan — el caller puede elegir mostrarlas o no).
+    `compute_evolution_per_template` NO se modifica — sigue bit-exact.
+    """
+    _SENTINEL = "sin_unidad"
+    _SENTINEL_NOMBRE = "Sin unidad"
+    _umap: dict[str, dict[str, Any]] = unidad_map or {}
+
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for c in classifications:
+        raw_uid = c.get("unidad_id")
+        uid_key = _SENTINEL if raw_uid is None else str(raw_uid)
+        groups.setdefault(uid_key, []).append(c)
+
+    result: list[dict[str, Any]] = []
+    for uid_key, items in groups.items():
+        items_sorted = sorted(items, key=lambda c: _coerce_ts(c["classified_at"]))
+        scores = [
+            APPROPRIATION_ORDINAL[c["appropriation"]]
+            for c in items_sorted
+            if c.get("appropriation") in APPROPRIATION_ORDINAL
+        ]
+        n = len(scores)
+
+        if uid_key == _SENTINEL:
+            nombre = _SENTINEL_NOMBRE
+        else:
+            nombre = _umap.get(uid_key, {}).get("nombre") or uid_key
+
+        entry: dict[str, Any] = {
+            "unidad_id": uid_key,
+            "unidad_nombre": nombre,
+            "n_episodes": n,
+            "scores_ordinal": scores,
+        }
+        if n < MIN_EPISODES_FOR_LONGITUDINAL:
+            entry["slope"] = None
+            entry["insufficient_data"] = True
+        else:
+            entry["slope"] = _compute_slope_ordinal(scores)
+            entry["insufficient_data"] = False
+        result.append(entry)
+
+    return result
+
+
 def compute_mean_slope(per_template: list[dict[str, Any]]) -> float | None:
     """Promedio de slopes de templates con N >= MIN_EPISODES_FOR_LONGITUDINAL.
 
@@ -135,13 +211,24 @@ def compute_mean_slope(per_template: list[dict[str, Any]]) -> float | None:
 
 def compute_cii_evolution_longitudinal(
     classifications: list[dict[str, Any]],
+    unidad_map: dict[Any, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Helper de alto nivel: combina ambas funciones + metadata.
 
     Devuelve estructura completa lista para serializar al endpoint analytics
     o para persistir en `Classification.features['cii_evolution_longitudinal']`.
+
+    Args:
+        classifications: lista de dicts con template_id, unidad_id,
+            appropriation, classified_at.
+        unidad_map: dict `unidad_id (str) -> {"nombre": str}` para resolver
+            nombres de Unidad. Opcional — si None, los nombres caen a str(id).
+
+    El campo `evolution_per_template` es BC-invariante (no cambia).
+    El campo `evolution_per_unidad` es nuevo (default [] para BC).
     """
     per_template = compute_evolution_per_template(classifications)
+    per_unidad = compute_evolution_per_unidad(classifications, unidad_map)
     mean_slope = compute_mean_slope(per_template)
 
     n_groups_evaluated = sum(1 for entry in per_template if not entry.get("insufficient_data"))
@@ -153,6 +240,7 @@ def compute_cii_evolution_longitudinal(
         "n_groups_insufficient": n_groups_insufficient,
         "n_episodes_total": n_episodes_total,
         "evolution_per_template": per_template,
+        "evolution_per_unidad": per_unidad,
         "mean_slope": mean_slope,
         "sufficient_data": mean_slope is not None,
         "labeler_version": CII_LONGITUDINAL_VERSION,

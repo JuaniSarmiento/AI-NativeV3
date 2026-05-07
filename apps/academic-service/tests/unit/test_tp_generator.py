@@ -239,11 +239,13 @@ async def test_happy_path_devuelve_borrador_parseado() -> None:
     ):
         resp = await generate_tarea_practica(req=req, user=user, db=db)
 
-    assert resp.enunciado == "Sumar todos los numeros de una lista."
-    assert resp.inicial_codigo == "def sumar(xs):\n    pass"
-    assert resp.rubrica == {"correctness": 60, "style": 40}
-    assert len(resp.test_cases) == 1
-    assert resp.test_cases[0]["id"] == "t1"
+    assert len(resp.ejercicios) == 1
+    ej = resp.ejercicios[0]
+    assert ej.enunciado == "Sumar todos los numeros de una lista."
+    assert ej.inicial_codigo == "def sumar(xs):\n    pass"
+    assert ej.rubrica == {"correctness": 60, "style": 40}
+    assert len(ej.test_cases) == 1
+    assert ej.test_cases[0]["id"] == "t1"
     assert resp.provider_used == "anthropic"
     assert resp.tokens_input == 120
     assert resp.tokens_output == 400

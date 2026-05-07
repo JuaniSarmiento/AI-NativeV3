@@ -24,6 +24,7 @@ const mockResponse = {
 }
 
 beforeEach(() => {
+  localStorage.setItem("analytics-view-mode", "investigador")
   setupFetchMock({ "/n-level-distribution": () => mockResponse })
 })
 

@@ -22,6 +22,7 @@ class CompletionRequest:
     temperature: float = 0.7
     max_tokens: int = 1024
     stream: bool = False
+    response_format: dict[str, str] | None = None
 
 
 @dataclass
@@ -142,6 +143,75 @@ class AnthropicProvider(BaseProvider):
                 yield text
 
 
+class MistralProvider(BaseProvider):
+    """Provider de Mistral AI (mistral-small, mistral-medium, mistral-large, codestral)."""
+
+    name = "mistral"
+
+    PRICING = {
+        "mistral-small-latest": {"input": 0.1, "output": 0.3},
+        "mistral-medium-latest": {"input": 2.5, "output": 7.5},
+        "mistral-large-latest": {"input": 2.0, "output": 6.0},
+        "codestral-latest": {"input": 0.3, "output": 0.9},
+    }
+
+    def __init__(self, api_key: str | None = None) -> None:
+        self.api_key = api_key or os.environ.get("MISTRAL_API_KEY", "")
+        self._client: Any = None
+
+    def _ensure_client(self) -> Any:
+        if self._client is None:
+            from mistralai import Mistral
+
+            self._client = Mistral(api_key=self.api_key)
+        return self._client
+
+    async def complete(self, request: CompletionRequest) -> CompletionResponse:
+        client = self._ensure_client()
+
+        kwargs: dict[str, Any] = {
+            "model": request.model,
+            "messages": request.messages,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        if request.response_format:
+            kwargs["response_format"] = request.response_format
+
+        result = await client.chat.complete_async(**kwargs)
+
+        choice = result.choices[0]
+        content = choice.message.content or ""
+        input_tok = result.usage.prompt_tokens
+        output_tok = result.usage.completion_tokens
+        pricing = self.PRICING.get(request.model, {"input": 1.0, "output": 3.0})
+        cost = (input_tok * pricing["input"] + output_tok * pricing["output"]) / 1_000_000
+
+        return CompletionResponse(
+            content=content,
+            model=request.model,
+            provider="mistral",
+            input_tokens=input_tok,
+            output_tokens=output_tok,
+            cost_usd=cost,
+        )
+
+    async def stream_complete(self, request: CompletionRequest) -> AsyncIterator[str]:
+        client = self._ensure_client()
+
+        result = await client.chat.stream_async(
+            model=request.model,
+            messages=request.messages,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+        )
+
+        async for event in result:
+            chunk = event.data.choices[0].delta.content
+            if chunk:
+                yield chunk
+
+
 @lru_cache(maxsize=1)
 def get_provider(name: str = "") -> BaseProvider:
     """Factory de providers. name='mock' para tests.
@@ -171,6 +241,8 @@ def get_provider(name: str = "") -> BaseProvider:
         return MockProvider()
     if which == "anthropic":
         return AnthropicProvider()
+    if which == "mistral":
+        return MistralProvider()
     if from_runtime_config:
         import logging
 

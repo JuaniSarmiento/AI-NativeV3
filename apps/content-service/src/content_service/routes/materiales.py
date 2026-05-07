@@ -39,15 +39,19 @@ router = APIRouter(prefix="/api/v1/materiales", tags=["materiales"])
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_material(
-    comision_id: UUID = Form(...),
+    materia_id: UUID = Form(...),
     file: UploadFile = File(...),
+    comision_id: UUID | None = Form(default=None),
     user: User = Depends(require_role(*MATERIAL_UPLOAD_ROLES)),
     db: AsyncSession = Depends(get_db),
 ) -> MaterialOut:
-    """Sube un material a una comisión y lo ingesta en el RAG.
+    """Sube un material a una materia y lo ingesta en el RAG.
 
     La ingesta (extracción + chunking + embedding) es síncrona en F2 y
     puede tardar segundos. En F3 se mueve a job async con progress polling.
+
+    `materia_id` es el scope principal. `comision_id` es opcional (deprecated)
+    y se guarda solo para backwards-compat.
     """
     if not file.filename:
         raise HTTPException(
@@ -74,7 +78,9 @@ async def upload_material(
 
     # Crear registro en DB
     material_id = uuid4()
-    storage_key = make_storage_key(user.tenant_id, comision_id, material_id, file.filename)
+    # storage_key sigue usando comision_id en el path para no reescribir objetos existentes
+    storage_scope_id = comision_id or materia_id
+    storage_key = make_storage_key(user.tenant_id, storage_scope_id, material_id, file.filename)
 
     # Subir a storage
     storage = get_storage()
@@ -88,6 +94,7 @@ async def upload_material(
     material = Material(
         id=material_id,
         tenant_id=user.tenant_id,
+        materia_id=materia_id,
         comision_id=comision_id,
         tipo=fmt,
         nombre=file.filename,
@@ -103,21 +110,25 @@ async def upload_material(
     # Ingestar en el mismo request (F2) — flush intermedio en cada cambio de estado
     pipeline = IngestionPipeline(db)
     await pipeline.ingest(material, content, file.filename)
-    await db.refresh(material)
 
-    return MaterialOut.model_validate(material)
+    refreshed = await db.get(Material, material_id)
+    return MaterialOut.model_validate(refreshed or material)
 
 
 @router.get("", response_model=MaterialListOut)
 async def list_materiales(
+    materia_id: UUID | None = Query(default=None),
     comision_id: UUID | None = Query(default=None),
     limit: int = Query(50, ge=1, le=200),
     cursor: UUID | None = None,
     user: User = Depends(require_role(*MATERIAL_UPLOAD_ROLES)),
     db: AsyncSession = Depends(get_db),
 ) -> MaterialListOut:
+    """Lista materiales. Filtra por `materia_id` (preferido) o `comision_id` (deprecated)."""
     stmt = select(Material).where(Material.deleted_at.is_(None))
-    if comision_id:
+    if materia_id:
+        stmt = stmt.where(Material.materia_id == materia_id)
+    elif comision_id:
         stmt = stmt.where(Material.comision_id == comision_id)
     if cursor:
         stmt = stmt.where(Material.id > cursor)

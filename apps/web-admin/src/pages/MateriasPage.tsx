@@ -320,8 +320,17 @@ export function MateriasPage(): ReactNode {
               Seleccioná un plan para ver sus materias.
             </div>
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No hay materias en este plan.
+            <div className="p-8 text-center space-y-3">
+              <p className="text-slate-500 text-sm">No hay materias en este plan todavia.</p>
+              {planId && (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+                >
+                  Crear primera materia
+                </button>
+              )}
             </div>
           ) : (
             <table className="w-full text-sm">

@@ -37,6 +37,7 @@ from platform_ops.cii_longitudinal import (
     MIN_EPISODES_FOR_LONGITUDINAL,
     compute_cii_evolution_longitudinal,
     compute_evolution_per_template,
+    compute_evolution_per_unidad,
     compute_mean_slope,
 )
 from platform_ops.export_worker import (
@@ -156,6 +157,7 @@ __all__ = [
     "compute_cohort_quartiles_payload",
     "compute_cohort_slopes_stats",
     "compute_evolution_per_template",
+    "compute_evolution_per_unidad",
     "compute_mean_slope",
     "compute_student_alerts",
     "export_student_data",

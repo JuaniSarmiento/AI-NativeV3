@@ -83,10 +83,15 @@ class TareaPracticaService:
                 "fecha_fin": data.fecha_fin,
                 "peso": data.peso,
                 "rubrica": data.rubrica,
+                "ejercicios": [
+                    e.model_dump(mode="json") for e in (data.ejercicios or [])
+                ],
                 "estado": "draft",
                 "version": 1,
                 "parent_tarea_id": None,
                 "created_by": user.id,
+                # ADR-041: propagate unidad_id at creation
+                "unidad_id": getattr(data, "unidad_id", None),
             }
         )
 
@@ -117,6 +122,15 @@ class TareaPracticaService:
                 detail=f"Tarea en estado '{obj.estado}' es inmutable; cree una nueva versión",
             )
 
+        # ADR-041: `unidad_id=null` significa "quitar TP de la Unidad".
+        # `exclude_none=True` lo eliminaría, así que capturamos antes.
+        unidad_id_explicitly_set = "unidad_id" in data.model_fields_set
+        unidad_id_value = data.unidad_id  # puede ser None (quitar) o UUID (asignar)
+
+        changes = data.model_dump(exclude_unset=True, exclude_none=True)
+        # Quitar unidad_id de changes para aplicarlo por separado (acepta None)
+        changes.pop("unidad_id", None)
+
         # Drift detection (ADR-016): si la instancia viene del template y todavía
         # no está drifteada, ver si alguno de los campos canónicos del patch
         # cambia de valor respecto al obj actual. Si sí, marcar drift.
@@ -134,6 +148,10 @@ class TareaPracticaService:
 
         for k, v in changes.items():
             setattr(obj, k, v)
+
+        # Aplicar unidad_id por separado para que null sea válido (quitar asignación)
+        if unidad_id_explicitly_set:
+            obj.unidad_id = unidad_id_value
 
         audit_changes: dict[str, Any] = {"after": data.model_dump(exclude_unset=True, mode="json")}
         if drift_triggered:
@@ -243,6 +261,16 @@ class TareaPracticaService:
         # No "lavamos" drift creando una versión: si la v-N estaba drifteada,
         # la v-N+1 también lo está. Si el docente quiere "volver al template",
         # usa el endpoint dedicado de resync (scope futuro).
+        # ejercicios: si el patch no los sobreescribe, heredar del parent
+        raw_ejercicios_override = overrides.get("ejercicios")
+        if raw_ejercicios_override is not None:
+            new_ejercicios = [
+                e.model_dump(mode="json") if hasattr(e, "model_dump") else e
+                for e in raw_ejercicios_override
+            ]
+        else:
+            new_ejercicios = list(parent.ejercicios or [])
+
         new_tarea = await self.repo.create(
             {
                 "id": new_id,
@@ -256,12 +284,17 @@ class TareaPracticaService:
                 "fecha_fin": overrides.get("fecha_fin", parent.fecha_fin),
                 "peso": overrides.get("peso", parent.peso),
                 "rubrica": overrides.get("rubrica", parent.rubrica),
+                "ejercicios": new_ejercicios,
                 "estado": "draft",
                 "version": parent.version + 1,
                 "parent_tarea_id": parent.id,
                 "template_id": parent.template_id,
                 "has_drift": parent.has_drift,
                 "created_by": user.id,
+                # ADR-041: la nueva versión hereda la asignación de Unidad del
+                # parent. Si el patch sobreescribe unidad_id explícitamente,
+                # se aplica en el update() posterior; aquí heredamos el parent.
+                "unidad_id": parent.unidad_id,
             }
         )
 

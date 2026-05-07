@@ -108,6 +108,7 @@ def test_response_shape_es_estable(client: TestClient) -> None:
         "n_groups_insufficient",
         "n_episodes_total",
         "evolution_per_template",
+        "evolution_per_unidad",  # AD-4, AD-6 — nuevo campo, default []
         "mean_slope",
         "sufficient_data",
         "labeler_version",

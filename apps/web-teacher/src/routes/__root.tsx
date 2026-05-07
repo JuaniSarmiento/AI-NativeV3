@@ -19,6 +19,7 @@ import {
 } from "@tanstack/react-router"
 import {
   BarChart3,
+  CheckSquare,
   ClipboardList,
   Download,
   FileBarChart,
@@ -26,13 +27,13 @@ import {
   FolderOpen,
   Group,
   Home,
-  PenLine,
   Layers,
   ShieldAlert,
   TrendingUp,
 } from "lucide-react"
 import { useCallback } from "react"
 import { ComisionSelectorRouted } from "../components/ComisionSelectorRouted"
+import { ViewModeToggle } from "../components/ViewModeToggle"
 
 export interface RouterContext {
   /** Función de auth, placeholder hasta integración Keycloak (F8). */
@@ -50,8 +51,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "/templates", label: "Plantillas", icon: FileCode2 },
       { id: "/unidades", label: "Unidades", icon: Group },
       { id: "/tareas-practicas", label: "Trabajos Prácticos", icon: ClipboardList },
-      { id: "/correcciones", label: "Correcciones", icon: PenLine },
       { id: "/materiales", label: "Materiales", icon: FolderOpen },
+      { id: "/correcciones", label: "Correcciones", icon: CheckSquare },
     ],
   },
   {
@@ -103,11 +104,10 @@ function RootLayout() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
-      {/* Header global slim. Identidad UNSL siempre visible (F11 brief). */}
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#111111]">
       <header
         data-testid="teacher-global-header"
-        className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 h-12 flex items-center justify-between gap-4 shrink-0"
+        className="border-b border-[#EAEAEA] bg-white px-6 h-12 flex items-center justify-between gap-4 shrink-0"
       >
         <div className="flex items-center gap-3 min-w-0">
           <span
@@ -115,16 +115,17 @@ function RootLayout() {
             className="inline-block w-1.5 h-4 rounded-sm"
             style={{ backgroundColor: "var(--color-accent-brand)" }}
           />
-          <h1 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Plataforma N4 <span className="text-slate-400 mx-1">·</span> UNSL
+          <h1 className="text-sm font-semibold tracking-tight text-[#111111]">
+            Plataforma N4 <span className="text-[#787774] mx-1">·</span> UNSL
           </h1>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <ViewModeToggle />
+          <span className="w-px h-5 bg-[#EAEAEA]" aria-hidden="true" />
           <ComisionSelectorRouted />
         </div>
       </header>
 
-      {/* Cuerpo principal con sidebar persistente y outlet scrollable. */}
       <div className="flex-1 flex min-h-0">
         <Sidebar
           navGroups={NAV_GROUPS}
@@ -134,12 +135,11 @@ function RootLayout() {
           activeItemId={window.location.pathname}
           onNavigate={handleNavigate}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#FAFAFA]">
           <Outlet />
         </main>
       </div>
 
-      {/* Footer auditoria compartido (web-student replica). */}
       <AuditFooter episodeId={null} classifierHash={null} />
     </div>
   )
@@ -150,10 +150,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: () => (
     <div className="flex-1 flex items-center justify-center p-8 min-h-screen">
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">
+        <h1 className="text-2xl font-semibold text-[#111111]">
           Vista no encontrada
         </h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-2 text-sm text-[#787774]">
           La URL que intentaste abrir no corresponde a ninguna vista del web-teacher.
         </p>
       </div>

@@ -22,6 +22,7 @@ from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 
+from tutor_service.config import settings
 from tutor_service.metrics import (
     tutor_active_sessions_count,
     tutor_response_duration_seconds,
@@ -102,6 +103,7 @@ class TutorCore:
         curso_config_hash: str,
         classifier_config_hash: str,
         model: str | None = None,
+        ejercicio_orden: int | None = None,
     ) -> UUID:
         """Crea un nuevo episodio y emite EpisodioAbierto al CTR.
 
@@ -118,6 +120,17 @@ class TutorCore:
                 tarea_id=problema_id,
                 tenant_id=tenant_id,
                 comision_id=comision_id,
+            )
+
+        # 0b. tp-entregas-correccion (Task 6.3): validar secuencialidad de ejercicios.
+        # Si se pide abrir ejercicio N>1, validar que el ejercicio N-1 esté completado.
+        # Falla soft: si el evaluation-service no responde, se permite abrir el episodio.
+        if ejercicio_orden is not None and ejercicio_orden > 1:
+            await self._validate_ejercicio_secuencialidad(
+                problema_id=problema_id,
+                student_pseudonym=student_pseudonym,
+                ejercicio_orden=ejercicio_orden,
+                tenant_id=tenant_id,
             )
 
         episode_id = uuid4()
@@ -150,6 +163,79 @@ class TutorCore:
                     exc_info=True,
                 )
 
+        # tutor-context-rag-rubrica: resolver rubrica de la TP (o del ejercicio
+        # especifico) y cachearla en SessionState. Best-effort: si falla, el
+        # episodio se abre sin contexto de rubrica (no bloquea).
+        rubrica_context: str | None = None
+        if self.academic is not None:
+            try:
+                tp_full = await self.academic.get_tarea_practica_full(
+                    tarea_id=problema_id,
+                    tenant_id=tenant_id,
+                    caller_id=TUTOR_SERVICE_USER_ID,
+                )
+                if tp_full is not None:
+                    if ejercicio_orden is not None:
+                        # Buscar la rubrica del ejercicio especifico dentro del array
+                        ejercicios_raw = tp_full.get("ejercicios") or []
+                        ejercicio_data: dict | None = None
+                        for ej in ejercicios_raw:
+                            if isinstance(ej, dict) and ej.get("orden") == ejercicio_orden:
+                                ejercicio_data = ej
+                                break
+                        if ejercicio_data is not None:
+                            rubrica_raw = ejercicio_data.get("rubrica") or tp_full.get("rubrica")
+                            ejercicio_titulo = ejercicio_data.get("titulo")
+                        else:
+                            rubrica_raw = tp_full.get("rubrica")
+                            ejercicio_titulo = None
+                    else:
+                        rubrica_raw = tp_full.get("rubrica")
+                        ejercicio_titulo = None
+                    formatted = self._format_rubric_context(rubrica_raw, ejercicio_titulo)
+                    rubrica_context = formatted if formatted else None
+            except Exception:
+                logger.warning(
+                    "get_tarea_practica_full failed for rubrica resolution tarea=%s; "
+                    "continuing without rubrica context",
+                    problema_id,
+                    exc_info=True,
+                )
+
+        # tp-entregas-correccion (D3/Task 6.2): si ejercicio_orden está seteado,
+        # resolver el enunciado/codigo_inicial/test_cases del ejercicio especifico
+        # para inyectarlos en el system message (contexto del tutor).
+        system_messages = [{"role": "system", "content": prompt.content}]
+        if ejercicio_orden is not None and self.academic is not None:
+            try:
+                ejercicio = await self.academic.get_ejercicio(
+                    tarea_id=problema_id,
+                    ejercicio_orden=ejercicio_orden,
+                    tenant_id=tenant_id,
+                    caller_id=TUTOR_SERVICE_USER_ID,
+                )
+                if ejercicio is not None:
+                    ej_context = (
+                        f"\n\n[Ejercicio {ejercicio.get('orden')} de la TP]\n"
+                        f"**{ejercicio.get('titulo', '')}**\n\n"
+                        f"{ejercicio.get('enunciado_md', '')}"
+                    )
+                    if ejercicio.get("inicial_codigo"):
+                        ej_context += (
+                            f"\n\nCodigo inicial:\n```python\n"
+                            f"{ejercicio['inicial_codigo']}\n```"
+                        )
+                    system_messages = [
+                        {"role": "system", "content": prompt.content + ej_context}
+                    ]
+            except Exception:
+                logger.warning(
+                    "get_ejercicio failed for tarea=%s orden=%d; using monolithic context",
+                    problema_id,
+                    ejercicio_orden,
+                    exc_info=True,
+                )
+
         # 3. Crear session state en Redis
         state = SessionState(
             episode_id=episode_id,
@@ -157,13 +243,15 @@ class TutorCore:
             comision_id=comision_id,
             student_pseudonym=student_pseudonym,
             seq=0,
-            messages=[{"role": "system", "content": prompt.content}],
+            messages=system_messages,
             prompt_system_hash=prompt.hash,
             prompt_system_version=prompt.version,
             classifier_config_hash=classifier_config_hash,
             curso_config_hash=curso_config_hash,
             model=model or self.default_model,
             materia_id=materia_id,
+            ejercicio_orden=ejercicio_orden,
+            rubrica_context=rubrica_context,
         )
         await self.sessions.set(state)
 
@@ -177,16 +265,21 @@ class TutorCore:
             )
 
         # 3. Emitir EpisodioAbierto (seq=0)
+        episodio_abierto_payload: dict = {
+            "student_pseudonym": str(student_pseudonym),
+            "problema_id": str(problema_id),
+            "comision_id": str(comision_id),
+            "curso_config_hash": curso_config_hash,
+            "model": state.model,
+        }
+        # tp-entregas-correccion: vincular episodio con ejercicio especifico (D3)
+        if ejercicio_orden is not None:
+            episodio_abierto_payload["ejercicio_orden"] = ejercicio_orden
+
         event = self._build_event(
             state=state,
             event_type="episodio_abierto",
-            payload={
-                "student_pseudonym": str(student_pseudonym),
-                "problema_id": str(problema_id),
-                "comision_id": str(comision_id),
-                "curso_config_hash": curso_config_hash,
-                "model": state.model,
-            },
+            payload=episodio_abierto_payload,
         )
         await self.sessions.next_seq(state)
         await self.ctr.publish_event(event, tenant_id, TUTOR_SERVICE_USER_ID)
@@ -213,13 +306,14 @@ class TutorCore:
         if state is None:
             raise ValueError(f"Episode {episode_id} no existe o expiró")
 
-        # 1. Retrieval con comision_id mandatorio (defensa en profundidad)
+        # 1. Retrieval con materia_id preferido (defensa en profundidad)
         retrieval = await self.content.retrieve(
             query=user_message,
-            comision_id=state.comision_id,
             top_k=5,
             tenant_id=state.tenant_id,
             caller_id=TUTOR_SERVICE_USER_ID,
+            materia_id=getattr(state, "materia_id", None),
+            comision_id=state.comision_id,
         )
 
         # 2. Armar contexto RAG para el LLM
@@ -283,6 +377,22 @@ class TutorCore:
                 {
                     "role": "system",
                     "content": f"Material de cátedra relevante:\n{rag_context}",
+                }
+            )
+
+        # 4.ter (tutor-context-rag-rubrica): inyectar rubrica de evaluacion como
+        # contexto separado del RAG. El tutor usa esta informacion para orientar
+        # sus preguntas socraticas hacia los criterios, sin revelarlos al alumno.
+        if state.rubrica_context:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Rubrica de evaluacion del ejercicio actual "
+                        "(guia para orientar tus preguntas, sin revelar los "
+                        "criterios ni puntajes al alumno):\n"
+                        + state.rubrica_context
+                    ),
                 }
             )
 
@@ -875,6 +985,79 @@ class TutorCore:
                 )
             )
 
+    async def _validate_ejercicio_secuencialidad(
+        self,
+        problema_id: UUID,
+        student_pseudonym: UUID,
+        ejercicio_orden: int,
+        tenant_id: UUID,
+    ) -> None:
+        """Valida que el ejercicio anterior esté completado antes de abrir el siguiente.
+
+        tp-entregas-correccion (Task 6.3): consulta el evaluation-service para
+        verificar que `ejercicio_orden - 1` está completado en la entrega del alumno.
+
+        Falla soft: si el evaluation-service no responde, se permite abrir el episodio
+        (mejor UX que bloquear por indisponibilidad del servicio).
+        """
+        evaluation_url = getattr(settings, "evaluation_service_url", None)
+        if not evaluation_url:
+            return  # No configurado, skip
+
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                headers = {
+                    "X-User-Id": str(student_pseudonym),
+                    "X-Tenant-Id": str(tenant_id),
+                    "X-User-Email": "student@platform.internal",
+                    "X-User-Roles": "estudiante",
+                }
+                resp = await client.get(
+                    f"{evaluation_url}/api/v1/entregas",
+                    headers=headers,
+                    params={"tarea_practica_id": str(problema_id)},
+                )
+                if resp.status_code != 200:
+                    return  # Falla soft
+
+                entregas = resp.json()
+                if not entregas:
+                    # Sin entrega = primer ejercicio del alumno, bloquear si orden > 1
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"Debes completar el ejercicio {ejercicio_orden - 1} "
+                            f"antes de abrir el ejercicio {ejercicio_orden}"
+                        ),
+                    )
+
+                entrega = entregas[0]
+                estados = entrega.get("ejercicio_estados", [])
+                prev_orden = ejercicio_orden - 1
+                prev_completado = any(
+                    e.get("orden") == prev_orden and e.get("completado")
+                    for e in estados
+                )
+                if not prev_completado:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"Debes completar el ejercicio {prev_orden} "
+                            f"antes de abrir el ejercicio {ejercicio_orden}"
+                        ),
+                    )
+        except HTTPException:
+            raise  # Re-raise 422 validation errors
+        except Exception:
+            # Falla soft para todos los demás errores
+            logger.warning(
+                "evaluation_service check failed for ejercicio_orden=%d; allowing episode open",
+                ejercicio_orden,
+                exc_info=True,
+            )
+
     # ── Helpers ─────────────────────────────────────────────────────────
 
     def _build_event(
@@ -912,3 +1095,61 @@ class TutorCore:
         for i, c in enumerate(chunks, 1):
             blocks.append(f"[Fuente {i}: {c.material_nombre}]\n{c.contenido}")
         return "\n\n".join(blocks)
+
+    def _format_rubric_context(
+        self,
+        rubrica: dict | list | None,
+        ejercicio_titulo: str | None = None,
+    ) -> str:
+        """Formatea la rubrica de evaluacion como contexto legible para el LLM.
+
+        Intencionalmente NO incluye puntajes exactos ni pesos — el tutor debe
+        guiar al estudiante hacia los criterios sin revelar como se puntua.
+        La rubrica se usa para orientar las preguntas socraticas, no para
+        anticipar la calificacion.
+
+        Args:
+            rubrica: JSONB de la rubrica. Puede ser:
+              - lista de criterios: [{nombre, descripcion, ...}, ...]
+              - dict con clave "criterios": {criterios: [...], ...}
+              - cualquier otro formato dict: se describe genericamente
+            ejercicio_titulo: si aplica, el titulo del ejercicio para contextualizar.
+
+        Returns:
+            String formateado listo para inyectar en el system message, o
+            string vacio si rubrica es None/vacia.
+        """
+        if not rubrica:
+            return ""
+
+        titulo_label = f' del ejercicio "{ejercicio_titulo}"' if ejercicio_titulo else ""
+        lines: list[str] = [f"Criterios de evaluacion{titulo_label}:"]
+
+        criterios: list[dict] = []
+        if isinstance(rubrica, list):
+            criterios = rubrica
+        elif isinstance(rubrica, dict):
+            if "criterios" in rubrica:
+                raw = rubrica["criterios"]
+                if isinstance(raw, list):
+                    criterios = raw
+            else:
+                # Dict plano sin estructura conocida — describir generico
+                for key, val in rubrica.items():
+                    if not isinstance(val, (dict, list)):
+                        lines.append(f"- {key}: {val}")
+                return "\n".join(lines) if len(lines) > 1 else ""
+
+        for criterio in criterios:
+            if not isinstance(criterio, dict):
+                continue
+            nombre = criterio.get("nombre") or criterio.get("name") or criterio.get("titulo")
+            descripcion = criterio.get("descripcion") or criterio.get("description") or ""
+            if nombre:
+                entry = f"- {nombre}"
+                if descripcion:
+                    entry += f": {descripcion}"
+                lines.append(entry)
+
+        # Si no se pudo extraer ningun criterio con nombre, no emitir nada
+        return "\n".join(lines) if len(lines) > 1 else ""

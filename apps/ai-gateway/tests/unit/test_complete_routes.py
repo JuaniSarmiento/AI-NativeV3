@@ -51,10 +51,19 @@ def _redis_isolation(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _mock_provider(monkeypatch):
-    """Fuerza LLM_PROVIDER=mock y limpia el lru_cache del factory para que
-    no devuelva un provider Anthropic stale entre tests."""
+    """Fuerza LLM_PROVIDER=mock y limpia keys del env para que el resolver BYOK
+    no haga fallback a un provider real (el .env del usuario puede tener
+    ANTHROPIC_API_KEY/MISTRAL_API_KEY validas que tirarian autenticacion real
+    contra el provider en tests)."""
     monkeypatch.setenv("LLM_PROVIDER", "mock")
+    from ai_gateway.config import settings as ai_settings
     from ai_gateway.providers.base import get_provider
+
+    monkeypatch.setattr(ai_settings, "anthropic_api_key", "")
+    monkeypatch.setattr(ai_settings, "openai_api_key", "")
+    monkeypatch.setattr(ai_settings, "gemini_api_key", "")
+    monkeypatch.setattr(ai_settings, "mistral_api_key", "")
+    monkeypatch.setattr(ai_settings, "byok_enabled", False)
 
     get_provider.cache_clear()
     yield

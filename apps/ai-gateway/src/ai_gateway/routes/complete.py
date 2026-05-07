@@ -28,7 +28,14 @@ from ai_gateway.metrics import (
     ai_gateway_requests_total,
     ai_gateway_tokens_total,
 )
-from ai_gateway.providers.base import CompletionRequest, get_provider
+from ai_gateway.providers.base import (
+    AnthropicProvider,
+    BaseProvider,
+    CompletionRequest,
+    MistralProvider,
+    get_provider,
+)
+from ai_gateway.services.byok import resolve_byok_key
 from ai_gateway.services.budget_and_cache import BudgetTracker, ResponseCache
 
 logger = logging.getLogger(__name__)
@@ -67,6 +74,7 @@ class CompleteRequest(BaseModel):
     # callers viejos siguen funcionando, solo no se benefician del scope
     # materia para BYOK.
     materia_id: UUID | None = Field(default=None)
+    response_format: dict[str, str] | None = Field(default=None)
 
 
 class CompleteResponse(BaseModel):
@@ -110,6 +118,33 @@ async def get_caller(
     return ServiceCaller(tenant_id=UUID(x_tenant_id), caller=x_caller)
 
 
+# ── BYOK → Provider helpers ──────────────────────────────────────────
+
+_MODEL_TO_PROVIDER: dict[str, str] = {
+    "claude": "anthropic",
+    "mistral": "mistral",
+    "codestral": "mistral",
+    "gpt": "openai",
+    "gemini": "google",
+}
+
+
+def _infer_provider_name(model: str) -> str:
+    model_lower = model.lower()
+    for prefix, prov in _MODEL_TO_PROVIDER.items():
+        if prefix in model_lower:
+            return prov
+    return "anthropic"
+
+
+def _make_provider(provider_name: str, api_key: str) -> "BaseProvider":
+    if provider_name == "anthropic":
+        return AnthropicProvider(api_key=api_key)
+    if provider_name == "mistral":
+        return MistralProvider(api_key=api_key)
+    return AnthropicProvider(api_key=api_key)
+
+
 # ── Endpoints ────────────────────────────────────────────────────────
 
 
@@ -146,6 +181,7 @@ async def complete(
         model=req.model,
         temperature=req.temperature,
         max_tokens=req.max_tokens,
+        response_format=req.response_format,
     )
 
     # 3. Cache check
@@ -175,14 +211,28 @@ async def complete(
             },
         )
 
-    # 4. Invocar al provider
-    provider = get_provider()
+    # 4. Resolver provider: BYOK/env key → provider dinámico, fallback → get_provider()
+    resolved = await resolve_byok_key(
+        tenant_id=caller.tenant_id,
+        provider=_infer_provider_name(req.model),
+        materia_id=req.materia_id,
+    )
+    if resolved and resolved.plaintext:
+        provider = _make_provider(resolved.provider, resolved.plaintext)
+        logger.info(
+            "byok_resolved tenant=%s scope=%s provider=%s key_id=%s",
+            caller.tenant_id,
+            resolved.scope_resolved,
+            resolved.provider,
+            resolved.key_id,
+        )
+    else:
+        provider = get_provider()
+
     _provider_start = time.perf_counter()
     try:
         response = await provider.complete(internal_req)
     except Exception as e:
-        # Métrica: fallback al provider secundario (cuando esté implementado).
-        # Por ahora cualquier excepción del primario cuenta como fallback.
         ai_gateway_fallback_total.add(1, {"reason": "provider_error"})
         logger.exception("provider_error")
         raise HTTPException(
@@ -263,7 +313,22 @@ async def stream_complete(
         stream=True,
     )
 
-    provider = get_provider()
+    resolved = await resolve_byok_key(
+        tenant_id=caller.tenant_id,
+        provider=_infer_provider_name(req.model),
+        materia_id=req.materia_id,
+    )
+    if resolved and resolved.plaintext:
+        provider = _make_provider(resolved.provider, resolved.plaintext)
+        logger.info(
+            "byok_stream_resolved tenant=%s scope=%s provider=%s key_id=%s",
+            caller.tenant_id,
+            resolved.scope_resolved,
+            resolved.provider,
+            resolved.key_id,
+        )
+    else:
+        provider = get_provider()
 
     async def event_stream():
         total_chars = 0

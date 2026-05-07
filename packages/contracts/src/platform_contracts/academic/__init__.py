@@ -7,10 +7,13 @@ from platform_contracts.academic.events import (
     MaterialIngerido,
     UniversidadCreada,
 )
+from platform_contracts.academic.schemas import EjercicioSchema, EjerciciosValidator
 
 __all__ = [
     "CarreraCreada",
     "ComisionCreada",
+    "EjercicioSchema",
+    "EjerciciosValidator",
     "EstudianteInscripto",
     "MaterialIngerido",
     "UniversidadCreada",

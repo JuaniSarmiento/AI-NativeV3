@@ -31,7 +31,7 @@ EMBEDDING_DIM = 1024
 
 
 class Material(Base, TenantMixin, TimestampMixin):
-    """Archivo subido por un docente a una comisión específica."""
+    """Archivo subido por un docente a una materia."""
 
     __tablename__ = "materiales"
 

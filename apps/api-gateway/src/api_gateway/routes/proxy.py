@@ -56,6 +56,9 @@ ROUTE_MAP: dict[str, str] = {
     # ai-gateway enforced via X-User-Roles del header inyectado por este
     # proxy. ROUTE_MAP cubre /keys + /keys/{id}/{revoke,usage}.
     "/api/v1/byok": settings.ai_gateway_url,
+    # tp-entregas-correccion: entregas + calificaciones via evaluation-service (puerto 8004)
+    "/api/v1/entregas": settings.evaluation_service_url,
+    "/api/v1/calificaciones": settings.evaluation_service_url,
 }
 
 
@@ -88,7 +91,7 @@ async def proxy(full_path: str, request: Request) -> StreamingResponse:
 
     body = await request.body()
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         upstream = await client.request(
             request.method,
             url,

@@ -1,23 +1,17 @@
-/**
- * Vista de etiquetado humano — el docente revisa episodios clasificados
- * por el modelo y marca su propio juicio. Al final calcula Kappa inter-rater
- * contra las predicciones del clasificador.
- *
- * Flow:
- *  1. Docente selecciona cohorte
- *  2. Carga N episodios con su clasificación del modelo
- *  3. Por cada episodio, elige su propia etiqueta (3 botones)
- *  4. Al terminar, dispara compute_kappa con (rater_a=modelo, rater_b=humano)
- *  5. Muestra κ + interpretación + matriz de confusión
- */
 import { PageContainer } from "@platform/ui"
 import { useState } from "react"
+import { useViewMode } from "../hooks/useViewMode"
 import {
   type AppropriationLabel,
   type KappaRating,
   type KappaResult,
   computeKappa,
 } from "../lib/api"
+import {
+  APPROPRIATION_DOCENTE,
+  APPROPRIATION_INVESTIGADOR,
+  kappaToDocente,
+} from "../utils/docenteLabels"
 import { helpContent } from "../utils/helpContent"
 
 const CATEGORIES: AppropriationLabel[] = [
@@ -25,12 +19,6 @@ const CATEGORIES: AppropriationLabel[] = [
   "apropiacion_superficial",
   "apropiacion_reflexiva",
 ]
-
-const CATEGORY_LABELS: Record<AppropriationLabel, string> = {
-  delegacion_pasiva: "Delegación pasiva",
-  apropiacion_superficial: "Apropiación superficial",
-  apropiacion_reflexiva: "Apropiación reflexiva",
-}
 
 const CATEGORY_COLORS: Record<AppropriationLabel, string> = {
   delegacion_pasiva: "bg-red-500 hover:bg-red-600",
@@ -40,14 +28,12 @@ const CATEGORY_COLORS: Record<AppropriationLabel, string> = {
 
 interface EpisodeToRate {
   episode_id: string
-  classifier_label: AppropriationLabel // predicción del modelo
-  summary: string // resumen del episodio (primeras 200 chars de prompts)
+  classifier_label: AppropriationLabel
+  summary: string
 }
 
 interface Props {
   getToken: () => Promise<string | null>
-  // En producción estos episodes vienen de un endpoint de la cohorte;
-  // acá los recibimos como prop para mantener el componente testeable.
   episodes: EpisodeToRate[]
 }
 
@@ -56,9 +42,13 @@ export function KappaRatingView({ getToken, episodes }: Props) {
   const [result, setResult] = useState<KappaResult | null>(null)
   const [computing, setComputing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode] = useViewMode()
+  const isDocente = viewMode === "docente"
 
   const allLabeled = episodes.every((e) => humanLabels[e.episode_id])
   const labeledCount = Object.keys(humanLabels).length
+
+  const categoryLabels = isDocente ? APPROPRIATION_DOCENTE : APPROPRIATION_INVESTIGADOR
 
   const handleLabel = (episodeId: string, label: AppropriationLabel) => {
     setHumanLabels((prev) => ({ ...prev, [episodeId]: label }))
@@ -70,10 +60,6 @@ export function KappaRatingView({ getToken, episodes }: Props) {
     try {
       const ratings: KappaRating[] = episodes.map((e) => {
         const raterB = humanLabels[e.episode_id]
-        // Invariante: el botón "Calcular Kappa" sólo se habilita cuando
-        // `allLabeled === true`. Si esto falla, hay un bug de UI (race entre
-        // re-render y click) — preferimos fallar explícito antes que mandar
-        // datos incompletos al backend.
         if (!raterB) {
           throw new Error(`Episodio ${e.episode_id} sin etiqueta humana`)
         }
@@ -100,24 +86,42 @@ export function KappaRatingView({ getToken, episodes }: Props) {
 
   return (
     <PageContainer
-      title="Inter-rater agreement (Kappa)"
-      description="Compara tu juicio con el del clasificador automatico N4. Target de la tesis: kappa >= 0.6."
+      title={
+        isDocente ? "Validacion de tu criterio de evaluacion" : "Inter-rater agreement (Kappa)"
+      }
+      description={
+        isDocente
+          ? "Compará tu evaluacion con la del sistema automatico. Cuanto mas coincidan, mas confiable es la evaluacion."
+          : "Compara tu juicio con el del clasificador automatico N4. Target de la tesis: kappa >= 0.6."
+      }
       helpContent={helpContent.kappaRating}
     >
       <div className="space-y-6 max-w-5xl">
         {!result && (
           <>
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            {isDocente && (
+              <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4 text-sm text-[#787774]">
+                <p className="text-[#111111] font-medium mb-1">Como funciona</p>
+                <p>
+                  Para cada trabajo, el sistema ya tiene su evaluacion automatica. Vos tenes que
+                  marcar como evaluarias cada uno. Al terminar, comparamos ambas evaluaciones para
+                  ver que tan alineados estan.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
               <div className="text-sm">
                 <span className="font-medium">{labeledCount}</span> de{" "}
-                <span className="font-medium">{episodes.length}</span> episodios etiquetados
+                <span className="font-medium">{episodes.length}</span>{" "}
+                {isDocente ? "trabajos evaluados" : "episodios etiquetados"}
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleReset}
                   disabled={labeledCount === 0}
-                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
+                  className="px-3 py-1.5 text-sm border border-[#EAEAEA] rounded hover:bg-[#FAFAFA] disabled:opacity-40"
                 >
                   Reiniciar
                 </button>
@@ -125,9 +129,13 @@ export function KappaRatingView({ getToken, episodes }: Props) {
                   type="button"
                   onClick={handleCompute}
                   disabled={!allLabeled || computing}
-                  className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
+                  className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333] disabled:bg-[#EAEAEA] disabled:text-[#787774] text-white rounded font-medium"
                 >
-                  {computing ? "Calculando..." : "Calcular Kappa"}
+                  {computing
+                    ? "Calculando..."
+                    : isDocente
+                      ? "Comparar evaluaciones"
+                      : "Calcular Kappa"}
                 </button>
               </div>
             </div>
@@ -141,6 +149,8 @@ export function KappaRatingView({ getToken, episodes }: Props) {
                     episode={ep}
                     {...(currentLabel ? { currentLabel } : {})}
                     onLabel={(l) => handleLabel(ep.episode_id, l)}
+                    categoryLabels={categoryLabels}
+                    isDocente={isDocente}
                   />
                 )
               })}
@@ -150,7 +160,12 @@ export function KappaRatingView({ getToken, episodes }: Props) {
 
         {error && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{error}</div>}
 
-        {result && <KappaResultPanel result={result} onReset={handleReset} />}
+        {result &&
+          (isDocente ? (
+            <DocenteResultPanel result={result} onReset={handleReset} />
+          ) : (
+            <InvestigadorResultPanel result={result} onReset={handleReset} />
+          ))}
       </div>
     </PageContainer>
   )
@@ -160,21 +175,31 @@ function EpisodeRatingCard({
   episode,
   currentLabel,
   onLabel,
+  categoryLabels,
+  isDocente,
 }: {
   episode: EpisodeToRate
   currentLabel?: AppropriationLabel
   onLabel: (l: AppropriationLabel) => void
+  categoryLabels: Record<string, string>
+  isDocente: boolean
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-slate-500">{episode.episode_id.slice(0, 12)}</div>
+          <div className="font-mono text-xs text-[#787774]">
+            {isDocente ? episode.episode_id.slice(0, 8) : episode.episode_id.slice(0, 12)}
+          </div>
           <p className="text-sm mt-1 line-clamp-2">{episode.summary}</p>
         </div>
         <div className="text-xs text-right shrink-0">
-          <div className="text-slate-500">Modelo dijo:</div>
-          <div className="font-medium">{CATEGORY_LABELS[episode.classifier_label]}</div>
+          <div className="text-[#787774]">
+            {isDocente ? "El sistema evaluo:" : "Modelo dijo:"}
+          </div>
+          <div className="font-medium">
+            {categoryLabels[episode.classifier_label] ?? episode.classifier_label}
+          </div>
         </div>
       </div>
 
@@ -187,10 +212,10 @@ function EpisodeRatingCard({
               type="button"
               onClick={() => onLabel(cat)}
               className={`flex-1 px-3 py-2 rounded text-white text-xs font-medium transition ${CATEGORY_COLORS[cat]} ${
-                selected ? "ring-2 ring-offset-2 ring-blue-500" : "opacity-70"
+                selected ? "ring-2 ring-offset-2 ring-[#111111]" : "opacity-70"
               }`}
             >
-              {CATEGORY_LABELS[cat]}
+              {categoryLabels[cat] ?? cat}
             </button>
           )
         })}
@@ -199,7 +224,71 @@ function EpisodeRatingCard({
   )
 }
 
-function KappaResultPanel({
+function DocenteResultPanel({
+  result,
+  onReset,
+}: {
+  result: KappaResult
+  onReset: () => void
+}) {
+  const docente = kappaToDocente(result.kappa)
+
+  return (
+    <div className="space-y-5">
+      <div className={`rounded-xl p-6 ${docente.color}`}>
+        <div className="text-2xl font-semibold mb-2">{docente.label}</div>
+        <p className="text-sm">{docente.description}</p>
+        <div className="mt-4 text-sm opacity-80">
+          Sobre {result.n_episodes} trabajos evaluados. Coincidieron en el{" "}
+          {(result.observed_agreement * 100).toFixed(0)}% de los casos.
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+        <h3 className="font-medium mb-3 text-sm">Coincidencia por tipo</h3>
+        <div className="space-y-2">
+          {CATEGORIES.map((c) => {
+            const val = result.per_class_agreement[c] ?? 0
+            return (
+              <div key={c} className="flex items-center gap-3">
+                <div className="min-w-[180px] text-sm">
+                  {APPROPRIATION_DOCENTE[c] ?? c}
+                </div>
+                <div className="flex-1 h-3 bg-[#EAEAEA] rounded overflow-hidden">
+                  <div
+                    className="h-full rounded"
+                    style={{
+                      width: `${val * 100}%`,
+                      backgroundColor:
+                        val >= 0.7
+                          ? "var(--color-success)"
+                          : val >= 0.4
+                            ? "#f59e0b"
+                            : "var(--color-danger)",
+                    }}
+                  />
+                </div>
+                <div className="text-xs text-[#787774] min-w-[50px] text-right">
+                  {(val * 100).toFixed(0)}%
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onReset}
+        className="px-4 py-2 border border-[#EAEAEA] rounded hover:bg-[#FAFAFA]"
+      >
+        Evaluar otro grupo
+      </button>
+    </div>
+  )
+}
+
+function InvestigadorResultPanel({
   result,
   onReset,
 }: {
@@ -219,14 +308,14 @@ function KappaResultPanel({
 
   return (
     <div className="space-y-5">
-      <div className={`rounded-lg p-6 ${interpretationColor}`}>
+      <div className={`rounded-xl p-6 ${interpretationColor}`}>
         <div className="flex items-baseline justify-between">
           <div>
             <div className="text-sm opacity-80">Cohen's Kappa</div>
             <div className="text-5xl font-semibold mt-1">{kappa.toFixed(4)}</div>
           </div>
           <div className="text-right">
-            <div className="text-sm opacity-80">Interpretación</div>
+            <div className="text-sm opacity-80">Interpretacion</div>
             <div className="text-lg font-medium mt-1">{interpretation}</div>
           </div>
         </div>
@@ -237,27 +326,28 @@ function KappaResultPanel({
         </div>
       </div>
 
-      {/* Matriz de confusión */}
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-        <h3 className="font-medium mb-3">Matriz de confusión</h3>
-        <p className="text-xs text-slate-500 mb-3">
+      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+        <h3 className="font-medium mb-3">Matriz de confusion</h3>
+        <p className="text-xs text-[#787774] mb-3">
           Filas = etiqueta del modelo · Columnas = etiqueta humana
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800">
+            <tr className="border-b border-[#EAEAEA]">
               <th className="text-left py-2 font-medium"> </th>
               {CATEGORIES.map((c) => (
                 <th key={c} className="text-center py-2 font-medium text-xs px-2">
-                  {CATEGORY_LABELS[c]}
+                  {APPROPRIATION_INVESTIGADOR[c] ?? c}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {CATEGORIES.map((row) => (
-              <tr key={row} className="border-b border-slate-100 dark:border-slate-800/50">
-                <td className="py-2 pr-4 text-xs text-slate-600">{CATEGORY_LABELS[row]}</td>
+              <tr key={row} className="border-b border-[#EAEAEA]/50">
+                <td className="py-2 pr-4 text-xs text-[#787774]">
+                  {APPROPRIATION_INVESTIGADOR[row] ?? row}
+                </td>
                 {CATEGORIES.map((col) => {
                   const val = confusion_matrix[row]?.[col] ?? 0
                   const isDiagonal = row === col
@@ -278,19 +368,20 @@ function KappaResultPanel({
         </table>
       </div>
 
-      {/* Per-class agreement */}
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
         <h3 className="font-medium mb-3">Acuerdo por clase</h3>
         <div className="space-y-2">
           {CATEGORIES.map((c) => {
             const val = per_class_agreement[c] ?? 0
             return (
               <div key={c} className="flex items-center gap-3">
-                <div className="min-w-[180px] text-sm">{CATEGORY_LABELS[c]}</div>
-                <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
-                  <div className="h-full bg-blue-500" style={{ width: `${val * 100}%` }} />
+                <div className="min-w-[180px] text-sm">
+                  {APPROPRIATION_INVESTIGADOR[c] ?? c}
                 </div>
-                <div className="text-xs text-slate-500 min-w-[50px] text-right">
+                <div className="flex-1 h-3 bg-[#EAEAEA] rounded overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded" style={{ width: `${val * 100}%` }} />
+                </div>
+                <div className="text-xs text-[#787774] min-w-[50px] text-right">
                   {(val * 100).toFixed(1)}%
                 </div>
               </div>
@@ -302,7 +393,7 @@ function KappaResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="px-4 py-2 border border-[#EAEAEA] rounded hover:bg-[#FAFAFA]"
       >
         Clasificar otro batch
       </button>

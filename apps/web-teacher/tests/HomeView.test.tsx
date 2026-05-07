@@ -84,8 +84,8 @@ describe("HomeView", () => {
     const kpiBlock = screen.getByTestId("comision-card-kpis")
     expect(kpiBlock).toHaveTextContent("alumnos")
     expect(kpiBlock).toHaveTextContent("6")
-    // CTA Abrir cohorte
-    expect(screen.getByTestId("comision-card-cohort-link")).toHaveTextContent(/Abrir cohorte/i)
+    // CTA Ver cohorte
+    expect(screen.getByTestId("comision-card-cohort-link")).toHaveTextContent(/Ver cohorte/i)
   })
 
   test("alertas como 'datos insuf.' cuando endpoint agregado no existe", async () => {
@@ -98,9 +98,9 @@ describe("HomeView", () => {
     await waitFor(() => {
       expect(screen.getByTestId("comision-card-kpis")).toBeInTheDocument()
     })
-    // El KPI alertas viene null -> se muestra honestamente
+    // El KPI alertas viene null -> se muestra honestamente como "—"
     const kpis = screen.getByTestId("comision-card-kpis")
-    expect(kpis).toHaveTextContent(/datos insuf\./i)
+    expect(kpis).toHaveTextContent("—")
   })
 
   test("empty state honesto cuando docente no tiene comisiones", async () => {

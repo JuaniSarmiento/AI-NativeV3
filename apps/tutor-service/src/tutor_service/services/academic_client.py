@@ -139,6 +139,74 @@ class AcademicClient:
         )
 
 
+    async def get_tarea_practica_full(
+        self,
+        tarea_id: UUID,
+        tenant_id: UUID,
+        caller_id: UUID,
+    ) -> dict | None:
+        """Obtiene la TP completa incluyendo rubrica y ejercicios.
+
+        tutor-context-rag-rubrica: se usa al abrir el episodio para resolver
+        la rubrica de la TP (o del ejercicio especifico si ejercicio_orden!=None)
+        y cachearla en SessionState. Best-effort: si falla, el caller ignora y
+        el episodio se abre sin contexto de rubrica.
+
+        Returns:
+            Dict con todos los campos del response del academic-service
+            (incluye rubrica JSONB y ejercicios JSONB array), o None si 404.
+        """
+        headers = {
+            "X-User-Id": str(caller_id),
+            "X-Tenant-Id": str(tenant_id),
+            "X-User-Email": "tutor-service@platform.internal",
+            "X-User-Roles": "tutor_service",
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/v1/tareas-practicas/{tarea_id}",
+                headers=headers,
+            )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_ejercicio(
+        self,
+        tarea_id: UUID,
+        ejercicio_orden: int,
+        tenant_id: UUID,
+        caller_id: UUID,
+    ) -> dict | None:
+        """Obtiene un ejercicio especifico de una TP (tp-entregas-correccion).
+
+        Returns:
+            Dict con {orden, titulo, enunciado_md, inicial_codigo, test_cases, peso}
+            o None si la TP no existe o el ejercicio con ese orden no existe.
+        """
+        headers = {
+            "X-User-Id": str(caller_id),
+            "X-Tenant-Id": str(tenant_id),
+            "X-User-Email": "tutor-service@platform.internal",
+            "X-User-Roles": "tutor_service",
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/v1/tareas-practicas/{tarea_id}/ejercicios",
+                headers=headers,
+            )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        ejercicios = data.get("ejercicios", [])
+        for ej in ejercicios:
+            if ej.get("orden") == ejercicio_orden:
+                return ej
+        return None
+
+
 def _parse_datetime(value: str | None) -> datetime | None:
     """Parsea ISO-8601 que puede venir con sufijo Z o con offset."""
     if value is None:

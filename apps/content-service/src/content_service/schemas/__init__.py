@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ── Material ──────────────────────────────────────────────────────────
 
@@ -62,14 +62,26 @@ class ChunkOut(BaseModel):
 class RetrievalRequest(BaseModel):
     """Input de un retrieval de RAG.
 
-    `comision_id` es MANDATORY: sin él, no hay filtro de aislamiento.
-    El tutor NUNCA debe invocar retrieval sin `comision_id`.
+    `materia_id` es el filtro principal de aislamiento. `comision_id` se
+    mantiene como alias deprecated para backwards-compat de callers
+    que aun no migraron.
+
+    Al menos uno de los dos DEBE estar presente. Si ambos estan, se usa
+    `materia_id`.
     """
 
     query: str = Field(min_length=1, max_length=2000)
-    comision_id: UUID
+    materia_id: UUID | None = None
+    comision_id: UUID | None = None  # Deprecated: usar materia_id
     top_k: int = Field(default=5, ge=1, le=20)
     score_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def at_least_one_scope(self) -> RetrievalRequest:
+        if self.materia_id is None and self.comision_id is None:
+            msg = "At least one of materia_id or comision_id must be provided"
+            raise ValueError(msg)
+        return self
 
 
 class RetrievedChunk(BaseModel):

@@ -18,6 +18,7 @@ from academic_service.models import (
     PlanEstudios,
     TareaPractica,
     TareaPracticaTemplate,
+    Unidad,
     Universidad,
     UsuarioComision,
 )
@@ -63,6 +64,10 @@ class UsuarioComisionRepository(BaseRepository[UsuarioComision]):
 
 class TareaPracticaRepository(BaseRepository[TareaPractica]):
     model = TareaPractica
+
+
+class UnidadRepository(BaseRepository[Unidad]):
+    model = Unidad
 
 
 class TareaPracticaTemplateRepository:

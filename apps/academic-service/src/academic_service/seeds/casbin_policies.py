@@ -61,9 +61,11 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:superadmin", "*", "inscripcion:*", "create"),
     ("role:superadmin", "*", "inscripcion:*", "read"),
     ("role:superadmin", "*", "inscripcion:*", "update"),
+    ("role:superadmin", "*", "inscripcion:*", "delete"),
     ("role:superadmin", "*", "usuario_comision:*", "create"),
     ("role:superadmin", "*", "usuario_comision:*", "read"),
     ("role:superadmin", "*", "usuario_comision:*", "update"),
+    ("role:superadmin", "*", "usuario_comision:*", "delete"),
     ("role:superadmin", "*", "tarea_practica:*", "create"),
     ("role:superadmin", "*", "tarea_practica:*", "read"),
     ("role:superadmin", "*", "tarea_practica:*", "update"),
@@ -117,9 +119,11 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente_admin", "*", "inscripcion:*", "create"),
     ("role:docente_admin", "*", "inscripcion:*", "read"),
     ("role:docente_admin", "*", "inscripcion:*", "update"),
+    ("role:docente_admin", "*", "inscripcion:*", "delete"),
     ("role:docente_admin", "*", "usuario_comision:*", "create"),
     ("role:docente_admin", "*", "usuario_comision:*", "read"),
     ("role:docente_admin", "*", "usuario_comision:*", "update"),
+    ("role:docente_admin", "*", "usuario_comision:*", "delete"),
     ("role:docente_admin", "*", "tarea_practica:*", "create"),
     ("role:docente_admin", "*", "tarea_practica:*", "read"),
     ("role:docente_admin", "*", "tarea_practica:*", "update"),
@@ -159,6 +163,23 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:docente", "*", "tarea_practica_template:*", "read"),
     ("role:docente", "*", "tarea_practica_template:*", "update"),
     ("role:docente", "*", "tarea_practica_template:*", "delete"),
+    # tp-entregas-correccion: entrega + calificacion CRUD para docentes
+    ("role:docente", "*", "entrega:*", "read"),
+    ("role:docente", "*", "calificacion:*", "create"),
+    ("role:docente", "*", "calificacion:*", "read"),
+    ("role:docente", "*", "calificacion:*", "update"),
+    ("role:docente_admin", "*", "entrega:*", "read"),
+    ("role:docente_admin", "*", "calificacion:*", "create"),
+    ("role:docente_admin", "*", "calificacion:*", "read"),
+    ("role:docente_admin", "*", "calificacion:*", "update"),
+    ("role:superadmin", "*", "entrega:*", "create"),
+    ("role:superadmin", "*", "entrega:*", "read"),
+    ("role:superadmin", "*", "entrega:*", "update"),
+    ("role:superadmin", "*", "entrega:*", "delete"),
+    ("role:superadmin", "*", "calificacion:*", "create"),
+    ("role:superadmin", "*", "calificacion:*", "read"),
+    ("role:superadmin", "*", "calificacion:*", "update"),
+    ("role:superadmin", "*", "calificacion:*", "delete"),
     # En F2+, docente tendrá create/update sobre material, ejercicios, rúbricas
     # y correcciones de SUS comisiones (se enforza con ABAC adicional).
     # ── Estudiante: lectura muy limitada ──────────────────────────────
@@ -173,11 +194,37 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:estudiante", "*", "unidad:*", "read"),
     ("role:estudiante", "*", "tarea_practica:*", "read"),
     ("role:estudiante", "*", "tarea_practica_template:*", "read"),
+    # tp-entregas-correccion: estudiante puede crear y leer SUS entregas/calificaciones
+    ("role:estudiante", "*", "entrega:*", "create"),
+    ("role:estudiante", "*", "entrega:*", "read"),
+    ("role:estudiante", "*", "calificacion:*", "read"),
     # En F2+: propio material, problemas de sus comisiones, tutor socrático
+    # ── Unidad (ADR-041): agrupacion tematica de TPs por comision ────────
+    # superadmin CRUD
+    ("role:superadmin", "*", "unidad:*", "create"),
+    ("role:superadmin", "*", "unidad:*", "read"),
+    ("role:superadmin", "*", "unidad:*", "update"),
+    ("role:superadmin", "*", "unidad:*", "delete"),
+    # docente_admin CRUD
+    ("role:docente_admin", "*", "unidad:*", "create"),
+    ("role:docente_admin", "*", "unidad:*", "read"),
+    ("role:docente_admin", "*", "unidad:*", "update"),
+    ("role:docente_admin", "*", "unidad:*", "delete"),
+    # docente CRUD (gestiona sus propias comisiones)
+    ("role:docente", "*", "unidad:*", "create"),
+    ("role:docente", "*", "unidad:*", "read"),
+    ("role:docente", "*", "unidad:*", "update"),
+    ("role:docente", "*", "unidad:*", "delete"),
+    # estudiante: solo lectura
+    ("role:estudiante", "*", "unidad:*", "read"),
+    # tutor_service: lectura para resoluciones de contexto
+    ("role:tutor_service", "*", "unidad:*", "read"),
     # ── Service accounts (cross-service) ─────────────────────────────
     ("role:tutor_service", "*", "unidad:*", "read"),
     ("role:tutor_service", "*", "tarea_practica:*", "read"),
     ("role:tutor_service", "*", "tarea_practica_template:*", "read"),
+    ("role:tutor_service", "*", "comision:*", "read"),
+    ("role:evaluation_service", "*", "entrega:*", "read"),
 ]
 
 

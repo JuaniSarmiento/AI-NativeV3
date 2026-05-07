@@ -21,6 +21,7 @@ import pytest
 from ai_gateway.providers.base import (
     AnthropicProvider,
     CompletionRequest,
+    MistralProvider,
     MockProvider,
     get_provider,
 )
@@ -63,7 +64,10 @@ def test_get_provider_unknown_raises() -> None:
 def test_get_provider_default_es_mock(monkeypatch) -> None:
     """Sin override de env ni argumento, el default de Settings.llm_provider es
     `mock` (CLAUDE.md exige defaults sin API keys reales para dev/test loop)."""
+    from ai_gateway import config as ai_config
+
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.setattr(ai_config.settings, "llm_provider", "mock")
     p = get_provider()
     assert isinstance(p, MockProvider)
 
@@ -245,3 +249,24 @@ def test_anthropic_ensure_client_inicializa_una_vez(monkeypatch) -> None:
     c2 = provider._ensure_client()
     assert c1 is c2
     assert c1 is fake_client
+
+
+# ── MistralProvider ────────────────────────────────────────────────────
+
+
+def test_mistral_provider_uses_correct_pricing() -> None:
+    """Pricing dict de MistralProvider tiene los modelos esperados con valores USD/M tokens."""
+    pricing = MistralProvider.PRICING
+    assert pricing["mistral-small-latest"] == {"input": 0.1, "output": 0.3}
+    assert pricing["mistral-medium-latest"] == {"input": 2.5, "output": 7.5}
+    assert pricing["mistral-large-latest"] == {"input": 2.0, "output": 6.0}
+    assert pricing["codestral-latest"] == {"input": 0.3, "output": 0.9}
+
+
+def test_get_provider_mistral_returns_mistral_provider(monkeypatch) -> None:
+    """El resolver de get_provider routea 'mistral' a MistralProvider, NO al
+    fallback graceful (que cae a mock para providers desconocidos)."""
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-key-fake")
+    p = get_provider("mistral")
+    assert isinstance(p, MistralProvider)
+    assert p.name == "mistral"

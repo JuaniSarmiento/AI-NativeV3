@@ -117,8 +117,15 @@ export function PeriodosPage(): ReactNode {
           {loading ? (
             <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No hay periodos registrados. Creá el primero con "Nuevo periodo".
+            <div className="p-8 text-center space-y-3">
+              <p className="text-slate-500 text-sm">No hay periodos registrados todavia.</p>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+              >
+                Crear primer periodo
+              </button>
             </div>
           ) : (
             <table className="w-full text-sm">

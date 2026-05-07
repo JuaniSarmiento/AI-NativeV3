@@ -264,6 +264,48 @@ def test_reflexion_completada_no_afecta_clasificacion_ni_features() -> None:
     assert r_sin.cii_evolution == r_con.cii_evolution
 
 
+# ── Anti-regresion: tp_entregada / tp_calificada NO entran al classifier ──
+
+
+def test_tp_entregada_no_afecta_clasificacion_ni_features() -> None:
+    """Episodio con/sin `tp_entregada` produce features identicas.
+
+    tp_entregada es un meta-evento de gobernanza (tp-entregas-correccion):
+    no es actividad pedagogica del episodio. Si este test falla, alguien
+    lo agrego a EVENT_N_LEVEL_BASE o al feature extraction.
+    """
+    base_events = [
+        _ev(0, "episodio_abierto", 0),
+        _ev(1, "prompt_enviado", 1, {"content": "x", "prompt_kind": "solicitud_directa"}),
+        _ev(2, "tutor_respondio", 2, {"content": "..."}),
+        _ev(3, "codigo_ejecutado", 4),
+        _ev(4, "episodio_cerrado", 8, {"reason": "completed"}),
+    ]
+    events_with_entrega = base_events + [
+        _ev(5, "tp_entregada", 10, {
+            "tarea_practica_id": "00000000-0000-0000-0000-000000000001",
+            "entrega_id": "00000000-0000-0000-0000-000000000002",
+            "n_ejercicios": 2,
+            "exercise_episode_ids": [],
+        }),
+        _ev(6, "tp_calificada", 15, {
+            "entrega_id": "00000000-0000-0000-0000-000000000002",
+            "nota_final": 8.5,
+            "graded_by": "00000000-0000-0000-0000-000000000010",
+        }),
+    ]
+
+    r_sin = classify_episode_from_events(base_events)
+    r_con = classify_episode_from_events(events_with_entrega)
+
+    assert r_sin.appropriation == r_con.appropriation
+    assert r_sin.ct_summary == r_con.ct_summary
+    assert r_sin.ccd_mean == r_con.ccd_mean
+    assert r_sin.ccd_orphan_ratio == r_con.ccd_orphan_ratio
+    assert r_sin.cii_stability == r_con.cii_stability
+    assert r_sin.cii_evolution == r_con.cii_evolution
+
+
 def test_reflexion_completada_es_meta_en_event_labeler() -> None:
     """label_event('reflexion_completada', ...) devuelve 'meta'.
 

@@ -63,6 +63,8 @@ def compute_classifier_config_hash(
 _EXCLUDED_FROM_FEATURES = frozenset(
     {
         "reflexion_completada",  # ADR-035
+        "tp_entregada",          # tp-entregas-correccion: meta-evento de entrega formal
+        "tp_calificada",         # tp-entregas-correccion: meta-evento de calificacion docente
     }
 )
 

@@ -44,6 +44,71 @@ class CompleteResult:
     cache_hit: bool
 
 
+@dataclass
+class RetrievedChunk:
+    contenido: str
+    material_nombre: str
+    score: float
+
+
+@dataclass
+class RetrievalResult:
+    chunks: list[RetrievedChunk]
+    chunks_used_hash: str
+
+
+class ContentClient:
+    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+
+    async def retrieve(
+        self,
+        query: str,
+        tenant_id: UUID,
+        materia_id: UUID | None = None,
+        comision_id: UUID | None = None,
+        top_k: int = 5,
+    ) -> RetrievalResult:
+        """Retrieve chunks del RAG. Prefiere materia_id; comision_id como fallback."""
+        headers = {
+            "X-Tenant-Id": str(tenant_id),
+            "X-User-Id": "00000000-0000-0000-0000-000000000000",
+            "X-User-Email": "academic-service@internal",
+            "X-User-Roles": "docente",
+            "X-Caller": "academic-service",
+        }
+        payload: dict[str, object] = {
+            "query": query,
+            "top_k": top_k,
+            "score_threshold": 0.3,
+        }
+        if materia_id is not None:
+            payload["materia_id"] = str(materia_id)
+        elif comision_id is not None:
+            payload["comision_id"] = str(comision_id)
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.post(
+                f"{self.base_url}/api/v1/retrieve",
+                json=payload,
+                headers=headers,
+            )
+            r.raise_for_status()
+            data = r.json()
+        chunks = [
+            RetrievedChunk(
+                contenido=c["contenido"],
+                material_nombre=c.get("material_nombre", ""),
+                score=float(c.get("score_vector", 0)),
+            )
+            for c in data.get("chunks", [])
+        ]
+        return RetrievalResult(
+            chunks=chunks,
+            chunks_used_hash=data.get("chunks_used_hash", ""),
+        )
+
+
 class GovernanceClient:
     def __init__(self, base_url: str, timeout: float = 5.0) -> None:
         self.base_url = base_url.rstrip("/")
@@ -76,6 +141,7 @@ class AIGatewayClient:
         materia_id: UUID | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        response_format: dict[str, str] | None = None,
     ) -> CompleteResult:
         """POST /api/v1/complete (sync, sin streaming).
 
@@ -98,6 +164,8 @@ class AIGatewayClient:
         }
         if materia_id is not None:
             body["materia_id"] = str(materia_id)
+        if response_format is not None:
+            body["response_format"] = response_format
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             r = await client.post(

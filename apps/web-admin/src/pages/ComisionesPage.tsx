@@ -1,17 +1,24 @@
 import { HelpButton, PageContainer, ReadonlyField } from "@platform/ui"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type ReactNode, useState } from "react"
+import { ChevronDown, ChevronRight } from "lucide-react"
+import { Fragment, type ReactNode, useState } from "react"
 import { Breadcrumb, type BreadcrumbItem } from "../components/Breadcrumb"
 import {
   type Carrera,
   type Comision,
   type ComisionCreate,
+  type InscripcionCreate,
+  type InscripcionOut,
   HttpError,
   type Materia,
   type Periodo,
   type Plan,
   type Universidad,
+  type UsuarioComisionCreate,
+  type UsuarioComisionOut,
   carrerasApi,
+  comisionDocentesApi,
+  comisionInscripcionesApi,
   comisionesApi,
   materiasApi,
   periodosApi,
@@ -48,6 +55,7 @@ export function ComisionesPage(): ReactNode {
   const [periodoId, setPeriodoId] = useState<string>("")
   const [cursor, setCursor] = useState<string | undefined>(undefined)
   const [showForm, setShowForm] = useState(false)
+  const [expandedComisionId, setExpandedComisionId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -367,6 +375,7 @@ export function ComisionesPage(): ReactNode {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-left">
                 <tr>
+                  <th className="px-4 py-2 font-medium w-6" />
                   <th className="px-4 py-2 font-medium">Código</th>
                   <th className="px-4 py-2 font-medium">Materia</th>
                   <th className="px-4 py-2 font-medium">Periodo</th>
@@ -377,35 +386,56 @@ export function ComisionesPage(): ReactNode {
               </thead>
               <tbody>
                 {items.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-100">
-                    <td className="px-4 py-2 font-mono text-xs">{c.codigo}</td>
-                    <td className="px-4 py-2 text-slate-600 text-xs">
-                      {materiaMap.get(c.materia_id)?.nombre ?? c.materia_id}
-                    </td>
-                    <td className="px-4 py-2 text-slate-600 text-xs">
-                      {periodoMap.get(c.periodo_id)?.codigo ?? c.periodo_id}
-                    </td>
-                    <td className="px-4 py-2">{c.cupo_maximo}</td>
-                    <td className="px-4 py-2">{c.ai_budget_monthly_usd}</td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `¿Eliminar la comisión ${c.codigo}? Esta acción es lógica (soft-delete).`,
-                            )
-                          ) {
-                            deleteMutation.mutate(c.id)
-                          }
-                        }}
-                        disabled={deleteMutation.isPending}
-                        className="text-xs text-red-700 hover:text-red-900 disabled:opacity-50"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={c.id}>
+                    <tr
+                      className="border-b border-slate-100 cursor-pointer hover:bg-slate-50"
+                      onClick={() =>
+                        setExpandedComisionId((prev) => (prev === c.id ? null : c.id))
+                      }
+                    >
+                      <td className="px-2 py-2 text-slate-400">
+                        {expandedComisionId === c.id ? (
+                          <ChevronDown size={14} />
+                        ) : (
+                          <ChevronRight size={14} />
+                        )}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs">{c.codigo}</td>
+                      <td className="px-4 py-2 text-slate-600 text-xs">
+                        {materiaMap.get(c.materia_id)?.nombre ?? c.materia_id}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600 text-xs">
+                        {periodoMap.get(c.periodo_id)?.codigo ?? c.periodo_id}
+                      </td>
+                      <td className="px-4 py-2">{c.cupo_maximo}</td>
+                      <td className="px-4 py-2">{c.ai_budget_monthly_usd}</td>
+                      <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `¿Eliminar la comisión ${c.codigo}? Esta acción es lógica (soft-delete).`,
+                              )
+                            ) {
+                              deleteMutation.mutate(c.id)
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          className="text-xs text-red-700 hover:text-red-900 disabled:opacity-50"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedComisionId === c.id && (
+                      <tr>
+                        <td colSpan={7} className="bg-slate-50 border-b border-slate-200 p-0">
+                          <ComisionDetail comisionId={c.id} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -454,6 +484,7 @@ function ComisionForm({
     materia_id: materiaId,
     periodo_id: periodoId,
     codigo: "",
+    nombre: "",
     cupo_maximo: 50,
     horario: {},
     ai_budget_monthly_usd: "100.00",
@@ -567,6 +598,19 @@ function ComisionForm({
           />
         </Field>
 
+        <Field label="Nombre" required>
+          <input
+            type="text"
+            value={form.nombre}
+            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            required
+            minLength={1}
+            maxLength={100}
+            className={inputClass}
+            placeholder="Comision Manana"
+          />
+        </Field>
+
         <Field label="Cupo máximo" required>
           <input
             type="number"
@@ -633,5 +677,389 @@ function Field({
       </span>
       {children}
     </label>
+  )
+}
+
+// ── ComisionDetail: panel expandible con tabs Docentes / Alumnos ──────
+
+type ComisionTab = "docentes" | "alumnos"
+
+function ComisionDetail({ comisionId }: { comisionId: string }): ReactNode {
+  const [tab, setTab] = useState<ComisionTab>("docentes")
+  const queryClient = useQueryClient()
+
+  const docentesQuery = useQuery({
+    queryKey: ["comision-docentes", comisionId],
+    queryFn: () => comisionDocentesApi.list(comisionId),
+  })
+
+  const inscripcionesQuery = useQuery({
+    queryKey: ["comision-inscripciones", comisionId],
+    queryFn: () => comisionInscripcionesApi.list(comisionId),
+  })
+
+  const removeDocenteMutation = useMutation({
+    mutationFn: (ucId: string) => comisionDocentesApi.delete(comisionId, ucId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["comision-docentes", comisionId] }),
+  })
+
+  const removeInscripcionMutation = useMutation({
+    mutationFn: (inscId: string) => comisionInscripcionesApi.delete(comisionId, inscId),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ["comision-inscripciones", comisionId] }),
+  })
+
+  const docentes: UsuarioComisionOut[] = docentesQuery.data?.data ?? []
+  const inscripciones: InscripcionOut[] = inscripcionesQuery.data?.data ?? []
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex gap-2 border-b border-slate-200 pb-2">
+        {(["docentes", "alumnos"] as ComisionTab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-t-md border-b-2 transition-colors ${
+              tab === t
+                ? "border-blue-600 text-blue-700 bg-blue-50"
+                : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            {t === "docentes" ? "Docentes" : "Alumnos"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "docentes" && (
+        <DocentesTab
+          comisionId={comisionId}
+          docentes={docentes}
+          isLoading={docentesQuery.isLoading}
+          onRemove={(ucId) => removeDocenteMutation.mutate(ucId)}
+          isRemoving={removeDocenteMutation.isPending}
+          onAdded={() =>
+            void queryClient.invalidateQueries({ queryKey: ["comision-docentes", comisionId] })
+          }
+        />
+      )}
+
+      {tab === "alumnos" && (
+        <AlumnosTab
+          comisionId={comisionId}
+          inscripciones={inscripciones}
+          isLoading={inscripcionesQuery.isLoading}
+          onRemove={(inscId) => removeInscripcionMutation.mutate(inscId)}
+          isRemoving={removeInscripcionMutation.isPending}
+          onAdded={() =>
+            void queryClient.invalidateQueries({
+              queryKey: ["comision-inscripciones", comisionId],
+            })
+          }
+        />
+      )}
+    </div>
+  )
+}
+
+function DocentesTab({
+  comisionId,
+  docentes,
+  isLoading,
+  onRemove,
+  isRemoving,
+  onAdded,
+}: {
+  comisionId: string
+  docentes: UsuarioComisionOut[]
+  isLoading: boolean
+  onRemove: (id: string) => void
+  isRemoving: boolean
+  onAdded: () => void
+}): ReactNode {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    user_id: "",
+    rol: "titular" as UsuarioComisionCreate["rol"],
+    fecha_desde: new Date().toISOString().slice(0, 10),
+  })
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const addMutation = useMutation({
+    mutationFn: (data: UsuarioComisionCreate) => comisionDocentesApi.create(comisionId, data),
+    onSuccess: () => {
+      setShowForm(false)
+      setForm({ user_id: "", rol: "titular", fecha_desde: new Date().toISOString().slice(0, 10) })
+      onAdded()
+    },
+    onError: (err) =>
+      setFormError(
+        err instanceof HttpError ? `${err.status}: ${err.detail || err.title}` : String(err),
+      ),
+  })
+
+  return (
+    <div className="space-y-3">
+      {isLoading ? (
+        <p className="text-xs text-slate-500">Cargando...</p>
+      ) : docentes.length === 0 ? (
+        <p className="text-xs text-slate-500">No hay docentes asignados.</p>
+      ) : (
+        <table className="w-full text-xs">
+          <thead className="text-left text-slate-500">
+            <tr>
+              <th className="py-1 pr-3">User ID</th>
+              <th className="py-1 pr-3">Rol</th>
+              <th className="py-1 pr-3">Desde</th>
+              <th className="py-1 pr-3">Hasta</th>
+              <th className="py-1" />
+            </tr>
+          </thead>
+          <tbody>
+            {docentes.map((d) => (
+              <tr key={d.id} className="border-t border-slate-100">
+                <td className="py-1 pr-3 font-mono">{d.user_id.slice(0, 8)}…</td>
+                <td className="py-1 pr-3">{d.rol}</td>
+                <td className="py-1 pr-3">{d.fecha_desde}</td>
+                <td className="py-1 pr-3">{d.fecha_hasta ?? "—"}</td>
+                <td className="py-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`¿Quitar docente ${d.user_id.slice(0, 8)}…?`)) {
+                        onRemove(d.id)
+                      }
+                    }}
+                    disabled={isRemoving}
+                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                  >
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {showForm ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            setFormError(null)
+            addMutation.mutate(form)
+          }}
+          className="grid grid-cols-4 gap-2 items-end"
+        >
+          <div className="col-span-2">
+            <Field label="User ID (UUID)" required>
+              <input
+                type="text"
+                value={form.user_id}
+                onChange={(e) => setForm({ ...form, user_id: e.target.value })}
+                required
+                placeholder="UUID del docente"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <Field label="Rol" required>
+            <select
+              value={form.rol}
+              onChange={(e) => setForm({ ...form, rol: e.target.value as UsuarioComisionCreate["rol"] })}
+              className={inputClass}
+            >
+              <option value="titular">Titular</option>
+              <option value="adjunto">Adjunto</option>
+              <option value="jtp">JTP</option>
+              <option value="ayudante">Ayudante</option>
+              <option value="corrector">Corrector</option>
+            </select>
+          </Field>
+          <Field label="Desde" required>
+            <input
+              type="date"
+              value={form.fecha_desde}
+              onChange={(e) => setForm({ ...form, fecha_desde: e.target.value })}
+              required
+              className={inputClass}
+            />
+          </Field>
+          {formError && (
+            <div className="col-span-4 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+              {formError}
+            </div>
+          )}
+          <div className="col-span-4 flex gap-2">
+            <button
+              type="submit"
+              disabled={addMutation.isPending}
+              className="rounded-md bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {addMutation.isPending ? "Agregando..." : "Agregar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="text-xs text-blue-700 hover:text-blue-900 font-medium"
+        >
+          + Agregar docente
+        </button>
+      )}
+    </div>
+  )
+}
+
+function AlumnosTab({
+  comisionId,
+  inscripciones,
+  isLoading,
+  onRemove,
+  isRemoving,
+  onAdded,
+}: {
+  comisionId: string
+  inscripciones: InscripcionOut[]
+  isLoading: boolean
+  onRemove: (id: string) => void
+  isRemoving: boolean
+  onAdded: () => void
+}): ReactNode {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState<InscripcionCreate>({
+    student_pseudonym: "",
+    fecha_inscripcion: new Date().toISOString().slice(0, 10),
+  })
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const addMutation = useMutation({
+    mutationFn: (data: InscripcionCreate) => comisionInscripcionesApi.create(comisionId, data),
+    onSuccess: () => {
+      setShowForm(false)
+      setForm({ student_pseudonym: "", fecha_inscripcion: new Date().toISOString().slice(0, 10) })
+      onAdded()
+    },
+    onError: (err) =>
+      setFormError(
+        err instanceof HttpError ? `${err.status}: ${err.detail || err.title}` : String(err),
+      ),
+  })
+
+  return (
+    <div className="space-y-3">
+      {isLoading ? (
+        <p className="text-xs text-slate-500">Cargando...</p>
+      ) : inscripciones.length === 0 ? (
+        <p className="text-xs text-slate-500">No hay alumnos inscriptos.</p>
+      ) : (
+        <table className="w-full text-xs">
+          <thead className="text-left text-slate-500">
+            <tr>
+              <th className="py-1 pr-3">Student pseudonym</th>
+              <th className="py-1 pr-3">Rol</th>
+              <th className="py-1 pr-3">Estado</th>
+              <th className="py-1 pr-3">Fecha inscripción</th>
+              <th className="py-1" />
+            </tr>
+          </thead>
+          <tbody>
+            {inscripciones.map((i) => (
+              <tr key={i.id} className="border-t border-slate-100">
+                <td className="py-1 pr-3 font-mono">{i.student_pseudonym.slice(0, 8)}…</td>
+                <td className="py-1 pr-3">{i.rol}</td>
+                <td className="py-1 pr-3">{i.estado}</td>
+                <td className="py-1 pr-3">{i.fecha_inscripcion}</td>
+                <td className="py-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`¿Quitar alumno ${i.student_pseudonym.slice(0, 8)}…?`)) {
+                        onRemove(i.id)
+                      }
+                    }}
+                    disabled={isRemoving}
+                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                  >
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {showForm ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            setFormError(null)
+            addMutation.mutate(form)
+          }}
+          className="grid grid-cols-3 gap-2 items-end"
+        >
+          <div className="col-span-2">
+            <Field label="Student pseudonym (UUID)" required>
+              <input
+                type="text"
+                value={form.student_pseudonym}
+                onChange={(e) => setForm({ ...form, student_pseudonym: e.target.value })}
+                required
+                placeholder="UUID del estudiante"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <Field label="Fecha inscripción" required>
+            <input
+              type="date"
+              value={form.fecha_inscripcion}
+              onChange={(e) => setForm({ ...form, fecha_inscripcion: e.target.value })}
+              required
+              className={inputClass}
+            />
+          </Field>
+          {formError && (
+            <div className="col-span-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+              {formError}
+            </div>
+          )}
+          <div className="col-span-3 flex gap-2">
+            <button
+              type="submit"
+              disabled={addMutation.isPending}
+              className="rounded-md bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {addMutation.isPending ? "Inscribiendo..." : "Inscribir"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="text-xs text-blue-700 hover:text-blue-900 font-medium"
+        >
+          + Inscribir alumno
+        </button>
+      )}
+    </div>
   )
 }

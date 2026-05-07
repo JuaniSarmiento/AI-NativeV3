@@ -1,26 +1,8 @@
-/**
- * Vista de evolucion longitudinal CII por estudiante (ADR-018, RN-130 + ADR-022).
- *
- * Cumple Seccion 15.4 de la tesis (CII como observacion longitudinal).
- * Muestra el slope ordinal (mejora/empeoramiento) del estudiante sobre
- * problemas analogos definidos por TareaPracticaTemplate.id (ADR-016).
- *
- * Drill-down navegacional (shape docente):
- *   cohorte (/progression) -> alumno (esta vista) -> episodio (/episode-n-level)
- * La lista "Episodios del estudiante" usa getStudentEpisodes y cada fila
- * navega a /episode-n-level?episodeId=X. Cierra fricción F7 del shape.
- *
- * Visualizacion: tabla por template + sparkline SVG inline + flecha
- * mejorando/estable/empeorando segun slope. Sin libs de chart.
- *
- * Tokens: SCORE_COLORS deriva de var(--color-appropriation-*) (sec 6 brief
- * shape). El SVG inline necesita strings concretos; los tomamos de
- * getComputedStyle al mount (caen a ASCII-safe defaults si no resuelve).
- */
 import { Badge, PageContainer } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
 import { TriangleAlert } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { useViewMode } from "../hooks/useViewMode"
 import {
   type CIIEvolutionLongitudinal,
   type CIIEvolutionTemplate,
@@ -32,20 +14,20 @@ import {
   getStudentCIIEvolution,
   getStudentEpisodes,
 } from "../lib/api"
+import {
+  APPROPRIATION_DOCENTE,
+  APPROPRIATION_INVESTIGADOR,
+  slopeToDocente,
+  studentShortLabel,
+} from "../utils/docenteLabels"
 import { helpContent } from "../utils/helpContent"
 
 interface Props {
   getToken: () => Promise<string | null>
-  /** Si vienen, autocarga la vista al montar (drill-down desde Progresion). */
   initialComisionId?: string
   initialStudentId?: string
 }
 
-/**
- * Resuelve los 3 colores ordinales (delegacion=0, superficial=1, reflexiva=2)
- * desde los tokens compartidos. Sin estos tokens (SSR, jsdom sin theme), cae
- * a hex slate-500 — los tests siguen pasando porque no inspeccionan el SVG.
- */
 function resolveScoreColors(): [string, string, string] {
   if (typeof window === "undefined") return ["#dc2626", "#f59e0b", "#16a34a"]
   const root = window.getComputedStyle(document.documentElement)
@@ -85,7 +67,6 @@ function Sparkline({ scores, colors }: { scores: number[]; colors: [string, stri
   const innerH = H - PAD * 2
 
   const stepX = scores.length > 1 ? innerW / (scores.length - 1) : 0
-  // scores son 0/1/2; el rango max es 2.
   const yFor = (s: number) => PAD + innerH - (s / 2) * innerH
 
   const points = scores.map((s, i) => `${PAD + i * stepX},${yFor(s)}`).join(" ")
@@ -130,61 +111,6 @@ function Sparkline({ scores, colors }: { scores: number[]; colors: [string, stri
   )
 }
 
-function TemplateRow({
-  entry,
-  colors,
-}: { entry: CIIEvolutionTemplate; colors: [string, string, string] }) {
-  const { label, arrow, color } = slopeLabel(entry.slope)
-  return (
-    <tr className="border-b border-slate-100 last:border-0">
-      <td className="py-3 pr-3 align-middle">
-        <div className="font-mono text-xs text-slate-700 break-all">
-          {entry.template_id.slice(0, 8)}...{entry.template_id.slice(-4)}
-        </div>
-      </td>
-      <td className="py-3 pr-3 align-middle text-sm text-slate-700">{entry.n_episodes}</td>
-      <td className="py-3 pr-3 align-middle">
-        <Sparkline scores={entry.scores_ordinal} colors={colors} />
-      </td>
-      <td className="py-3 pr-3 align-middle">
-        <div className={`flex items-center gap-2 text-sm ${color}`}>
-          <span className="text-2xl leading-none">{arrow}</span>
-          <span className="capitalize">{label}</span>
-        </div>
-      </td>
-      <td className="py-3 align-middle text-right">
-        {entry.slope === null ? (
-          <span className="text-xs text-slate-400">sin slope</span>
-        ) : (
-          <span className="font-mono text-sm text-slate-700">
-            {entry.slope > 0 ? "+" : ""}
-            {entry.slope.toFixed(3)}
-          </span>
-        )}
-      </td>
-    </tr>
-  )
-}
-
-const SEVERITY_BADGE_STYLES: Record<string, string> = {
-  low: "bg-slate-200 text-slate-800",
-  medium: "bg-amber-100 text-amber-900 border border-amber-300",
-  high: "bg-red-100 text-red-900 border border-red-400",
-}
-
-const QUARTILE_LABELS: Record<string, string> = {
-  Q1: "Q1 (peor 25%)",
-  Q2: "Q2",
-  Q3: "Q3",
-  Q4: "Q4 (mejor 25%)",
-}
-
-const APPROPRIATION_LABEL: Record<string, string> = {
-  apropiacion_reflexiva: "reflexiva",
-  apropiacion_superficial: "superficial",
-  delegacion_pasiva: "delegacion",
-}
-
 function appropriationDot(label: string | null): string {
   if (label === "apropiacion_reflexiva") return "var(--color-appropriation-reflexiva)"
   if (label === "apropiacion_superficial") return "var(--color-appropriation-superficial)"
@@ -201,6 +127,32 @@ function formatShortDate(iso: string | null): string {
   })
 }
 
+const SEVERITY_BADGE_STYLES: Record<string, string> = {
+  low: "bg-slate-200 text-slate-800",
+  medium: "bg-amber-100 text-amber-900 border border-amber-300",
+  high: "bg-red-100 text-red-900 border border-red-400",
+}
+
+const SEVERITY_DOCENTE_LABEL: Record<string, string> = {
+  low: "Leve",
+  medium: "Moderada",
+  high: "Importante",
+}
+
+const QUARTILE_LABELS: Record<string, string> = {
+  Q1: "Q1 (peor 25%)",
+  Q2: "Q2",
+  Q3: "Q3",
+  Q4: "Q4 (mejor 25%)",
+}
+
+const QUARTILE_DOCENTE: Record<string, string> = {
+  Q1: "Por debajo de sus companeros",
+  Q2: "En la media baja",
+  Q3: "En la media alta",
+  Q4: "Entre los mejores",
+}
+
 export function StudentLongitudinalView({ getToken, initialComisionId, initialStudentId }: Props) {
   const studentId = initialStudentId ?? null
   const comisionId = initialComisionId ?? null
@@ -209,10 +161,11 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
   const [episodesData, setEpisodesData] = useState<StudentEpisodesPayload | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode] = useViewMode()
+  const isDocente = viewMode === "docente"
 
   const scoreColors = useMemo(resolveScoreColors, [])
 
-  // Drill-down: si la URL trae studentId+comisionId, autocargar al montar.
   useEffect(() => {
     if (!studentId || !comisionId) return
     setLoading(true)
@@ -235,124 +188,108 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
   }, [studentId, comisionId, getToken])
 
   const meanLabel = data ? slopeLabel(data.mean_slope) : null
+  const docenteSlope = data ? slopeToDocente(data.mean_slope) : null
 
   return (
     <PageContainer
-      title="Evolucion longitudinal del estudiante"
-      description="Slope ordinal de apropiacion a traves de problemas analogos (Seccion 15.4, ADR-018, RN-130). N>=3 episodios por template para slope valido."
+      title={isDocente ? "Como va este alumno" : "Evolucion longitudinal del estudiante"}
+      description={
+        isDocente
+          ? studentId
+            ? `Alumno ${studentShortLabel(studentId)}`
+            : ""
+          : "Slope ordinal de apropiacion a traves de problemas analogos (Seccion 15.4, ADR-018, RN-130). N>=3 episodios por template para slope valido."
+      }
       helpContent={helpContent.studentLongitudinal}
     >
       <div className="space-y-6">
-        {/* Breadcrumb + back-link cuando se llego por drill-down */}
         {comisionId && (
           <div className="flex items-center gap-2 text-xs">
             <Link
               to="/progression"
               search={{ comisionId }}
-              className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              className="text-[#787774] hover:text-[#111111] transition-colors"
             >
-              ← Volver a la cohorte
+              ← {isDocente ? "Volver a mis alumnos" : "Volver a la cohorte"}
             </Link>
-            {studentId && (
+            {studentId && !isDocente && (
               <>
-                <span className="text-slate-400">·</span>
-                <span className="font-mono text-slate-500">
-                  estudiante {studentId.slice(0, 8)}...{studentId.slice(-4)}
+                <span className="text-[#EAEAEA]">·</span>
+                <span className="font-mono text-[#787774]">
+                  {studentId.slice(0, 8)}...{studentId.slice(-4)}
                 </span>
               </>
             )}
           </div>
         )}
 
-        {/* Estado vacio honesto: el flujo correcto es entrar por drill-down. */}
         {(!studentId || !comisionId) && !loading && (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600 space-y-2">
-            <p className="font-medium text-slate-700">
-              Llegaste aca sin estudiante seleccionado.
+          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-sm text-[#787774] space-y-2">
+            <p className="font-semibold text-[#111111]">
+              {isDocente
+                ? "No hay ningun alumno seleccionado."
+                : "Llegaste aca sin estudiante seleccionado."}
             </p>
             <p>
-              Volve a <Link to="/" className="text-[var(--color-accent-brand)] underline">tus
-              comisiones</Link>, abri una cohorte y eligi un estudiante para ver su evolucion
-              longitudinal.
+              Volve a{" "}
+              <Link to="/" className="text-[var(--color-accent-brand)] underline">
+                {isDocente ? "tus alumnos" : "tus comisiones"}
+              </Link>
+              {isDocente
+                ? " y elegi un alumno para ver su evolucion."
+                : ", abri una cohorte y elegi un estudiante para ver su evolucion longitudinal."}
             </p>
           </div>
         )}
 
         {loading && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
-            Cargando evolucion del estudiante...
+          <div className="rounded-xl border border-[#EAEAEA] bg-white p-4 text-sm text-[#787774]">
+            {isDocente ? "Cargando informacion del alumno..." : "Cargando evolucion del estudiante..."}
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <div className="font-medium">Error consultando al estudiante</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="font-semibold">Error consultando al estudiante</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
         )}
 
         {data && (
           <div className="space-y-4">
-            {/* Resumen denso (no 4-card grid). Resuelve F5. */}
-            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-              <p className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
-                Resumen
-              </p>
-              <p>
-                <strong>{data.n_episodes_total}</strong> episodios totales
-                <span className="text-slate-400 mx-2">·</span>
-                <strong>{data.n_groups_evaluated}</strong> templates evaluados
-                {data.n_groups_insufficient > 0 && (
-                  <>
-                    {" "}
-                    <span className="text-slate-400">
-                      (+{data.n_groups_insufficient} con N&lt;3)
-                    </span>
-                  </>
-                )}
-              </p>
-              <p className="mt-1">
-                Slope promedio:
-                <span className="font-mono mx-1">
-                  {data.mean_slope === null
-                    ? "sin slope"
-                    : `${data.mean_slope > 0 ? "+" : ""}${data.mean_slope.toFixed(3)}`}
-                </span>
-                {meanLabel && (
-                  <span className={meanLabel.color}>
-                    {" "}
-                    {meanLabel.arrow} {meanLabel.label}
-                  </span>
-                )}
-                <span className="text-slate-400 mx-2">·</span>
-                <span className="text-xs font-mono">labeler v{data.labeler_version}</span>
-              </p>
-            </div>
+            {isDocente ? (
+              <DocenteSummary
+                data={data}
+                docenteSlope={docenteSlope!}
+              />
+            ) : (
+              <InvestigadorSummary data={data} meanLabel={meanLabel!} />
+            )}
 
-            {/* Alertas: panel border completo (sin side-stripe baneado).
-                Resuelve F2: era border-l-4 border-amber-400, ahora border completo
-                + icono TriangleAlert que carga la severidad. */}
             {alertsData && alertsData.alerts.length > 0 && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                     <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    {alertsData.n_alerts} alerta{alertsData.n_alerts !== 1 ? "s" : ""} para este
-                    estudiante
+                    {isDocente
+                      ? `${alertsData.n_alerts} punto${alertsData.n_alerts !== 1 ? "s" : ""} de atencion`
+                      : `${alertsData.n_alerts} alerta${alertsData.n_alerts !== 1 ? "s" : ""}`}
                   </div>
                   {alertsData.quartile && (
                     <span className="text-xs text-amber-800">
-                      Posicion en cohorte: <strong>{QUARTILE_LABELS[alertsData.quartile]}</strong>
+                      {isDocente
+                        ? (QUARTILE_DOCENTE[alertsData.quartile] ?? alertsData.quartile)
+                        : (QUARTILE_LABELS[alertsData.quartile] ?? alertsData.quartile)}
                     </span>
                   )}
                 </div>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {alertsData.alerts.map((a) => (
-                    <li key={a.code} className="flex items-start gap-2 text-xs text-slate-800">
+                    <li key={a.code} className="flex items-start gap-2 text-xs text-[#111111]">
                       <span
                         className={`shrink-0 rounded px-2 py-0.5 text-[10px] uppercase font-semibold ${SEVERITY_BADGE_STYLES[a.severity] ?? ""}`}
                       >
-                        {a.severity}
+                        {isDocente ? (SEVERITY_DOCENTE_LABEL[a.severity] ?? a.severity) : a.severity}
                       </span>
                       <span>
                         <strong>{a.title}</strong>
@@ -368,33 +305,52 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
               alertsData.alerts.length === 0 &&
               alertsData.cohort_stats &&
               !alertsData.cohort_stats.insufficient_data && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                  <strong>Sin alertas</strong>: el estudiante esta dentro del rango esperado de la
-                  cohorte
-                  {alertsData.quartile && ` (${QUARTILE_LABELS[alertsData.quartile]})`}.
+                <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                  {isDocente ? (
+                    <>
+                      <strong>Todo bien</strong>: este alumno esta dentro de lo esperado
+                      {alertsData.quartile &&
+                        ` (${QUARTILE_DOCENTE[alertsData.quartile] ?? alertsData.quartile})`}
+                      .
+                    </>
+                  ) : (
+                    <>
+                      <strong>Sin alertas</strong>: el estudiante esta dentro del rango esperado de la
+                      cohorte
+                      {alertsData.quartile && ` (${QUARTILE_LABELS[alertsData.quartile]})`}.
+                    </>
+                  )}
                 </div>
               )}
 
             {/* Agrupacion por Unidad — PRIMARY cuando evolution_per_unidad tiene datos */}
-            {(data.evolution_per_unidad ?? []).length > 0 ? (
+            {data.evolution_per_unidad.length > 0 ? (
               <>
-                {(data.evolution_per_unidad ?? []).every((e) => e.insufficient_data) ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 space-y-1">
-                    <div className="font-medium text-slate-700">
-                      Datos insuficientes en todas las unidades.
+                {data.evolution_per_unidad.every((e) => e.insufficient_data) ? (
+                  <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774] space-y-1">
+                    <div className="font-semibold text-[#111111]">
+                      {isDocente
+                        ? "Todavia no hay datos suficientes por unidad."
+                        : "Datos insuficientes en todas las unidades."}
                     </div>
                     <div>
-                      Cada unidad necesita al menos 3 episodios cerrados para calcular el slope
-                      ordinal. Asigna TPs a unidades y/o espera que el estudiante complete mas
-                      trabajos.
+                      {isDocente
+                        ? "El alumno necesita al menos 3 trabajos por unidad para ver el slope. Asegurate de asignar los TPs a las unidades correctas."
+                        : "Cada unidad necesita >= 3 episodios cerrados para calcular slope ordinal. Las TPs sin unidad aparecen en 'Sin unidad'."}
                     </div>
                   </div>
+                ) : isDocente ? (
+                  <DocenteUnidadTable entries={data.evolution_per_unidad} colors={scoreColors} />
                 ) : (
-                  <UnidadTable entries={data.evolution_per_unidad} colors={scoreColors} />
+                  <InvestigadorUnidadTable
+                    entries={data.evolution_per_unidad}
+                    colors={scoreColors}
+                    labelerVersion={data.labeler_version}
+                  />
                 )}
 
-                {/* Template view como seccion secundaria colapsable */}
-                {data.evolution_per_template.length > 0 && (
+                {/* Template view como seccion secundaria colapsada en modo investigador */}
+                {!isDocente && data.evolution_per_template.length > 0 && (
                   <TemplateSecondarySection
                     entries={data.evolution_per_template}
                     colors={scoreColors}
@@ -403,49 +359,30 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
                 )}
               </>
             ) : data.evolution_per_template.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                <div className="font-medium text-slate-700">Sin clasificaciones disponibles.</div>
+              <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-center text-sm text-[#787774]">
+                <div className="font-semibold text-[#111111]">
+                  {isDocente
+                    ? "Todavia no hay datos suficientes."
+                    : "Sin templates ni unidades con clasificaciones."}
+                </div>
                 <div className="mt-1">
-                  El estudiante no tiene episodios cerrados. Asigna TPs a Unidades para habilitar
-                  el analisis por tema.
+                  {isDocente
+                    ? "El alumno necesita completar mas trabajos practicos para ver su evolucion."
+                    : "El estudiante no tiene episodios cerrados. Asigna TPs a Unidades para habilitar el analisis por tema."}
                 </div>
               </div>
+            ) : isDocente ? (
+              <DocenteTemplateTable entries={data.evolution_per_template} colors={scoreColors} />
             ) : (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-600">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Template</th>
-                      <th className="px-3 py-2 font-medium">N episodios</th>
-                      <th className="px-3 py-2 font-medium">Trayectoria ordinal</th>
-                      <th className="px-3 py-2 font-medium">Tendencia</th>
-                      <th className="px-3 py-2 font-medium text-right">Slope</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.evolution_per_template.map((entry) => (
-                      <TemplateRow
-                        key={entry.template_id}
-                        entry={entry}
-                        colors={scoreColors}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-                <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  Trayectoria, cada punto es la apropiacion de un episodio (
-                  <Badge className="bg-red-500 text-white">delegacion=0</Badge>{" "}
-                  <Badge className="bg-amber-500 text-white">superficial=1</Badge>{" "}
-                  <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>) ordenada por
-                  classified_at.
-                </div>
-              </div>
+              <InvestigadorTemplateTable
+                entries={data.evolution_per_template}
+                colors={scoreColors}
+                labelerVersion={data.labeler_version}
+              />
             )}
 
-            {/* Episodios del estudiante: drill-down a /episode-n-level.
-                Cierra F7 del shape. */}
             {episodesData && Array.isArray(episodesData.episodes) && (
-              <EpisodesList episodes={episodesData.episodes} />
+              <EpisodesList episodes={episodesData.episodes} isDocente={isDocente} />
             )}
           </div>
         )}
@@ -454,9 +391,230 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
   )
 }
 
-// ── Unidad table — PRIMARY grouping (ADR-022 unidades-trazabilidad) ──────
+function DocenteSummary({
+  data,
+  docenteSlope,
+}: {
+  data: CIIEvolutionLongitudinal
+  docenteSlope: ReturnType<typeof slopeToDocente>
+}) {
+  return (
+    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-5">
+      <div className="flex items-center gap-4 mb-3">
+        <span className={`text-4xl leading-none ${docenteSlope.color}`} aria-hidden="true">
+          {docenteSlope.emoji}
+        </span>
+        <div>
+          <div className="text-lg font-semibold text-[#111111]">{docenteSlope.label}</div>
+          {docenteSlope.action && (
+            <div className="text-sm text-amber-700 mt-0.5">{docenteSlope.action}</div>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-[#787774]">
+        <div>
+          <span className="font-semibold text-[#111111]">{data.n_episodes_total}</span> trabajo
+          {data.n_episodes_total !== 1 ? "s" : ""} completado
+          {data.n_episodes_total !== 1 ? "s" : ""}
+        </div>
+        <div>
+          <span className="font-semibold text-[#111111]">{data.n_groups_evaluated}</span> tipo
+          {data.n_groups_evaluated !== 1 ? "s" : ""} de trabajo
+        </div>
+      </div>
+    </div>
+  )
+}
 
-function UnidadTable({
+function InvestigadorSummary({
+  data,
+  meanLabel,
+}: {
+  data: CIIEvolutionLongitudinal
+  meanLabel: ReturnType<typeof slopeLabel>
+}) {
+  return (
+    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-5">
+      <div className="flex items-center gap-4 mb-4">
+        <span className={`text-4xl leading-none ${meanLabel.color}`} aria-hidden="true">
+          {meanLabel.arrow}
+        </span>
+        <div>
+          <div className="text-lg font-semibold text-[#111111] capitalize">{meanLabel.label}</div>
+          <div className="text-xs text-[#787774]">tendencia general del estudiante</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+        <div>
+          <span className="font-semibold text-[#111111]">{data.n_episodes_total}</span>
+          <span className="text-[#787774] ml-1">episodios</span>
+        </div>
+        <div>
+          <span className="font-semibold text-[#111111]">{data.n_groups_evaluated}</span>
+          <span className="text-[#787774] ml-1">templates</span>
+        </div>
+        <div>
+          <span className="font-mono font-semibold text-[#111111]">
+            {data.mean_slope === null
+              ? "—"
+              : `${data.mean_slope > 0 ? "+" : ""}${data.mean_slope.toFixed(3)}`}
+          </span>
+          <span className="text-[#787774] ml-1">slope prom.</span>
+        </div>
+        <div className="text-[#787774] text-xs self-end">labeler v{data.labeler_version}</div>
+      </div>
+    </div>
+  )
+}
+
+function DocenteTemplateTable({
+  entries,
+  colors,
+}: {
+  entries: CIIEvolutionTemplate[]
+  colors: [string, string, string]
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+      <table className="w-full text-sm">
+        <thead className="bg-[#FAFAFA] text-left text-xs text-[#787774] border-b border-[#EAEAEA]">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Trabajo practico</th>
+            <th className="px-4 py-2.5 font-medium">Intentos</th>
+            <th className="px-4 py-2.5 font-medium">Evolucion</th>
+            <th className="px-4 py-2.5 font-medium">Tendencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => {
+            const docente = slopeToDocente(entry.slope)
+            return (
+              <tr
+                key={entry.template_id}
+                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+              >
+                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                  TP {entry.template_id.slice(0, 6)}
+                </td>
+                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                  {entry.n_episodes}
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <Sparkline scores={entry.scores_ordinal} colors={colors} />
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <div className={`flex items-center gap-1.5 text-sm ${docente.color}`}>
+                    <span className="text-xl leading-none">{docente.emoji}</span>
+                    <span>{docente.label}</span>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 flex items-center gap-4 text-xs text-[#787774]">
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[2] }}
+          />
+          Autonomo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[1] }}
+          />
+          Superficial
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[0] }}
+          />
+          Depende de la IA
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function InvestigadorTemplateTable({
+  entries,
+  colors,
+  labelerVersion,
+}: {
+  entries: CIIEvolutionTemplate[]
+  colors: [string, string, string]
+  labelerVersion: string
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+      <table className="w-full text-sm">
+        <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Template</th>
+            <th className="px-4 py-2.5 font-medium">N episodios</th>
+            <th className="px-4 py-2.5 font-medium">Trayectoria ordinal</th>
+            <th className="px-4 py-2.5 font-medium">Tendencia</th>
+            <th className="px-4 py-2.5 font-medium text-right">Slope</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => {
+            const { label, arrow, color } = slopeLabel(entry.slope)
+            return (
+              <tr
+                key={entry.template_id}
+                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+              >
+                <td className="px-4 py-3 align-middle">
+                  <div className="font-mono text-xs text-[#787774] break-all">
+                    {entry.template_id.slice(0, 8)}...{entry.template_id.slice(-4)}
+                  </div>
+                </td>
+                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                  {entry.n_episodes}
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <Sparkline scores={entry.scores_ordinal} colors={colors} />
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <div className={`flex items-center gap-1.5 text-sm ${color}`}>
+                    <span className="text-xl leading-none">{arrow}</span>
+                    <span className="capitalize">{label}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 align-middle text-right">
+                  {entry.slope === null ? (
+                    <span className="text-xs text-[#787774]">sin slope</span>
+                  ) : (
+                    <span className="font-mono text-sm text-[#111111]">
+                      {entry.slope > 0 ? "+" : ""}
+                      {entry.slope.toFixed(3)}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 text-xs text-[#787774]">
+        Trayectoria: cada punto es la apropiacion de un episodio (
+        <Badge className="bg-red-500 text-white">delegacion=0</Badge>{" "}
+        <Badge className="bg-amber-500 text-white">superficial=1</Badge>{" "}
+        <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>) ordenada por
+        classified_at. Labeler v{labelerVersion}.
+      </div>
+    </div>
+  )
+}
+
+// ── Unidad tables (primary grouping) ─────────────────────────────────
+
+function DocenteUnidadTable({
   entries,
   colors,
 }: {
@@ -464,18 +622,113 @@ function UnidadTable({
   colors: [string, string, string]
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-mono uppercase tracking-wider text-slate-600">
-        Evolucion por unidad (primario)
+    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+      <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5">
+        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+          Evolucion por unidad
+        </span>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-600">
+        <thead className="bg-[#FAFAFA] text-left text-xs text-[#787774] border-b border-[#EAEAEA]">
           <tr>
-            <th className="px-3 py-2 font-medium">Unidad</th>
-            <th className="px-3 py-2 font-medium">N episodios</th>
-            <th className="px-3 py-2 font-medium">Trayectoria ordinal</th>
-            <th className="px-3 py-2 font-medium">Tendencia</th>
-            <th className="px-3 py-2 font-medium text-right">Slope</th>
+            <th className="px-4 py-2.5 font-medium">Unidad</th>
+            <th className="px-4 py-2.5 font-medium">Intentos</th>
+            <th className="px-4 py-2.5 font-medium">Evolucion</th>
+            <th className="px-4 py-2.5 font-medium">Tendencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => {
+            const docente = slopeToDocente(entry.insufficient_data ? null : entry.slope)
+            const isSinUnidad = entry.unidad_id === "sin_unidad"
+            return (
+              <tr
+                key={entry.unidad_id}
+                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+              >
+                <td className="px-4 py-3 align-middle text-sm">
+                  {isSinUnidad ? (
+                    <span className="text-[#787774] italic">{entry.unidad_nombre}</span>
+                  ) : (
+                    <span className="text-[#111111] font-medium">{entry.unidad_nombre}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                  {entry.n_episodes}
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  {entry.insufficient_data ? (
+                    <span className="text-xs text-[#787774]">min. 3 episodios</span>
+                  ) : (
+                    <Sparkline scores={entry.scores_ordinal} colors={colors} />
+                  )}
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  {entry.insufficient_data ? (
+                    <span className="text-xs text-[#787774]">sin datos suf.</span>
+                  ) : (
+                    <div className={`flex items-center gap-1.5 text-sm ${docente.color}`}>
+                      <span className="text-xl leading-none">{docente.emoji}</span>
+                      <span>{docente.label}</span>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 flex items-center gap-4 text-xs text-[#787774]">
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[2] }}
+          />
+          Autonomo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[1] }}
+          />
+          Superficial
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-full"
+            style={{ backgroundColor: colors[0] }}
+          />
+          Depende de la IA
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function InvestigadorUnidadTable({
+  entries,
+  colors,
+  labelerVersion,
+}: {
+  entries: CIIEvolutionUnidad[]
+  colors: [string, string, string]
+  labelerVersion: string
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+      <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5">
+        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+          Evolucion por unidad (primario)
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
+          <tr>
+            <th className="px-4 py-2.5 font-medium">Unidad</th>
+            <th className="px-4 py-2.5 font-medium">N episodios</th>
+            <th className="px-4 py-2.5 font-medium">Trayectoria ordinal</th>
+            <th className="px-4 py-2.5 font-medium">Tendencia</th>
+            <th className="px-4 py-2.5 font-medium text-right">Slope</th>
           </tr>
         </thead>
         <tbody>
@@ -487,34 +740,37 @@ function UnidadTable({
             return (
               <tr
                 key={entry.unidad_id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors"
+                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
               >
-                <td className="px-3 py-3 align-middle">
+                <td className="px-4 py-3 align-middle">
                   {isSinUnidad ? (
-                    <span className="text-xs text-slate-400 italic">{entry.unidad_nombre}</span>
+                    <span className="text-xs text-[#787774] italic">{entry.unidad_nombre}</span>
                   ) : (
-                    <span className="text-sm font-medium text-slate-800">{entry.unidad_nombre}</span>
+                    <span className="text-sm font-medium text-[#111111]">{entry.unidad_nombre}</span>
                   )}
                 </td>
-                <td className="px-3 py-3 align-middle text-sm text-slate-700">{entry.n_episodes}</td>
-                <td className="px-3 py-3 align-middle">
+                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                  {entry.n_episodes}
+                </td>
+                <td className="px-4 py-3 align-middle">
                   {entry.insufficient_data ? (
-                    <span className="text-xs text-slate-400">insuficiente (min. 3)</span>
+                    <span className="text-xs text-[#787774]">insuficiente (min. 3)</span>
                   ) : (
                     <Sparkline scores={entry.scores_ordinal} colors={colors} />
                   )}
                 </td>
-                <td className="px-3 py-3 align-middle">
-                  <div className={`flex items-center gap-2 text-sm ${color}`}>
-                    <span className="text-2xl leading-none">{arrow}</span>
+                <td className="px-4 py-3 align-middle">
+                  <div className={`flex items-center gap-1.5 text-sm ${color}`}>
+                    <span className="text-xl leading-none">{arrow}</span>
                     <span className="capitalize">{label}</span>
                   </div>
                 </td>
-                <td className="px-3 py-3 align-middle text-right">
+                <td className="px-4 py-3 align-middle text-right">
                   {entry.insufficient_data || entry.slope === null ? (
-                    <span className="text-xs text-slate-400">sin slope</span>
+                    <span className="text-xs text-[#787774]">sin slope</span>
                   ) : (
-                    <span className="font-mono text-sm text-slate-700">
+                    <span className="font-mono text-sm text-[#111111]">
+
                       {entry.slope > 0 ? "+" : ""}
                       {entry.slope.toFixed(3)}
                     </span>
@@ -525,12 +781,11 @@ function UnidadTable({
           })}
         </tbody>
       </table>
-      <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 text-xs text-[#787774]">
         Trayectoria por unidad tematica: cada punto es un episodio (
         <Badge className="bg-red-500 text-white">delegacion=0</Badge>{" "}
         <Badge className="bg-amber-500 text-white">superficial=1</Badge>{" "}
-        <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>) ordenada por classified_at.
-        Agrupacion primaria ADR-022.
+        <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>). Labeler v{labelerVersion}.
       </div>
     </div>
   )
@@ -547,106 +802,102 @@ function TemplateSecondarySection({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
       >
-        <span className="text-xs font-mono uppercase tracking-wider text-slate-500">
+        <span className="text-xs font-semibold text-[#787774] uppercase tracking-wider">
           Agrupacion por template (secundario)
         </span>
-        <span className="text-xs text-slate-400">{expanded ? "Ocultar" : "Mostrar"}</span>
+        <span className="text-xs text-[#787774]">{expanded ? "Ocultar" : "Mostrar"}</span>
       </button>
       {expanded && (
-        <div className="border-t border-slate-100">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-600">
-              <tr>
-                <th className="px-3 py-2 font-medium">Template</th>
-                <th className="px-3 py-2 font-medium">N episodios</th>
-                <th className="px-3 py-2 font-medium">Trayectoria ordinal</th>
-                <th className="px-3 py-2 font-medium">Tendencia</th>
-                <th className="px-3 py-2 font-medium text-right">Slope</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => (
-                <TemplateRow key={entry.template_id} entry={entry} colors={colors} />
-              ))}
-            </tbody>
-          </table>
-          <div className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-            Labeler v{labelerVersion}. Agrupacion por TareaPracticaTemplate.id (ADR-018).
-          </div>
-        </div>
+        <InvestigadorTemplateTable
+          entries={entries}
+          colors={colors}
+          labelerVersion={labelerVersion}
+        />
       )}
     </div>
   )
 }
 
-function EpisodesList({ episodes }: { episodes: StudentEpisode[] }) {
+function EpisodesList({
+  episodes,
+  isDocente,
+}: {
+  episodes: StudentEpisode[]
+  isDocente: boolean
+}) {
   if (episodes.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
-        El estudiante no tiene episodios registrados en esta comision todavia.
+      <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-center text-sm text-[#787774]">
+        {isDocente
+          ? "Este alumno no tiene trabajos completados todavia."
+          : "El estudiante no tiene episodios registrados en esta comision todavia."}
       </div>
     )
   }
+
+  const aprLabels = isDocente ? APPROPRIATION_DOCENTE : APPROPRIATION_INVESTIGADOR
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <header className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-mono uppercase tracking-wider text-slate-600">
-        Episodios del estudiante
-        <span className="text-slate-400 mx-2">·</span>
-        <span className="text-[11px] normal-case font-sans">
-          click para ver distribucion N1-N4
+    <section className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+      <header className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5 flex items-center gap-2">
+        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+          {isDocente ? "Trabajos del alumno" : "Episodios del estudiante"}
+        </span>
+        <span className="text-xs text-[#787774]">
+          · {isDocente ? "click para ver detalle" : "click para ver distribucion N1-N4"}
         </span>
       </header>
-      <ul className="divide-y divide-slate-100" data-testid="student-episodes-list">
+      <ul className="divide-y divide-[#EAEAEA]" data-testid="student-episodes-list">
         {episodes.map((ep) => {
-          const apr = ep.appropriation ? APPROPRIATION_LABEL[ep.appropriation] : null
+          const aprKey = ep.appropriation
+          const aprText = aprKey ? (aprLabels[aprKey] ?? aprKey) : null
           return (
             <li key={ep.episode_id}>
               <Link
                 to="/episode-n-level"
                 search={{ episodeId: ep.episode_id }}
                 data-testid="student-episode-row"
-                className="block px-4 py-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-[#FAFAFA] transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="inline-block w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: appropriationDot(ep.appropriation) }}
-                  />
-                  <span className="font-mono text-xs text-slate-700 shrink-0">
+                <span
+                  aria-hidden="true"
+                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: appropriationDot(ep.appropriation) }}
+                />
+                {!isDocente && (
+                  <span className="font-mono text-xs text-[#787774] shrink-0">
                     {ep.episode_id.slice(0, 8)}...{ep.episode_id.slice(-4)}
                   </span>
-                  <span className="flex-1 min-w-0 truncate text-sm text-slate-800">
-                    {ep.tarea_codigo ? (
-                      <>
-                        <span className="font-medium">{ep.tarea_codigo}</span>
-                        {ep.tarea_titulo && (
-                          <span className="text-slate-500">
-                            {" "}
-                            {ep.tarea_titulo}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-slate-400 italic">TP huerfana</span>
-                    )}
-                  </span>
-                  <span className="text-xs text-slate-500 shrink-0 hidden sm:inline">
-                    {formatShortDate(ep.opened_at)}
-                  </span>
-                  <span className="text-xs font-mono text-slate-600 shrink-0 w-24 text-right">
-                    {apr ?? "sin clasif."}
-                  </span>
-                  <span aria-hidden="true" className="text-slate-300 shrink-0">
-                    ›
-                  </span>
-                </div>
+                )}
+                <span className="flex-1 min-w-0 truncate text-sm text-[#111111]">
+                  {ep.tarea_codigo ? (
+                    <>
+                      <span className="font-medium">{ep.tarea_codigo}</span>
+                      {ep.tarea_titulo && (
+                        <span className="text-[#787774]"> {ep.tarea_titulo}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-[#787774] italic">
+                      {isDocente ? "Trabajo sin asignar" : "TP huerfana"}
+                    </span>
+                  )}
+                </span>
+                <span className="text-xs text-[#787774] shrink-0 hidden sm:inline">
+                  {formatShortDate(ep.opened_at)}
+                </span>
+                <span className="text-xs font-mono text-[#787774] shrink-0 w-28 text-right">
+                  {aprText ?? (isDocente ? "sin evaluar" : "sin clasif.")}
+                </span>
+                <span aria-hidden="true" className="text-[#EAEAEA] shrink-0">
+                  ›
+                </span>
               </Link>
             </li>
           )

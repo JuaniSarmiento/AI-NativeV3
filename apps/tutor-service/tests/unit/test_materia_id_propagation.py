@@ -46,6 +46,7 @@ class FakeContentClient:
         top_k: int,
         tenant_id: UUID,
         caller_id: UUID,
+        materia_id: UUID | None = None,
     ) -> RetrievalResult:
         return RetrievalResult(chunks=[], chunks_used_hash="0" * 64, latency_ms=1.0)
 

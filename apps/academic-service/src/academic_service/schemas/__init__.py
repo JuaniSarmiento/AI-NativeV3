@@ -22,8 +22,13 @@ from academic_service.schemas.facultad import (
 )
 from academic_service.schemas.inscripcion import (
     InscripcionCreate,
+    InscripcionCreateIndividual,
     InscripcionOut,
     MateriaInscripta,
+)
+from academic_service.schemas.usuario_comision import (
+    UsuarioComisionCreate,
+    UsuarioComisionOut,
 )
 from academic_service.schemas.materia import MateriaCreate, MateriaOut, MateriaUpdate
 from academic_service.schemas.plan import PlanCreate, PlanOut, PlanUpdate
@@ -32,6 +37,13 @@ from academic_service.schemas.tarea_practica import (
     TareaPracticaOut,
     TareaPracticaUpdate,
     TareaPracticaVersionRef,
+)
+from academic_service.schemas.unidad import (
+    UnidadCreate,
+    UnidadOut,
+    UnidadReorderItem,
+    UnidadReorderRequest,
+    UnidadUpdate,
 )
 from academic_service.schemas.universidad import (
     UniversidadCreate,
@@ -51,7 +63,10 @@ __all__ = [
     "FacultadOut",
     "FacultadUpdate",
     "InscripcionCreate",
+    "InscripcionCreateIndividual",
     "InscripcionOut",
+    "UsuarioComisionCreate",
+    "UsuarioComisionOut",
     "ListMeta",
     "ListResponse",
     "MateriaCreate",
@@ -69,6 +84,11 @@ __all__ = [
     "TareaPracticaOut",
     "TareaPracticaUpdate",
     "TareaPracticaVersionRef",
+    "UnidadCreate",
+    "UnidadOut",
+    "UnidadReorderItem",
+    "UnidadReorderRequest",
+    "UnidadUpdate",
     "UniversidadCreate",
     "UniversidadOut",
     "UniversidadUpdate",

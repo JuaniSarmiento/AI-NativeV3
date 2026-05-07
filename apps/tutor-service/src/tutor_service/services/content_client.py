@@ -47,17 +47,22 @@ class ContentClient:
     async def retrieve(
         self,
         query: str,
-        comision_id: UUID,
         tenant_id: UUID,
+        materia_id: UUID | None = None,
+        comision_id: UUID | None = None,
         top_k: int = 5,
         score_threshold: float = 0.3,
     ) -> RetrievalResult:
-        payload = {
+        """Retrieve chunks del RAG. Prefiere materia_id; comision_id como fallback."""
+        payload: dict[str, object] = {
             "query": query,
-            "comision_id": str(comision_id),
             "top_k": top_k,
             "score_threshold": score_threshold,
         }
+        if materia_id is not None:
+            payload["materia_id"] = str(materia_id)
+        elif comision_id is not None:
+            payload["comision_id"] = str(comision_id)
         headers = {
             "Content-Type": "application/json",
             "X-User-Id": "00000000-0000-0000-0000-000000000099",  # service-account

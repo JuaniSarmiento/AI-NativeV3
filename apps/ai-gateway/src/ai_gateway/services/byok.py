@@ -282,7 +282,37 @@ async def resolve_byok_key(
                         "materia",
                     )
 
-        # 2. scope=tenant
+        # 2. scope=facultad (any key with scope_type='facultad' for this tenant+provider)
+        stmt = (
+            select(BYOKKey)
+            .where(BYOKKey.tenant_id == tenant_id)
+            .where(BYOKKey.scope_type == "facultad")
+            .where(BYOKKey.provider == provider)
+            .where(BYOKKey.revoked_at.is_(None))
+        )
+        row = (await session.execute(stmt)).scalar_one_or_none()
+        if row is not None:
+            try:
+                plaintext = decrypt(row.encrypted_value, master_key).decode("utf-8")
+            except CryptoError as exc:
+                logger.error("byok_decrypt_failed key_id=%s: %s", row.id, exc)
+            else:
+                return _emit(
+                    ResolvedKey(
+                        plaintext=plaintext,
+                        provider=provider,
+                        scope_resolved="facultad",
+                        key_id=row.id,
+                        monthly_budget_usd=(
+                            float(row.monthly_budget_usd)
+                            if row.monthly_budget_usd is not None
+                            else None
+                        ),
+                    ),
+                    "facultad",
+                )
+
+        # 3. scope=tenant
         stmt = (
             select(BYOKKey)
             .where(BYOKKey.tenant_id == tenant_id)
@@ -313,7 +343,7 @@ async def resolve_byok_key(
                     "tenant",
                 )
 
-    # 3. Env fallback
+    # 4. Env fallback
     env = _env_fallback_key(provider)
     if env is None:
         return _emit(None, "none")

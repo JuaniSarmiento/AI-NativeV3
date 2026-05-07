@@ -1,14 +1,15 @@
-"""Retrieval RAG con filtro estricto por comisión + re-ranking.
+"""Retrieval RAG con filtro estricto por materia + re-ranking.
 
-PROPIEDAD CRÍTICA: toda query DEBE incluir `comision_id`. El filtro se
-aplica en dos capas (defensa en profundidad):
+PROPIEDAD CRÍTICA: toda query DEBE incluir `materia_id` (o `comision_id`
+como fallback deprecated). El filtro se aplica en dos capas (defensa en
+profundidad):
 
 1. RLS por `tenant_id` automático via `current_setting('app.current_tenant')`.
-2. WHERE explícito `comision_id = :c` en la query SQL.
+2. WHERE explícito `materia_id = :m` en la query SQL.
 
-Sin ambos, el tutor podría recibir chunks de otras comisiones de la
-misma universidad. Esto violaría la propiedad de aislamiento pedagógico
-de la tesis.
+El aislamiento es por materia: todas las comisiones de la misma materia
+comparten el corpus RAG. Esto es correcto porque el material de
+referencia pertenece a la materia, no a una comisión particular.
 """
 
 from __future__ import annotations
@@ -38,15 +39,28 @@ class RetrievalService:
     async def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
         start = time.perf_counter()
 
+        # Resolver scope: materia_id preferido, comision_id como fallback
+        scope_id = request.materia_id or request.comision_id
+        if scope_id is None:
+            return RetrievalResponse(
+                chunks=[],
+                chunks_used_hash=_hash_chunk_ids([]),
+                latency_ms=0.0,
+                rerank_applied=False,
+            )
+
+        use_materia = request.materia_id is not None
+        scope_column = "c.materia_id" if use_materia else "c.comision_id"
+
         # 1. Embed de la query
         embedder = get_embedder()
         q_vec = await embedder.embed_query(request.query)
 
         # 2. Top-N por similitud vectorial. Filtro doble:
         #    - RLS implícito (current_setting + tenant_isolation policy)
-        #    - comision_id explícito en WHERE
+        #    - materia_id (o comision_id fallback) explícito en WHERE
         rows = await self.session.execute(
-            text("""
+            text(f"""
                 SELECT
                     c.id,
                     c.contenido,
@@ -58,7 +72,7 @@ class RetrievalService:
                     1 - (c.embedding <=> CAST(:q AS vector)) AS score_vector
                 FROM chunks c
                 JOIN materiales m ON m.id = c.material_id
-                WHERE c.comision_id = :comision_id
+                WHERE {scope_column} = :scope_id
                   AND c.embedding IS NOT NULL
                   AND m.deleted_at IS NULL
                 ORDER BY c.embedding <=> CAST(:q AS vector)
@@ -66,7 +80,7 @@ class RetrievalService:
             """),
             {
                 "q": str(q_vec),
-                "comision_id": request.comision_id,
+                "scope_id": scope_id,
                 "limit": VECTOR_TOP_N,
             },
         )

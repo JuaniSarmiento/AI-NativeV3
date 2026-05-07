@@ -127,8 +127,8 @@ def test_manifest_global_activa_v101_para_tutor_default(loader: PromptLoader) ->
     cfg = loader.active_configs()
     active = cfg.get("active", {})
     default = active.get("default", {})
-    assert default.get("tutor") == "v1.0.1", (
-        f"manifest.yaml global debe declarar tutor=v1.0.1 para default; "
+    assert default.get("tutor") == "v1.1.0", (
+        f"manifest.yaml global debe declarar tutor=v1.1.0 para default; "
         f"obtenido: {default.get('tutor')!r}. Si la activacion fue revertida, "
         f"alinear tambien tutor-service/config.py:default_prompt_version."
     )

@@ -413,16 +413,17 @@ class RealLongitudinalDataSource:
         if not ep_to_problema:
             return []
 
-        # 2. Resolver problema_id → template_id via academic_main
+        # 2. Resolver problema_id → template_id + unidad_id via academic_main
         problema_ids = list(set(ep_to_problema.values()))
         tp_stmt = (
-            select(TareaPractica.id, TareaPractica.template_id)
+            select(TareaPractica.id, TareaPractica.template_id, TareaPractica.unidad_id)
             .where(TareaPractica.id.in_(problema_ids))
             .where(TareaPractica.tenant_id == self.tenant_id)
         )
         tp_result = await academic_session.execute(tp_stmt)
-        tp_to_template: dict[UUID, UUID | None] = {
-            row.id: row.template_id for row in tp_result.all()
+        tp_data: dict[UUID, dict] = {
+            row.id: {"template_id": row.template_id, "unidad_id": row.unidad_id}
+            for row in tp_result.all()
         }
 
         # 3. Classifications current de esos episodios
@@ -436,22 +437,50 @@ class RealLongitudinalDataSource:
         )
         cls_result = await self.classifier.execute(cls_stmt)
 
-        # 4. Construir lista con template_id resuelto
+        # 4. Construir lista con template_id + unidad_id resueltos
         out: list[dict] = []
         for c in cls_result.scalars().all():
             problema_id = ep_to_problema.get(c.episode_id)
-            template_id = tp_to_template.get(problema_id) if problema_id else None
+            tp = tp_data.get(problema_id, {}) if problema_id else {}
             out.append(
                 {
                     "episode_id": c.episode_id,
                     "problema_id": problema_id,
-                    "template_id": template_id,  # None si TP huerfana → se skippea downstream
+                    "template_id": tp.get("template_id"),  # None si TP huerfana → skipped downstream
+                    "unidad_id": tp.get("unidad_id"),  # None si sin unidad → "sin_unidad" downstream
                     "classified_at": c.classified_at,
                     "appropriation": c.appropriation,
                 }
             )
 
         return out
+
+    async def list_unidades_by_ids(
+        self,
+        unidad_ids: list[UUID],
+        academic_session: AsyncSession,
+    ) -> dict[str, dict]:
+        """Resuelve unidad_id → {nombre} via academic_main.
+
+        Devuelve dict keyed by str(unidad_id) para alinear con el sentinel
+        "sin_unidad" que usa compute_evolution_per_unidad.
+
+        Guard: si la lista esta vacia devuelve {} sin ejecutar query
+        (evita IN clause vacia que falla en Postgres).
+        """
+        if not unidad_ids:
+            return {}
+
+        from academic_service.models.operacional import Unidad
+
+        stmt = (
+            select(Unidad.id, Unidad.nombre)
+            .where(Unidad.id.in_(unidad_ids))
+            .where(Unidad.tenant_id == self.tenant_id)
+            .where(Unidad.deleted_at.is_(None))
+        )
+        result = await academic_session.execute(stmt)
+        return {str(row.id): {"nombre": row.nombre} for row in result.all()}
 
 
 # ── Helper para setear RLS ────────────────────────────────────────────

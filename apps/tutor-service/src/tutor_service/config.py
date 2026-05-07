@@ -27,15 +27,18 @@ class Settings(BaseSettings):
     ai_gateway_url: str = "http://127.0.0.1:8011"
     ctr_service_url: str = "http://127.0.0.1:8007"
     academic_service_url: str = "http://127.0.0.1:8002"
+    # tp-entregas-correccion: evaluation-service para validar secuencialidad de ejercicios
+    evaluation_service_url: str = "http://127.0.0.1:8004"
 
     # Prompt y modelo default (override por tenant vía active_configs)
-    # v1.0.1 activado 2026-04-29 (ADR-009 + bump documental G12): corrige cuenta
-    # de guardarrailes 4/10 -> 3/10 en el HTML comment del prompt. Comportamiento
-    # del tutor preservado bit-a-bit (HTML comment es invisible al modelo).
+    # v1.1.0 activado 2026-05-06 (epic tutor-context-rag-rubrica): agrega
+    # instrucciones para uso del contexto RAG y rubrica de evaluacion. El
+    # tutor ahora usa la rubrica como mapa privado de navegacion pedagogica
+    # (orienta preguntas socraticas sin revelar criterios ni puntajes).
     # ai-native-prompts/manifest.yaml expone esta version via /active_configs.
     default_prompt_name: str = "tutor"
-    default_prompt_version: str = "v1.0.1"
-    default_model: str = "claude-sonnet-4-6"
+    default_prompt_version: str = "v1.1.0"
+    default_model: str = "mistral-small-latest"
     opus_model: str = "claude-opus-4-7"
 
     # Feature flags por tenant (F6)

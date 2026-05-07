@@ -1,38 +1,25 @@
-/**
- * Vista de eventos adversos por cohorte (ADR-019, RN-129).
- *
- * Cumple Seccion 8.5 + 17.8 de la tesis: visibilidad pedagogica para el
- * docente sobre intentos de jailbreak / persuasion / prompt injection
- * detectados en los prompts de los estudiantes de su comision.
- *
- * Drill-down (D7 brief): top estudiantes -> /student-longitudinal,
- * eventos recientes -> /episode-n-level. Conecta intento adverso con
- * perfil cognitivo + episodio especifico sin endpoint nuevo.
- *
- * Tokens: CATEGORY_COLORS y SEVERITY_COLORS migrados a tokens compartidos
- * (var(--color-adversarial-*) y var(--color-severity-*)). Resuelve F4.
- */
 import { Badge, PageContainer, StateMessage } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
+import { useViewMode } from "../hooks/useViewMode"
 import {
   type AdversarialRecentEvent,
   type CohortAdversarialEvents,
   getCohortAdversarialEvents,
 } from "../lib/api"
+import { ADVERSARIAL_DOCENTE, SEVERITY_DOCENTE, studentShortLabel } from "../utils/docenteLabels"
 import { helpContent } from "../utils/helpContent"
 
 interface Props {
   getToken: () => Promise<string | null>
-  /** Si viene, se selecciona automaticamente al montar (drill-down). */
   initialComisionId?: string
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
   jailbreak_indirect: "Jailbreak indirecto",
-  jailbreak_substitution: "Jailbreak (sustitución)",
-  jailbreak_fiction: "Jailbreak (ficción)",
-  persuasion_urgency: "Persuasión por urgencia",
+  jailbreak_substitution: "Jailbreak (sustitucion)",
+  jailbreak_fiction: "Jailbreak (ficcion)",
+  persuasion_urgency: "Persuasion por urgencia",
   prompt_injection: "Prompt injection",
 }
 
@@ -77,37 +64,43 @@ function resolveCssVar(varName: string, fallback: string): string {
 function CategoryBars({
   counts,
   colors,
-}: { counts: Record<string, number>; colors: Record<string, string> }) {
+  isDocente,
+}: {
+  counts: Record<string, number>
+  colors: Record<string, string>
+  isDocente: boolean
+}) {
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
   if (entries.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-        Sin eventos adversos detectados en la cohorte.
+      <div className="rounded-xl border border-dashed border-[#EAEAEA] p-4 text-center text-sm text-[#787774]">
+        {isDocente
+          ? "No se detectaron intentos de uso inapropiado."
+          : "Sin eventos adversos detectados en la cohorte."}
       </div>
     )
   }
+  const labels = isDocente ? ADVERSARIAL_DOCENTE : CATEGORY_LABELS
   const max = Math.max(...entries.map(([, v]) => v))
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {entries.map(([cat, count]) => {
         const ratio = max > 0 ? count / max : 0
         return (
           <div key={cat} className="flex items-center gap-3">
-            <div className="w-48 shrink-0 text-sm text-slate-700 truncate">
-              {CATEGORY_LABELS[cat] ?? cat}
+            <div className="w-56 shrink-0 text-sm text-[#111111] truncate">
+              {labels[cat] ?? cat}
             </div>
-            <div className="flex-1 h-6 rounded-md bg-slate-100 overflow-hidden">
+            <div className="flex-1 h-5 rounded-full bg-[#EAEAEA] overflow-hidden">
               <div
-                className="h-full flex items-center justify-end px-2 text-xs font-medium text-white"
+                className="h-full rounded-full"
                 style={{
                   width: `${ratio * 100}%`,
                   backgroundColor: colors[cat] ?? "#64748b",
                 }}
-              >
-                {ratio > 0.15 ? count : ""}
-              </div>
+              />
             </div>
-            <div className="w-12 shrink-0 text-right text-sm font-medium text-slate-900">
+            <div className="w-10 shrink-0 text-right text-sm font-semibold text-[#111111]">
               {count}
             </div>
           </div>
@@ -120,26 +113,33 @@ function CategoryBars({
 function SeverityBars({
   counts,
   colors,
-}: { counts: Record<string, number>; colors: Record<string, string> }) {
+  isDocente,
+}: {
+  counts: Record<string, number>
+  colors: Record<string, string>
+  isDocente: boolean
+}) {
   const max = Math.max(...Object.values(counts), 1)
   return (
-    <div className="grid grid-cols-5 gap-2">
+    <div className="grid grid-cols-5 gap-3">
       {(["1", "2", "3", "4", "5"] as const).map((sev) => {
         const count = counts[sev] ?? 0
         const ratio = count / max
         return (
           <div key={sev} className="flex flex-col items-center gap-1">
-            <div className="text-xs font-medium text-slate-500">Sev. {sev}</div>
-            <div className="h-24 w-full flex items-end rounded-md bg-slate-100 overflow-hidden">
+            <div className="text-xs font-medium text-[#787774]">
+              {isDocente ? (SEVERITY_DOCENTE[sev] ?? `Sev. ${sev}`) : `Sev. ${sev}`}
+            </div>
+            <div className="h-20 w-full flex items-end rounded-lg bg-[#EAEAEA] overflow-hidden">
               <div
-                className="w-full transition-all"
+                className="w-full transition-all rounded-lg"
                 style={{
-                  height: `${ratio * 100}%`,
+                  height: `${Math.max(ratio * 100, count > 0 ? 4 : 0)}%`,
                   backgroundColor: colors[sev],
                 }}
               />
             </div>
-            <div className="text-sm font-semibold text-slate-900">{count}</div>
+            <div className="text-sm font-semibold text-[#111111]">{count}</div>
           </div>
         )
       })}
@@ -147,55 +147,13 @@ function SeverityBars({
   )
 }
 
-function RecentEventRow({
-  event,
-  catColors,
-  sevColors,
-}: {
-  event: AdversarialRecentEvent
-  catColors: Record<string, string>
-  sevColors: Record<string, string>
-}) {
-  return (
-    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-      <td className="py-2 pr-3 align-top text-xs text-slate-500 whitespace-nowrap">
-        {event.ts.slice(0, 19).replace("T", " ")}
-      </td>
-      <td className="py-2 pr-3 align-top">
-        <span
-          className="inline-block rounded px-2 py-0.5 text-xs font-medium text-white"
-          style={{ backgroundColor: catColors[event.category] ?? "#64748b" }}
-        >
-          {CATEGORY_LABELS[event.category] ?? event.category}
-        </span>
-      </td>
-      <td className="py-2 pr-3 align-top">
-        <span
-          className="inline-block rounded px-2 py-0.5 text-xs font-bold text-white"
-          style={{ backgroundColor: sevColors[String(event.severity)] }}
-        >
-          {event.severity}
-        </span>
-      </td>
-      <td className="py-2 pr-3 align-top font-mono text-xs text-slate-700">
-        {event.student_pseudonym.slice(0, 8)}...
-      </td>
-      <td className="py-2 align-top">
-        <code className="block text-xs text-slate-700 bg-slate-50 rounded px-2 py-1 break-all">
-          {event.matched_text}
-        </code>
-      </td>
-      <td className="py-2 pl-3 align-top text-right whitespace-nowrap">
-        <Link
-          to="/episode-n-level"
-          search={{ episodeId: event.episode_id }}
-          className="text-xs text-[var(--color-accent-brand)] hover:underline"
-        >
-          ver episodio →
-        </Link>
-      </td>
-    </tr>
-  )
+function topStudentInsight(data: CohortAdversarialEvents): string | null {
+  if (data.top_students_by_n_events.length === 0 || data.n_events_total === 0) return null
+  const top = data.top_students_by_n_events[0]
+  if (!top) return null
+  const pct = Math.round((top.n_events / data.n_events_total) * 100)
+  if (pct < 30) return null
+  return `Un alumno concentra el ${pct}% de los intentos. Considerá hablar con el/ella.`
 }
 
 export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
@@ -203,10 +161,9 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
   const [data, setData] = useState<CohortAdversarialEvents | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode] = useViewMode()
+  const isDocente = viewMode === "docente"
 
-  // Resolvemos los colores via tokens compartidos. CSS vars se aplicarian
-  // automaticamente con var(...) inline, pero los SVG/style backgroundColor
-  // necesitan strings concretos -> caemos a hex fallback en jsdom.
   const catColors = useMemo(
     () =>
       Object.fromEntries(
@@ -253,8 +210,12 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
 
   return (
     <PageContainer
-      title="Intentos adversos detectados"
-      description="Visibilidad pedagógica de los matches del corpus de guardrails (ADR-019, Sección 8.5 de la tesis). Detección preprocesamiento del prompt, el flujo NO se bloquea."
+      title={isDocente ? "Uso inapropiado del tutor IA" : "Intentos adversos detectados"}
+      description={
+        isDocente
+          ? "Muestra cuando los alumnos intentaron hacer trampa o manipular al tutor IA. El sistema los detecta automaticamente."
+          : "Visibilidad pedagogica de los matches del corpus de guardrails (ADR-019, Seccion 8.5 de la tesis). Deteccion preprocesamiento del prompt, el flujo NO se bloquea."
+      }
       helpContent={helpContent.cohortAdversarial}
     >
       <div className="space-y-6">
@@ -263,16 +224,18 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             <Link
               to="/progression"
               search={{ comisionId }}
-              className="text-slate-500 hover:text-slate-700"
+              className="text-[#787774] hover:text-[#111111] transition-colors"
             >
-              ← Volver a la cohorte
+              ← {isDocente ? "Volver a mis alumnos" : "Volver a la cohorte"}
             </Link>
           </div>
         )}
 
         {!comisionId && !loading && (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-            Eligi una comisión desde la barra lateral para ver los intentos adversos detectados.
+          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774]">
+            {isDocente
+              ? "Elegi una comision para ver si hubo intentos de uso inapropiado."
+              : "Elegi una comision desde la barra lateral para ver los intentos adversos detectados."}
           </div>
         )}
 
@@ -288,71 +251,116 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
 
         {data && !loading && (
           <>
-            {/* Resumen denso (no 3 KPI cards). Resuelve F5. */}
-            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-              <p className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
-                Resumen
-              </p>
-              <p>
-                <strong>{data.n_events_total}</strong> eventos totales
-                <span className="text-slate-400 mx-2">·</span>
-                <strong>{Object.keys(data.counts_by_category).length}</strong> categorias
-                observadas
-                <span className="text-slate-400 mx-2">·</span>
-                <strong>{Object.keys(data.counts_by_student).length}</strong> estudiantes con
-                matches
-              </p>
+            <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
+              <div className="flex flex-wrap gap-x-8 gap-y-3 items-start">
+                <div>
+                  <div className="text-3xl font-semibold text-[#111111]">
+                    {data.n_events_total}
+                  </div>
+                  <div className="text-xs text-[#787774] mt-0.5">
+                    {isDocente
+                      ? `intento${data.n_events_total !== 1 ? "s" : ""} detectado${data.n_events_total !== 1 ? "s" : ""}`
+                      : "eventos totales"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 items-center pt-1">
+                  {Object.entries(data.counts_by_category)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, count]) => (
+                      <span
+                        key={cat}
+                        className="inline-flex items-center gap-1.5 text-xs text-[#787774]"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="inline-block w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: catColors[cat] ?? "#64748b" }}
+                        />
+                        <span className="font-medium text-[#111111]">{count}</span>{" "}
+                        {isDocente
+                          ? (ADVERSARIAL_DOCENTE[cat] ?? cat)
+                          : (CATEGORY_LABELS[cat] ?? cat)}
+                      </span>
+                    ))}
+                </div>
+              </div>
             </div>
 
-            {/* Categorias + severidades unificados (1 card en vez de 2). Resuelve F5. */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-5">
+            {isDocente && data.n_events_total > 0 && (() => {
+              const insight = topStudentInsight(data)
+              return insight ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900">
+                  {insight}
+                </div>
+              ) : null
+            })()}
+
+            <div className="rounded-xl border border-[#EAEAEA] bg-white p-6 space-y-5">
               <div>
-                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
-                  Por categoria
+                <div className="text-xs font-medium uppercase tracking-wider text-[#787774] mb-3">
+                  {isDocente ? "Tipo de intento" : "Por categoria"}
                 </div>
-                <CategoryBars counts={data.counts_by_category} colors={catColors} />
+                <CategoryBars
+                  counts={data.counts_by_category}
+                  colors={catColors}
+                  isDocente={isDocente}
+                />
               </div>
-              <div className="border-t border-slate-100 pt-4">
-                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
-                  Por severidad (1-5, ordinal)
+              <div className="border-t border-[#EAEAEA] pt-5">
+                <div className="text-xs font-medium uppercase tracking-wider text-[#787774] mb-3">
+                  {isDocente ? "Nivel de riesgo" : "Por severidad (1-5, ordinal)"}
                 </div>
-                <SeverityBars counts={data.counts_by_severity} colors={sevColors} />
+                <SeverityBars
+                  counts={data.counts_by_severity}
+                  colors={sevColors}
+                  isDocente={isDocente}
+                />
               </div>
             </div>
 
             {data.top_students_by_n_events.length > 0 && (
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-xs font-mono uppercase tracking-wider text-slate-500 mb-3">
-                  Top estudiantes por número de eventos
+              <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+                <div className="border-b border-[#EAEAEA] px-6 py-3">
+                  <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+                    {isDocente
+                      ? "Alumnos con mas intentos"
+                      : "Top estudiantes por numero de eventos"}
+                  </span>
                 </div>
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-[#EAEAEA]">
                   {data.top_students_by_n_events.map((s) => (
                     <li key={s.student_pseudonym}>
                       {comisionId ? (
                         <Link
                           to="/student-longitudinal"
                           search={{ comisionId, studentId: s.student_pseudonym }}
-                          className="flex items-center justify-between px-2 py-2 hover:bg-slate-50"
+                          className="flex items-center justify-between px-6 py-3 hover:bg-[#FAFAFA] transition-colors"
                           data-testid="adversarial-top-student-link"
                         >
-                          <span className="font-mono text-xs text-slate-700">
-                            {s.student_pseudonym.slice(0, 8)}...
-                            {s.student_pseudonym.slice(-4)}
+                          <span className="font-mono text-xs text-[#787774]">
+                            {isDocente
+                              ? studentShortLabel(s.student_pseudonym)
+                              : `${s.student_pseudonym.slice(0, 8)}...${s.student_pseudonym.slice(-4)}`}
                           </span>
                           <span className="flex items-center gap-2">
-                            <Badge className="bg-slate-700 text-white">{s.n_events} ev.</Badge>
-                            <span aria-hidden="true" className="text-slate-300">
+                            <Badge className="bg-[#111111] text-white">
+                              {s.n_events} {isDocente ? `intento${s.n_events !== 1 ? "s" : ""}` : "ev."}
+                            </Badge>
+                            <span aria-hidden="true" className="text-[#EAEAEA]">
                               ›
                             </span>
                           </span>
                         </Link>
                       ) : (
-                        <div className="flex items-center justify-between px-2 py-2">
-                          <span className="font-mono text-xs text-slate-700">
-                            {s.student_pseudonym.slice(0, 8)}...
-                            {s.student_pseudonym.slice(-4)}
+                        <div className="flex items-center justify-between px-6 py-3">
+                          <span className="font-mono text-xs text-[#787774]">
+                            {isDocente
+                              ? studentShortLabel(s.student_pseudonym)
+                              : `${s.student_pseudonym.slice(0, 8)}...${s.student_pseudonym.slice(-4)}`}
                           </span>
-                          <Badge className="bg-slate-700 text-white">{s.n_events} ev.</Badge>
+                          <Badge className="bg-[#111111] text-white">
+                            {s.n_events} {isDocente ? `intento${s.n_events !== 1 ? "s" : ""}` : "ev."}
+                          </Badge>
                         </div>
                       )}
                     </li>
@@ -361,21 +369,21 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
               </div>
             )}
 
-            {data.recent_events.length > 0 && (
-              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+            {!isDocente && data.recent_events.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+                <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-6 py-3 text-xs font-semibold text-[#111111] uppercase tracking-wider">
                   Eventos recientes ({data.recent_events.length})
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-600">
+                    <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
                       <tr>
-                        <th className="px-3 py-2 font-medium">Timestamp</th>
-                        <th className="px-3 py-2 font-medium">Categoría</th>
-                        <th className="px-3 py-2 font-medium">Sev.</th>
-                        <th className="px-3 py-2 font-medium">Estudiante</th>
-                        <th className="px-3 py-2 font-medium">Texto matcheado</th>
-                        <th className="px-3 py-2 font-medium text-right">Drill-down</th>
+                        <th className="px-4 py-2.5 font-medium">Timestamp</th>
+                        <th className="px-4 py-2.5 font-medium">Categoria</th>
+                        <th className="px-4 py-2.5 font-medium">Sev.</th>
+                        <th className="px-4 py-2.5 font-medium">Estudiante</th>
+                        <th className="px-4 py-2.5 font-medium">Texto matcheado</th>
+                        <th className="px-4 py-2.5 font-medium text-right">Drill-down</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -393,22 +401,132 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
               </div>
             )}
 
+            {isDocente && data.recent_events.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+                <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-6 py-3 text-xs font-semibold text-[#111111] uppercase tracking-wider">
+                  Ultimos intentos ({data.recent_events.length})
+                </div>
+                <ul className="divide-y divide-[#EAEAEA]">
+                  {data.recent_events.map((ev, idx) => (
+                    <li
+                      key={`${ev.episode_id}-${idx}`}
+                      className="px-6 py-3 hover:bg-[#FAFAFA] transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            aria-hidden="true"
+                            className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: catColors[ev.category] ?? "#64748b" }}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-sm text-[#111111]">
+                              {ADVERSARIAL_DOCENTE[ev.category] ?? ev.category}
+                            </div>
+                            <div className="text-xs text-[#787774]">
+                              {studentShortLabel(ev.student_pseudonym)} ·{" "}
+                              {ev.ts.slice(0, 10)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-[#787774]">
+                            Riesgo: {SEVERITY_DOCENTE[String(ev.severity)] ?? ev.severity}
+                          </span>
+                          <Link
+                            to="/episode-n-level"
+                            search={{ episodeId: ev.episode_id }}
+                            className="text-xs text-[var(--color-accent-brand)] hover:underline"
+                          >
+                            ver sesion →
+                          </Link>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {data.n_events_total === 0 && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-                <div className="text-emerald-800 font-medium">
-                  Sin eventos adversos en esta cohorte.
+              <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center">
+                <div className="text-green-800 font-semibold">
+                  {isDocente
+                    ? "No se detectaron intentos de uso inapropiado."
+                    : "Sin eventos adversos en esta cohorte."}
                 </div>
-                <div className="mt-2 text-sm text-emerald-700">
-                  Puede significar (a) los estudiantes no intentaron jailbreak, (b) los regex del
-                  corpus v1.1.0 no detectan los intentos reales, o (c) el modo dev no tiene CTR
-                  conectado. Ver <code className="font-mono">RN-129</code> para limitaciones
-                  declaradas.
-                </div>
+                {!isDocente && (
+                  <div className="mt-2 text-sm text-green-700">
+                    Puede significar (a) los estudiantes no intentaron jailbreak, (b) los regex del
+                    corpus v1.1.0 no detectan los intentos reales, o (c) el modo dev no tiene CTR
+                    conectado. Ver <code className="font-mono">RN-129</code> para limitaciones
+                    declaradas.
+                  </div>
+                )}
+                {isDocente && (
+                  <div className="mt-2 text-sm text-green-700">
+                    Tus alumnos no intentaron engañar al tutor IA (o el sistema no detecto ningun
+                    intento).
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
       </div>
     </PageContainer>
+  )
+}
+
+function RecentEventRow({
+  event,
+  catColors,
+  sevColors,
+}: {
+  event: AdversarialRecentEvent
+  catColors: Record<string, string>
+  sevColors: Record<string, string>
+}) {
+  return (
+    <tr className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors">
+      <td className="px-4 py-3 align-top text-xs text-[#787774] whitespace-nowrap">
+        {event.ts.slice(0, 19).replace("T", " ")}
+      </td>
+      <td className="px-4 py-3 align-top">
+        <span className="inline-flex items-center gap-1.5 text-xs text-[#111111]">
+          <span
+            aria-hidden="true"
+            className="inline-block w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: catColors[event.category] ?? "#64748b" }}
+          />
+          {CATEGORY_LABELS[event.category] ?? event.category}
+        </span>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <span
+          className="inline-block rounded-full w-6 h-6 text-xs font-bold text-white flex items-center justify-center"
+          style={{ backgroundColor: sevColors[String(event.severity)] }}
+        >
+          {event.severity}
+        </span>
+      </td>
+      <td className="px-4 py-3 align-top font-mono text-xs text-[#787774]">
+        {event.student_pseudonym.slice(0, 8)}...
+      </td>
+      <td className="px-4 py-3 align-top">
+        <code className="block text-xs text-[#111111] bg-[#FAFAFA] rounded px-2 py-1 break-all">
+          {event.matched_text}
+        </code>
+      </td>
+      <td className="px-4 py-3 align-top text-right whitespace-nowrap">
+        <Link
+          to="/episode-n-level"
+          search={{ episodeId: event.episode_id }}
+          className="text-xs text-[var(--color-accent-brand)] hover:underline"
+        >
+          ver episodio →
+        </Link>
+      </td>
+    </tr>
   )
 }

@@ -243,9 +243,10 @@ async def test_resolve_miss_materia_hit_tenant(monkeypatch) -> None:
     tenant_id = uuid4()
     materia_id = uuid4()
 
-    # Primera call (materia) miss; segunda (tenant) hit.
+    # Resolver jerarquico (ADR-039): materia -> facultad -> tenant.
+    # Primera call (materia) miss; segunda (facultad) miss; tercera (tenant) hit.
     tenant_row = _make_byok_row(scope_type="tenant", scope_id=None, encrypted=encrypted)
-    sm, _ = _build_mock_session([None, tenant_row])
+    sm, _ = _build_mock_session([None, None, tenant_row])
     monkeypatch.setattr(byok_module, "_get_sessionmaker", lambda: sm)
 
     result = await resolve_byok_key(tenant_id, "anthropic", materia_id=materia_id)
@@ -258,7 +259,8 @@ async def test_resolve_miss_materia_y_tenant_fallback_env(monkeypatch) -> None:
     _setup_master_key(monkeypatch)
     monkeypatch.setattr(byok_module.settings, "anthropic_api_key", "sk-env-tail")
 
-    sm, _ = _build_mock_session([None, None])  # ambos miss
+    # Resolver jerarquico: materia -> facultad -> tenant -> env_fallback.
+    sm, _ = _build_mock_session([None, None, None])  # tres niveles miss
     monkeypatch.setattr(byok_module, "_get_sessionmaker", lambda: sm)
 
     result = await resolve_byok_key(uuid4(), "anthropic", materia_id=uuid4())
@@ -273,16 +275,16 @@ async def test_resolve_sin_materia_id_va_directo_a_tenant(monkeypatch) -> None:
 
     encrypted = encrypt(b"sk-direct-tenant", raw_key)
     tenant_row = _make_byok_row(scope_type="tenant", scope_id=None, encrypted=encrypted)
-    # Solo UN call a execute (skip el de materia)
-    sm, session_mock = _build_mock_session([tenant_row])
+    # materia_id=None salta el query de materia. Quedan: facultad miss + tenant hit.
+    sm, session_mock = _build_mock_session([None, tenant_row])
     monkeypatch.setattr(byok_module, "_get_sessionmaker", lambda: sm)
 
     result = await resolve_byok_key(uuid4(), "anthropic", materia_id=None)
     assert result is not None
     assert result.scope_resolved == "tenant"
-    # Verifica que solo hubo 2 calls a execute (1 SET LOCAL + 1 SELECT tenant);
-    # SI hubiera intentado materia, serian 3 (SET LOCAL + SELECT materia + SELECT tenant).
-    assert session_mock.execute.call_count == 2
+    # 1 SET LOCAL + 1 SELECT facultad + 1 SELECT tenant = 3.
+    # SI hubiera intentado materia, serian 4.
+    assert session_mock.execute.call_count == 3
 
 
 async def test_resolve_decrypt_fallido_cae_a_env(monkeypatch) -> None:
@@ -293,12 +295,12 @@ async def test_resolve_decrypt_fallido_cae_a_env(monkeypatch) -> None:
     # Encrypted bytes invalidos — al desencriptar tira CryptoError
     bad_encrypted = b"\x00" * 30
     bad_row = _make_byok_row(scope_type="materia", scope_id=uuid4(), encrypted=bad_encrypted)
-    # fila materia (decrypt fail), fila tenant (no row)
-    sm, _ = _build_mock_session([bad_row, None])
+    # fila materia (decrypt fail), facultad miss, tenant miss
+    sm, _ = _build_mock_session([bad_row, None, None])
     monkeypatch.setattr(byok_module, "_get_sessionmaker", lambda: sm)
 
     result = await resolve_byok_key(uuid4(), "anthropic", materia_id=bad_row.scope_id)
-    # Como decrypt fallo en materia y miss en tenant, fallback a env
+    # Como decrypt fallo en materia y miss en facultad/tenant, fallback a env
     assert result is not None
     assert result.scope_resolved == "env_fallback"
 

@@ -524,6 +524,22 @@ class CIIEvolutionTemplateOut(BaseModel):
     insufficient_data: bool
 
 
+class CIIEvolutionUnidadOut(BaseModel):
+    """Slope longitudinal de un estudiante agrupado por Unidad tematica (AD-4, AD-6).
+
+    Paralelo a CIIEvolutionTemplateOut pero usando unidad_id como eje de
+    agrupacion. Habilita trazabilidad cuando template_id=NULL (pilotos sin
+    TareaPracticaTemplate configurados).
+    """
+
+    unidad_id: str  # UUID str o "sin_unidad" para TPs huerfanas
+    unidad_nombre: str
+    n_episodes: int
+    scores_ordinal: list[int]
+    slope: float | None
+    insufficient_data: bool
+
+
 class CIIEvolutionLongitudinalOut(BaseModel):
     """Distribución de evolution longitudinal de un estudiante (ADR-018).
 
@@ -531,6 +547,10 @@ class CIIEvolutionLongitudinalOut(BaseModel):
     `evolution_per_template` es un slope ordinal sobre `APPROPRIATION_ORDINAL`
     (0=delegacion, 1=superficial, 2=reflexiva). Slope > 0 = mejora
     longitudinal en ese problema lógico.
+
+    `evolution_per_unidad` es el agrupamiento tematico paralelo (AD-4, AD-6).
+    Default [] para BC — callers que solo leen `evolution_per_template` no
+    se ven afectados.
     """
 
     student_pseudonym: str
@@ -539,6 +559,7 @@ class CIIEvolutionLongitudinalOut(BaseModel):
     n_groups_insufficient: int
     n_episodes_total: int
     evolution_per_template: list[CIIEvolutionTemplateOut]
+    evolution_per_unidad: list[CIIEvolutionUnidadOut] = []
     mean_slope: float | None
     sufficient_data: bool
     labeler_version: str
@@ -606,16 +627,32 @@ async def get_cii_evolution_longitudinal(
                 comision_id=comision_id,
                 academic_session=acad_s,
             )
+
+            # Resolver unidad_id → nombre para los grupos de unidad.
+            # Recopilar los unidad_ids no-None de las classifications.
+            from uuid import UUID as _UUID
+
+            unidad_ids_raw = {
+                c["unidad_id"]
+                for c in classifications
+                if c.get("unidad_id") is not None
+            }
+            unidad_ids = [_UUID(str(uid)) for uid in unidad_ids_raw]
+            unidad_map = await ds.list_unidades_by_ids(
+                unidad_ids=unidad_ids,
+                academic_session=acad_s,
+            )
     finally:
         await ctr_engine.dispose()
         await cls_engine.dispose()
         await acad_engine.dispose()
 
-    distribution = compute_cii_evolution_longitudinal(classifications)
+    distribution = compute_cii_evolution_longitudinal(classifications, unidad_map=unidad_map)
     logger.info(
         "cii_evolution_longitudinal_computed tenant_id=%s user_id=%s "
         "student_pseudonym=%s comision_id=%s n_episodes_total=%d "
-        "n_groups_evaluated=%d mean_slope=%s labeler_version=%s",
+        "n_groups_evaluated=%d mean_slope=%s labeler_version=%s "
+        "n_unidad_groups=%d",
         tenant_id,
         user_id,
         student_pseudonym,
@@ -624,6 +661,7 @@ async def get_cii_evolution_longitudinal(
         distribution["n_groups_evaluated"],
         distribution["mean_slope"],
         distribution["labeler_version"],
+        len(distribution.get("evolution_per_unidad", [])),
     )
     return CIIEvolutionLongitudinalOut(
         student_pseudonym=str(student_pseudonym),

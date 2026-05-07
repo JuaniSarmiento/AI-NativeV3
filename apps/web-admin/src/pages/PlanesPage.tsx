@@ -258,8 +258,17 @@ export function PlanesPage(): ReactNode {
               Seleccioná una carrera para ver sus planes.
             </div>
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No hay planes en esta carrera.
+            <div className="p-8 text-center space-y-3">
+              <p className="text-slate-500 text-sm">No hay planes de estudio en esta carrera todavia.</p>
+              {carreraId && (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+                >
+                  Crear primer plan
+                </button>
+              )}
             </div>
           ) : (
             <table className="w-full text-sm">

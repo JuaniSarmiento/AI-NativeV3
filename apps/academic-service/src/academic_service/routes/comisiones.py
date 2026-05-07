@@ -12,11 +12,15 @@ from academic_service.schemas import (
     ComisionCreate,
     ComisionOut,
     ComisionUpdate,
+    InscripcionCreateIndividual,
+    InscripcionOut,
     ListMeta,
     ListResponse,
     PeriodoCreate,
     PeriodoOut,
     PeriodoUpdate,
+    UsuarioComisionCreate,
+    UsuarioComisionOut,
 )
 from academic_service.services import ComisionService, PeriodoService
 
@@ -157,3 +161,95 @@ async def delete_comision(
 ) -> None:
     svc = ComisionService(db)
     await svc.soft_delete(comision_id, user)
+
+
+# ── Docentes de comision ──────────────────────────────────────────────
+
+
+@comisiones_router.get("/{comision_id}/docentes", response_model=ListResponse[UsuarioComisionOut])
+async def list_docentes(
+    comision_id: UUID,
+    user: User = Depends(require_permission("usuario_comision", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ListResponse[UsuarioComisionOut]:
+    svc = ComisionService(db)
+    objs = await svc.list_docentes(comision_id)
+    items = [UsuarioComisionOut.model_validate(o) for o in objs]
+    return ListResponse(data=items, meta=ListMeta(cursor_next=None))
+
+
+@comisiones_router.post(
+    "/{comision_id}/docentes",
+    response_model=UsuarioComisionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_docente(
+    comision_id: UUID,
+    data: UsuarioComisionCreate,
+    user: User = Depends(require_permission("usuario_comision", "create")),
+    db: AsyncSession = Depends(get_db),
+) -> UsuarioComisionOut:
+    svc = ComisionService(db)
+    obj = await svc.add_docente(comision_id, data, user)
+    return UsuarioComisionOut.model_validate(obj)
+
+
+@comisiones_router.delete(
+    "/{comision_id}/docentes/{uc_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_docente(
+    comision_id: UUID,
+    uc_id: UUID,
+    user: User = Depends(require_permission("usuario_comision", "delete")),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    svc = ComisionService(db)
+    await svc.remove_docente(comision_id, uc_id, user)
+
+
+# ── Inscripciones de comision ─────────────────────────────────────────
+
+
+@comisiones_router.get(
+    "/{comision_id}/inscripciones", response_model=ListResponse[InscripcionOut]
+)
+async def list_inscripciones(
+    comision_id: UUID,
+    user: User = Depends(require_permission("inscripcion", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ListResponse[InscripcionOut]:
+    svc = ComisionService(db)
+    objs = await svc.list_inscripciones(comision_id)
+    items = [InscripcionOut.model_validate(o) for o in objs]
+    return ListResponse(data=items, meta=ListMeta(cursor_next=None))
+
+
+@comisiones_router.post(
+    "/{comision_id}/inscripciones",
+    response_model=InscripcionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_inscripcion(
+    comision_id: UUID,
+    data: InscripcionCreateIndividual,
+    user: User = Depends(require_permission("inscripcion", "create")),
+    db: AsyncSession = Depends(get_db),
+) -> InscripcionOut:
+    svc = ComisionService(db)
+    obj = await svc.add_inscripcion(comision_id, data, user)
+    return InscripcionOut.model_validate(obj)
+
+
+@comisiones_router.delete(
+    "/{comision_id}/inscripciones/{insc_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_inscripcion(
+    comision_id: UUID,
+    insc_id: UUID,
+    user: User = Depends(require_permission("inscripcion", "delete")),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    svc = ComisionService(db)
+    await svc.remove_inscripcion(comision_id, insc_id, user)

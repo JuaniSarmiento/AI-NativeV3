@@ -24,7 +24,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ai_gateway.services.byok import (
     create_byok_key,
@@ -75,6 +75,20 @@ class CreateKeyRequest(BaseModel):
     provider: Literal["anthropic", "gemini", "mistral", "openai"]
     plaintext_value: str = Field(min_length=8, max_length=512)
     monthly_budget_usd: float | None = Field(default=None, ge=0.0)
+
+    @field_validator("scope_id", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: object) -> UUID | None:
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                return UUID(v)
+            except ValueError:
+                raise ValueError(f"scope_id debe ser un UUID valido, recibido: {v!r}")
+        if isinstance(v, UUID):
+            return v
+        raise ValueError(f"scope_id debe ser UUID o string, recibido: {type(v).__name__}")
 
 
 class RotateKeyRequest(BaseModel):

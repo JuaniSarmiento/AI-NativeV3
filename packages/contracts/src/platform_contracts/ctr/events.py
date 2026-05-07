@@ -48,6 +48,17 @@ class EpisodioAbiertoPayload(BaseModel):
     problema_id: UUID
     comision_id: UUID
     curso_config_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    # tp-entregas-correccion: orden del ejercicio dentro de la TP.
+    # None = TP monolítica (backwards-compatible). int >= 1 = ejercicio N.
+    ejercicio_orden: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Orden del ejercicio dentro de la TP (1-based). "
+            "None para TPs monolíticas (comportamiento legacy). "
+            "Permite vincular el episodio con el ejercicio especifico en el CTR."
+        ),
+    )
 
 
 class EpisodioAbierto(CTRBaseEvent):
@@ -284,3 +295,38 @@ class TestsEjecutadosPayload(BaseModel):
 class TestsEjecutados(CTRBaseEvent):
     event_type: Literal["tests_ejecutados"] = "tests_ejecutados"
     payload: TestsEjecutadosPayload
+
+
+# ── Entregas y Calificaciones (tp-entregas-correccion) ───────────────────
+#
+# Meta-eventos de gobernanza academica — NO actividad pedagogica del episodio.
+# Excluidos del classifier (mismo patron que reflexion_completada).
+# Emitidos por evaluation-service (service account UUID-14).
+class TpEntregadaPayload(BaseModel):
+    tarea_practica_id: UUID
+    entrega_id: UUID
+    n_ejercicios: int = Field(ge=0)
+    exercise_episode_ids: list[str] = Field(
+        default_factory=list,
+        description="UUIDs de los episodios de cada ejercicio completado",
+    )
+
+
+class TpEntregada(CTRBaseEvent):
+    """Emitido cuando el alumno submite formalmente su entrega de TP."""
+
+    event_type: Literal["tp_entregada"] = "tp_entregada"
+    payload: TpEntregadaPayload
+
+
+class TpCalificadaPayload(BaseModel):
+    entrega_id: UUID
+    nota_final: float = Field(ge=0, le=10)
+    graded_by: UUID
+
+
+class TpCalificada(CTRBaseEvent):
+    """Emitido cuando el docente califica una entrega de TP."""
+
+    event_type: Literal["tp_calificada"] = "tp_calificada"
+    payload: TpCalificadaPayload

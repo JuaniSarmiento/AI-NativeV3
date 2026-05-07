@@ -16,6 +16,7 @@ import {
   FileBarChart,
   GraduationCap,
   Home,
+  Key,
   Landmark,
   Layers,
   Library,
@@ -27,6 +28,7 @@ import {
 import { type ReactNode, useState } from "react"
 import { AuditoriaPage } from "../pages/AuditoriaPage"
 import { BulkImportPage } from "../pages/BulkImportPage"
+import { ByokPage } from "../pages/ByokPage"
 import { CarrerasPage } from "../pages/CarrerasPage"
 import { ClasificacionesPage } from "../pages/ClasificacionesPage"
 import { ComisionesPage } from "../pages/ComisionesPage"
@@ -58,6 +60,7 @@ export type Route =
   | "bulk-import"
   | "auditoria"
   | "governance-events"
+  | "byok"
 
 export interface NavContext {
   current: Route
@@ -95,6 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "periodos", label: "Periodos", icon: CalendarDays },
       { id: "bulk-import", label: "Importación masiva", icon: Upload },
+      { id: "byok", label: "BYOK Keys", icon: Key },
     ],
   },
 ]
@@ -128,6 +132,7 @@ export function Router(): ReactNode {
           {current === "bulk-import" && <BulkImportPage />}
           {current === "auditoria" && <AuditoriaPage />}
           {current === "governance-events" && <GovernanceEventsPage />}
+          {current === "byok" && <ByokPage />}
         </div>
       </main>
     </div>

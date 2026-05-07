@@ -102,29 +102,65 @@ export function HomeView({ getToken }: Props) {
     void load()
   }, [load])
 
+  const totalAlumnos = items?.reduce((s, e) => s + (e.kpis.alumnos ?? 0), 0) ?? null
+  const totalEpisodios = items?.reduce((s, e) => s + (e.kpis.episodiosSemana ?? 0), 0) ?? null
+  const totalAdversos = items?.reduce((s, e) => s + (e.kpis.adversosSemana ?? 0), 0) ?? null
+
   return (
     <PageContainer
       title="Tus comisiones"
-      description="Cohortes asignadas a vos en este periodo. Click en una para ver progresion, alertas y eventos adversos."
+      description="Cohortes asignadas a vos en este periodo."
       helpContent={helpContent.home}
     >
-      <div className="space-y-6">
+      <div className="space-y-8">
         {loading && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          <div className="rounded-xl border border-[#EAEAEA] bg-white p-4 text-sm text-[#787774]">
             Cargando tus comisiones...
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <div className="font-medium">No pudimos cargar tus comisiones.</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="font-semibold">No pudimos cargar tus comisiones.</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
         )}
 
+        {items && items.length > 0 && !loading && (
+          <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
+            <div className="flex flex-wrap gap-x-10 gap-y-4">
+              <div>
+                <div className="text-2xl font-semibold text-[#111111]">{items.length}</div>
+                <div className="text-xs text-[#787774] mt-0.5">comisiones</div>
+              </div>
+              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
+              <div>
+                <div className="text-2xl font-semibold text-[#111111]">
+                  {totalAlumnos !== null ? totalAlumnos : <span className="text-[#787774] text-base">—</span>}
+                </div>
+                <div className="text-xs text-[#787774] mt-0.5">alumnos totales</div>
+              </div>
+              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
+              <div>
+                <div className="text-2xl font-semibold text-[#111111]">
+                  {totalEpisodios !== null ? totalEpisodios : <span className="text-[#787774] text-base">—</span>}
+                </div>
+                <div className="text-xs text-[#787774] mt-0.5">episodios esta semana</div>
+              </div>
+              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
+              <div>
+                <div className="text-2xl font-semibold text-[#111111]">
+                  {totalAdversos !== null ? totalAdversos : <span className="text-[#787774] text-base">—</span>}
+                </div>
+                <div className="text-xs text-[#787774] mt-0.5">adversos esta semana</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {items && items.length === 0 && !loading && (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600 max-w-2xl">
-            <p className="font-medium text-slate-700 mb-2">
+          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-sm text-[#787774] max-w-2xl">
+            <p className="font-semibold text-[#111111] mb-2">
               No tenes comisiones asignadas todavia.
             </p>
             <p>
@@ -148,39 +184,32 @@ export function HomeView({ getToken }: Props) {
           </ul>
         )}
 
-        {/* Tools transversales como divider tipografico, no cards. Densidad
-            academica: una linea por tool, sin overhead visual. */}
         {items && items.length > 0 && (
-          <section className="pt-6 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+          <section className="pt-6 border-t border-[#EAEAEA]">
+            <p className="text-xs uppercase tracking-wider text-[#787774] mb-3 font-medium">
               Tools transversales
-              <span className="text-slate-400 mx-2">·</span>
-              <span className="normal-case font-sans">no requieren comision</span>
             </p>
-            <ul className="text-sm space-y-1">
-              <li className="flex items-baseline gap-3">
-                <span className="text-slate-400">─</span>
+            <ul className="text-sm space-y-2">
+              <li>
                 <a
                   href="/templates"
-                  className="text-slate-700 dark:text-slate-200 hover:text-[var(--color-accent-brand)]"
+                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
                 >
                   Plantillas (catedra)
                 </a>
               </li>
-              <li className="flex items-baseline gap-3">
-                <span className="text-slate-400">─</span>
+              <li>
                 <a
                   href="/kappa"
-                  className="text-slate-700 dark:text-slate-200 hover:text-[var(--color-accent-brand)]"
+                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
                 >
                   Inter-rater (kappa)
                 </a>
               </li>
-              <li className="flex items-baseline gap-3">
-                <span className="text-slate-400">─</span>
+              <li>
                 <a
                   href="/export"
-                  className="text-slate-700 dark:text-slate-200 hover:text-[var(--color-accent-brand)]"
+                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
                 >
                   Exportar dataset academico
                 </a>

@@ -176,7 +176,8 @@ export type MaterialEstado =
 export interface Material {
   id: string
   tenant_id: string
-  comision_id: string
+  materia_id: string | null
+  comision_id: string | null // Deprecated: usar materia_id
   tipo: MaterialTipo
   nombre: string
   tamano_bytes: number
@@ -223,10 +224,10 @@ async function multipartUpload<T>(
 }
 
 export async function listMateriales(
-  params: { comision_id: string; cursor?: string; limit?: number },
+  params: { materia_id: string; cursor?: string; limit?: number },
   getToken?: TokenGetter,
 ): Promise<MaterialListResponse> {
-  const qs = new URLSearchParams({ comision_id: params.comision_id })
+  const qs = new URLSearchParams({ materia_id: params.materia_id })
   if (params.cursor) qs.set("cursor", params.cursor)
   if (params.limit) qs.set("limit", String(params.limit))
   const r = await fetch(`/api/v1/materiales?${qs.toString()}`, {
@@ -245,13 +246,13 @@ export async function getMaterial(id: string, getToken?: TokenGetter): Promise<M
 }
 
 export async function uploadMaterial(
-  comisionId: string,
+  materiaId: string,
   file: File,
   getToken?: TokenGetter,
 ): Promise<Material> {
   return multipartUpload<Material>(
     "/api/v1/materiales",
-    { comision_id: comisionId, file },
+    { materia_id: materiaId, file },
     getToken,
   )
 }
@@ -286,23 +287,28 @@ export interface TareaPractica {
   fecha_fin: string | null
   peso: string // decimal serializado como string
   rubrica: Record<string, unknown> | null
+  ejercicios: Array<{ orden: number; titulo: string; enunciado_md: string; inicial_codigo: string | null; peso: string }>
   estado: TareaEstado
   version: number
   parent_tarea_id: string | null
-  // ADR-016 — FK nullable al template canonico de la catedra. NULL = TP
-  // huerfana (creada directo en la comision, sin plantilla).
   template_id: string | null
-  // ADR-016 — true cuando el docente edito la instancia despues de que el
-  // template la auto-instancio. El link al template se preserva.
   has_drift: boolean
   created_by: string
   created_at: string
   updated_at: string
-  // ADR-033/034 — ejercicios JSONB + test cases (nullable — older TPs sin ejercicios)
-  ejercicios?: Array<{ orden: number; titulo: string; descripcion: string }> | null
+  // ADR-034 — test cases (nullable — older TPs sin test_cases)
   test_cases?: Array<{ id: string; name: string; type: string; code: string; expected: string | null; is_public: boolean; weight: number }> | null
-  // Unidades de trazabilidad — FK nullable a la unidad de la comision
-  unidad_id?: string | null
+  // Unidades de trazabilidad — FK nullable a la unidad de la comision (ADR-041)
+  unidad_id: string | null
+}
+
+export interface EjercicioInput {
+  orden: number
+  titulo: string
+  enunciado_md: string
+  inicial_codigo?: string | null
+  test_cases?: Array<Record<string, unknown>>
+  peso: string
 }
 
 export interface TareaPracticaCreate {
@@ -314,6 +320,8 @@ export interface TareaPracticaCreate {
   fecha_fin?: string | null
   peso?: string
   rubrica?: Record<string, unknown> | null
+  ejercicios?: EjercicioInput[]
+  created_via_ai?: boolean
 }
 
 export interface TareaPracticaUpdate {
@@ -324,6 +332,8 @@ export interface TareaPracticaUpdate {
   fecha_fin?: string | null
   peso?: string
   rubrica?: Record<string, unknown> | null
+  ejercicios?: EjercicioInput[]
+  unidad_id?: string | null
 }
 
 export interface TareaPracticaListResponse {
@@ -462,6 +472,61 @@ export const tareasPracticasApi = {
   archive: archiveTareaPractica,
   newVersion: newVersionTareaPractica,
   versions: listVersionsTareaPractica,
+}
+
+// ── TP Generate con IA (ADR-036) ─────────────────────────────────────
+
+export type DificultadIA = "basica" | "intermedia" | "avanzada"
+
+export interface GenerateTPRequest {
+  materia_id: string
+  descripcion_nl: string
+  num_ejercicios?: number
+  dificultad?: DificultadIA
+  contexto?: string
+  comision_id?: string
+}
+
+export interface TestCaseIA {
+  id?: string
+  name?: string
+  type?: string
+  code?: string
+  expected?: string
+  is_public?: boolean
+  weight?: number
+}
+
+export interface EjercicioGenerado {
+  titulo: string
+  enunciado: string
+  inicial_codigo: string
+  rubrica: Record<string, unknown>
+  test_cases: TestCaseIA[]
+}
+
+export interface GenerateTPResponse {
+  ejercicios: EjercicioGenerado[]
+  prompt_version: string
+  model_used: string
+  provider_used: string
+  tokens_input: number
+  tokens_output: number
+  rag_chunks_used: number
+  rag_chunks_hash: string | null
+}
+
+export async function generateTPWithAI(
+  body: GenerateTPRequest,
+  getToken?: TokenGetter,
+): Promise<GenerateTPResponse> {
+  const r = await fetch("/api/v1/tareas-practicas/generate", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
 }
 
 // ── Comisiones ────────────────────────────────────────────────────────
@@ -854,6 +919,127 @@ export const catalogoApi = {
   periodos: listPeriodos,
 }
 
+// ── Unidades de Trazabilidad ──────────────────────────────────────────
+
+export interface Unidad {
+  id: string
+  tenant_id: string
+  comision_id: string
+  nombre: string
+  orden: number
+  descripcion: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UnidadCreate {
+  comision_id: string
+  nombre: string
+  orden: number
+  descripcion?: string | null
+}
+
+export interface UnidadUpdate {
+  nombre?: string
+  descripcion?: string | null
+  orden?: number
+}
+
+export interface UnidadReorderItem {
+  id: string
+  orden: number
+}
+
+export interface UnidadListResponse {
+  data: Unidad[]
+  meta: { cursor_next: string | null }
+}
+
+export async function listUnidades(
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<Unidad[]> {
+  const r = await fetch(`/api/v1/unidades?comision_id=${comisionId}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  const body = (await r.json()) as UnidadListResponse
+  return body.data
+}
+
+export async function createUnidad(
+  body: UnidadCreate,
+  getToken?: TokenGetter,
+): Promise<Unidad> {
+  const r = await fetch("/api/v1/unidades", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function updateUnidad(
+  id: string,
+  patch: UnidadUpdate,
+  getToken?: TokenGetter,
+): Promise<Unidad> {
+  const r = await fetch(`/api/v1/unidades/${id}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(patch),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function deleteUnidad(id: string, getToken?: TokenGetter): Promise<void> {
+  const r = await fetch(`/api/v1/unidades/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+}
+
+export async function reorderUnidades(
+  comisionId: string,
+  order: UnidadReorderItem[],
+  getToken?: TokenGetter,
+): Promise<Unidad[]> {
+  const r = await fetch(`/api/v1/unidades/reorder`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify({ comision_id: comisionId, items: order }),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function assignTPToUnidad(
+  tpId: string,
+  unidadId: string | null,
+  getToken?: TokenGetter,
+): Promise<TareaPractica> {
+  const r = await fetch(`/api/v1/tareas-practicas/${tpId}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify({ unidad_id: unidadId }),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export const unidadesApi = {
+  list: listUnidades,
+  create: createUnidad,
+  update: updateUnidad,
+  delete: deleteUnidad,
+  reorder: reorderUnidades,
+  assignTP: assignTPToUnidad,
+}
+
 // ── ADR-020: Distribución N1-N4 por episodio ─────────────────────────
 
 export type NLevel = "N1" | "N2" | "N3" | "N4" | "meta"
@@ -1210,6 +1396,8 @@ export function extractFinalCode(events: CTREvent[]): string | null {
   const last = codeEvents[codeEvents.length - 1]
   return (last?.payload?.snapshot as string) ?? null
 }
+
+// ── Entregas y Calificaciones (tp-entregas-correccion) ────────────────
 
 export type EntregaEstado = "draft" | "submitted" | "graded" | "returned"
 

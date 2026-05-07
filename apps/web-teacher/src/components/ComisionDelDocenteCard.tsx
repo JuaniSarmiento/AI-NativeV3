@@ -32,12 +32,8 @@ export interface ComisionDelDocenteCardProps {
   kpis: ComisionKpis
 }
 
-function kpiValueClass(v: number | null): string {
-  return v === null ? "text-slate-400" : "text-slate-900 dark:text-slate-50"
-}
-
 function kpiValue(v: number | null): string {
-  if (v === null) return "datos insuf."
+  if (v === null) return "—"
   return String(v)
 }
 
@@ -56,78 +52,81 @@ export function ComisionDelDocenteCard({
     <article
       data-testid="comision-card"
       data-comision-id={comision.id}
-      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-5"
+      className="rounded-xl border border-[#EAEAEA] bg-white p-6 transition-shadow duration-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
     >
       <p
-        className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2"
+        className="text-xs uppercase tracking-wider text-[#787774] mb-1"
         data-testid="comision-card-kicker"
       >
         {comision.codigo}
         {horarioStr && (
           <>
-            <span className="text-slate-400 mx-1.5">·</span>
+            <span className="text-[#EAEAEA] mx-1.5">·</span>
             {horarioStr}
           </>
         )}
       </p>
 
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-3">
+      <h3 className="text-lg font-semibold text-[#111111] mb-4">
         {displayName}
       </h3>
 
-      {/* KPIs densos en strip inline (no 4-card grid). */}
       <dl
-        className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm mb-4"
+        className="flex flex-wrap items-start gap-x-8 gap-y-3 mb-5"
         data-testid="comision-card-kpis"
       >
-        <div className="inline-flex items-baseline gap-1.5">
-          <dt className="text-xs text-slate-500">alumnos</dt>
-          <dd className={`font-semibold ${kpiValueClass(kpis.alumnos)}`}>
+        <div>
+          <dd className={`text-xl font-semibold ${kpis.alumnos === null ? "text-[#787774]" : "text-[#111111]"}`}>
             {kpiValue(kpis.alumnos)}
           </dd>
+          <dt className="text-xs text-[#787774] mt-0.5">alumnos</dt>
         </div>
-        <div className="inline-flex items-baseline gap-1.5">
-          <dt className="text-xs text-slate-500">episodios sem.</dt>
-          <dd className={`font-semibold ${kpiValueClass(kpis.episodiosSemana)}`}>
+        <div>
+          <dd className={`text-xl font-semibold ${kpis.episodiosSemana === null ? "text-[#787774]" : "text-[#111111]"}`}>
             {kpiValue(kpis.episodiosSemana)}
           </dd>
+          <dt className="text-xs text-[#787774] mt-0.5">episodios sem.</dt>
         </div>
-        <div className="inline-flex items-baseline gap-1.5">
-          <dt className="text-xs text-slate-500">alertas</dt>
-          <dd className={`font-semibold ${kpiValueClass(kpis.alertas)}`}>
+        <div>
+          <dd className={`text-xl font-semibold ${kpis.alertas === null ? "text-[#787774]" : "text-[#111111]"}`}>
             {kpiValue(kpis.alertas)}
           </dd>
+          <dt className="text-xs text-[#787774] mt-0.5">alertas</dt>
         </div>
-        <div className="inline-flex items-baseline gap-1.5">
-          <dt className="text-xs text-slate-500">adversos sem.</dt>
-          <dd className={`font-semibold ${kpiValueClass(kpis.adversosSemana)}`}>
+        <div>
+          <dd className={`text-xl font-semibold ${kpis.adversosSemana === null ? "text-[#787774]" : "text-[#111111]"}`}>
             {kpiValue(kpis.adversosSemana)}
           </dd>
+          <dt className="text-xs text-[#787774] mt-0.5">adversos sem.</dt>
         </div>
       </dl>
 
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link
-            to="/progression"
-            search={{ comisionId: comision.id }}
-            data-testid="comision-card-cohort-link"
-            className="inline-flex items-center px-4 py-2 rounded text-sm font-medium text-white"
-            style={{ backgroundColor: "var(--color-accent-brand)" }}
-          >
-            Abrir cohorte
-            <span aria-hidden="true" className="ml-1.5">
-              →
-            </span>
-          </Link>
-          <Link
-            to="/cohort-adversarial"
-            search={{ comisionId: comision.id }}
-            className="text-xs text-slate-600 hover:text-slate-900"
-          >
-            Ver adversos
-          </Link>
-        </div>
+      <div className="h-1 rounded-full mb-4 overflow-hidden bg-[#EAEAEA]">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: kpis.alumnos && kpis.alumnos > 0 ? "100%" : "0%",
+            backgroundColor: "var(--color-appropriation-reflexiva)",
+          }}
+        />
+      </div>
+
+      <div className="flex items-center gap-4">
+        <Link
+          to="/progression"
+          search={{ comisionId: comision.id }}
+          data-testid="comision-card-cohort-link"
+          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-[#111111] text-white hover:bg-[#333333] transition-colors"
+        >
+          Ver cohorte
+        </Link>
+        <Link
+          to="/cohort-adversarial"
+          search={{ comisionId: comision.id }}
+          className="text-sm text-[#787774] hover:text-[#111111] transition-colors"
+        >
+          Adversarial
+        </Link>
       </div>
     </article>
   )

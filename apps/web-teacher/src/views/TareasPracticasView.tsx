@@ -21,7 +21,10 @@
 import { HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
 import { useCallback, useEffect, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
+import { GenerarConIAWizard } from "../components/GenerarConIAWizard"
 import {
+  type EjercicioGenerado,
+  type EjercicioInput,
   type TareaEstado,
   type TareaPractica,
   type TareaPracticaUpdate,
@@ -42,9 +45,9 @@ const ESTADO_LABEL: Record<TareaEstado, string> = {
 }
 
 const ESTADO_COLOR: Record<TareaEstado, string> = {
-  draft: "bg-slate-200 text-slate-800",
-  published: "bg-green-100 text-green-800",
-  archived: "bg-amber-100 text-amber-800",
+  draft: "text-[#787774]",
+  published: "text-green-700",
+  archived: "text-amber-700",
 }
 
 type EstadoFilter = "all" | TareaEstado
@@ -52,11 +55,17 @@ type EstadoFilter = "all" | TareaEstado
 // Enum para máquina de estados de modales — reemplaza los 5 bools independientes.
 type ModalState =
   | { kind: "closed" }
-  | { kind: "create" }
+  | { kind: "create"; prefill?: AIPrefill }
   | { kind: "edit"; tarea: TareaPractica }
   | { kind: "view"; tarea: TareaPractica }
   | { kind: "versioning"; tarea: TareaPractica }
   | { kind: "versions-list"; tarea: TareaPractica }
+  | { kind: "generar-ia" }
+
+interface AIPrefill {
+  enunciado: string
+  rubrica: Record<string, unknown> | null
+}
 
 // ADR-016 — badge "derivado de plantilla": muestra que la instancia fue
 // creada por fan-out desde un `TareaPracticaTemplate`. Clickeable para
@@ -200,63 +209,83 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
       helpContent={helpContent.tareasPracticas}
     >
       <div className="space-y-6 max-w-6xl">
-        {/* Filtros + acción principal */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-slate-600 flex items-center gap-2">
-              <span>Estado:</span>
-              <select
-                value={estadoFilter}
-                onChange={(e) => setEstadoFilter(e.target.value as EstadoFilter)}
-                className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-              >
-                <option value="all">Todos</option>
-                <option value="draft">Borrador</option>
-                <option value="published">Publicado</option>
-                <option value="archived">Archivado</option>
-              </select>
-            </label>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-1 bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg p-1">
+            {(["all", "draft", "published", "archived"] as const).map((f) => {
+              const labels: Record<typeof f, string> = {
+                all: "Todos",
+                draft: "Borrador",
+                published: "Publicado",
+                archived: "Archivado",
+              }
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setEstadoFilter(f)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    estadoFilter === f
+                      ? "bg-[#111111] text-white"
+                      : "text-[#787774] hover:text-[#111111] bg-transparent"
+                  }`}
+                >
+                  {labels[f]}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={refreshList}
               disabled={loading}
-              className="px-3 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
+              className="px-3 py-1.5 text-xs border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors disabled:opacity-40 text-[#787774]"
             >
               {loading ? "Cargando..." : "Refrescar"}
             </button>
+            <button
+              type="button"
+              onClick={() => setModal({ kind: "generar-ia" })}
+              className="px-4 py-1.5 text-sm border border-[#EAEAEA] hover:bg-[#FAFAFA] text-[#111111] rounded-md font-medium transition-colors"
+            >
+              Generar con IA
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal({ kind: "create" })}
+              className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md font-medium transition-colors"
+            >
+              + Nuevo TP
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setModal({ kind: "create" })}
-            className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
-          >
-            + Nuevo TP
-          </button>
         </div>
 
-        {error && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{error}</div>}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-900 text-sm">
+            {error}
+          </div>
+        )}
 
-        {/* Lista */}
         {loading && tareas.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">Cargando TPs...</div>
+          <div className="p-8 text-center text-[#787774] text-sm">Cargando TPs...</div>
         ) : tareas.length === 0 ? (
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-500">
-            No hay TPs para esta comisión todavía. Creá el primero con{" "}
-            <span className="font-medium">+ Nuevo TP</span>.
+          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-center text-[#787774] text-sm">
+            No hay TPs para esta comision todavia. Crea el primero con{" "}
+            <span className="font-semibold text-[#111111]">+ Nuevo TP</span>.
           </div>
         ) : (
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+              <thead className="bg-[#FAFAFA] border-b border-[#EAEAEA] text-xs uppercase tracking-wider text-[#787774]">
                 <tr>
-                  <th className="text-left px-4 py-2 font-medium">Código</th>
-                  <th className="text-left px-4 py-2 font-medium">Título</th>
-                  <th className="text-left px-4 py-2 font-medium">Estado</th>
-                  <th className="text-right px-4 py-2 font-medium">Versión</th>
-                  <th className="text-left px-4 py-2 font-medium">Inicio</th>
-                  <th className="text-left px-4 py-2 font-medium">Fin</th>
-                  <th className="text-right px-4 py-2 font-medium">Peso</th>
-                  <th className="text-right px-4 py-2 font-medium">Acciones</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Codigo</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Titulo</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Estado</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Version</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Inicio</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Fin</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Peso</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -278,14 +307,63 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
           </div>
         )}
 
+        {/* Wizard: generar TP con IA */}
+        <GenerarConIAWizard
+          isOpen={modal.kind === "generar-ia"}
+          comisionId={comisionId}
+          getToken={getToken}
+          onClose={closeModal}
+          onUseResult={async (ejerciciosIA: EjercicioGenerado[]) => {
+            const enunciado = ejerciciosIA
+              .map((ej, i) => `## Ejercicio ${i + 1}: ${ej.titulo}\n\n${ej.enunciado}`)
+              .join("\n\n---\n\n")
+            const titulo = ejerciciosIA.length === 1
+              ? ejerciciosIA[0]!.titulo
+              : `TP: ${ejerciciosIA[0]!.titulo} (+${ejerciciosIA.length - 1} mas)`
+            const codigo = `IA-${Date.now().toString(36).slice(-4).toUpperCase()}`
+            const apiEjercicios: EjercicioInput[] = ejerciciosIA.map((ej, i) => {
+              const n = ejerciciosIA.length
+              const basePeso = Math.floor((1.0 / n) * 1000) / 1000
+              const isLast = i === n - 1
+              const ejPeso = isLast ? (1.0 - basePeso * (n - 1)).toFixed(3) : basePeso.toFixed(3)
+              return {
+                orden: i + 1,
+                titulo: ej.titulo,
+                enunciado_md: ej.enunciado,
+                inicial_codigo: ej.inicial_codigo || null,
+                peso: ejPeso,
+              }
+            })
+            await tareasPracticasApi.create(
+              {
+                comision_id: comisionId,
+                codigo,
+                titulo,
+                enunciado,
+                rubrica: { ejercicios: ejerciciosIA },
+                ejercicios: apiEjercicios,
+                created_via_ai: true,
+              },
+              getToken,
+            )
+            closeModal()
+            await refreshList()
+          }}
+        />
+
         {/* Modal: crear nuevo TP */}
         <TareaFormModal
           isOpen={modal.kind === "create"}
           title="Nuevo trabajo practico"
           initial={null}
+          {...(modal.kind === "create" && modal.prefill ? { prefill: modal.prefill } : {})}
           onClose={closeModal}
           onSubmit={async (values) => {
-            await tareasPracticasApi.create({ ...values, comision_id: comisionId }, getToken)
+            await tareasPracticasApi.create({
+              ...values,
+              comision_id: comisionId,
+              ejercicios: values.ejercicios,
+            }, getToken)
             closeModal()
             await refreshList()
           }}
@@ -308,6 +386,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                 fecha_fin: values.fecha_fin,
                 peso: values.peso,
                 rubrica: values.rubrica,
+                ejercicios: values.ejercicios,
               }
               await tareasPracticasApi.update(modal.tarea.id, patch, getToken)
               closeModal()
@@ -333,6 +412,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                 fecha_fin: values.fecha_fin,
                 peso: values.peso,
                 rubrica: values.rubrica,
+                ejercicios: values.ejercicios,
               }
               await tareasPracticasApi.newVersion(modal.tarea.id, patch, getToken)
               closeModal()
@@ -385,37 +465,35 @@ function TareaRow({
   const estado = tarea.estado
 
   return (
-    <tr className="border-b border-slate-100 dark:border-slate-800/50 last:border-0">
-      <td className="px-4 py-2 font-mono text-xs">
+    <tr className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors">
+      <td className="px-4 py-3 font-mono text-xs text-[#111111]">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span>{tarea.codigo}</span>
           {tarea.template_id && <TemplateBadge templateId={tarea.template_id} />}
           {tarea.has_drift && <DriftBadge />}
         </div>
       </td>
-      <td className="px-4 py-2">
-        <div className="font-medium truncate max-w-xs" title={tarea.titulo}>
+      <td className="px-4 py-3">
+        <div className="font-medium truncate max-w-xs text-[#111111]" title={tarea.titulo}>
           {tarea.titulo}
         </div>
-        {tarea.parent_tarea_id && <div className="text-xs text-slate-500">(derivado)</div>}
+        {tarea.parent_tarea_id && <div className="text-xs text-[#787774]">(derivado)</div>}
       </td>
-      <td className="px-4 py-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[estado]}`}
-        >
+      <td className="px-4 py-3">
+        <span className={`text-xs font-medium ${ESTADO_COLOR[estado]}`}>
           {ESTADO_LABEL[estado]}
         </span>
       </td>
-      <td className="px-4 py-2 text-right tabular-nums text-slate-600">v{tarea.version}</td>
-      <td className="px-4 py-2 text-xs text-slate-600">{formatShortDate(tarea.fecha_inicio)}</td>
-      <td className="px-4 py-2 text-xs text-slate-600">{formatShortDate(tarea.fecha_fin)}</td>
-      <td className="px-4 py-2 text-right tabular-nums text-slate-600">{tarea.peso}</td>
-      <td className="px-4 py-2 text-right">
+      <td className="px-4 py-3 text-right tabular-nums text-[#787774] text-xs">v{tarea.version}</td>
+      <td className="px-4 py-3 text-xs text-[#787774]">{formatShortDate(tarea.fecha_inicio)}</td>
+      <td className="px-4 py-3 text-xs text-[#787774]">{formatShortDate(tarea.fecha_fin)}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-[#787774] text-xs">{tarea.peso}</td>
+      <td className="px-4 py-3 text-right">
         <div className="flex justify-end gap-1 flex-wrap">
           <button
             type="button"
             onClick={onShowVersions}
-            className="px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 rounded"
+            className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
             title="Ver historial de versiones"
           >
             Historial
@@ -425,21 +503,21 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onEdit}
-                className="px-2 py-1 text-xs text-blue-700 hover:bg-blue-50 rounded"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
               >
                 Editar
               </button>
               <button
                 type="button"
                 onClick={onPublish}
-                className="px-2 py-1 text-xs text-green-700 hover:bg-green-50 rounded font-medium"
+                className="px-2 py-1 text-xs text-green-700 hover:bg-green-50 rounded font-medium transition-colors"
               >
                 Publicar
               </button>
               <button
                 type="button"
                 onClick={onDelete}
-                className="px-2 py-1 text-xs text-red-700 hover:bg-red-50 rounded"
+                className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
               >
                 Eliminar
               </button>
@@ -450,21 +528,21 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onView}
-                className="px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 rounded"
+                className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
               >
                 Ver
               </button>
               <button
                 type="button"
                 onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-blue-700 hover:bg-blue-50 rounded"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
               >
-                Nueva versión
+                Nueva version
               </button>
               <button
                 type="button"
                 onClick={onArchive}
-                className="px-2 py-1 text-xs text-amber-700 hover:bg-amber-50 rounded"
+                className="px-2 py-1 text-xs text-amber-700 hover:bg-amber-50 rounded transition-colors"
               >
                 Archivar
               </button>
@@ -475,16 +553,16 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onView}
-                className="px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 rounded"
+                className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
               >
                 Ver
               </button>
               <button
                 type="button"
                 onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-blue-700 hover:bg-blue-50 rounded"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
               >
-                Nueva versión
+                Nueva version
               </button>
             </>
           )}
@@ -504,12 +582,53 @@ interface FormValues {
   fecha_fin: string | null
   peso: string
   rubrica: Record<string, unknown> | null
+  ejercicios: EjercicioInput[]
+}
+
+interface EjercicioEdit {
+  titulo: string
+  enunciado: string
+  inicial_codigo: string
+  rubrica: Record<string, unknown>
+  rubricaRaw: string
+}
+
+function parseEjercicios(
+  tpEjercicios: TareaPractica["ejercicios"] | undefined,
+  rubrica: Record<string, unknown> | null,
+): EjercicioEdit[] | null {
+  if (tpEjercicios && tpEjercicios.length > 0) {
+    return tpEjercicios.map((ej) => ({
+      titulo: ej.titulo ?? "",
+      enunciado: ej.enunciado_md ?? "",
+      inicial_codigo: ej.inicial_codigo ?? "",
+      rubrica: {},
+      rubricaRaw: "{}",
+    }))
+  }
+  if (!rubrica) return null
+  const arr = rubrica.ejercicios
+  if (!Array.isArray(arr) || arr.length === 0) return null
+  return (arr as Array<Record<string, string>>).map((ej) => ({
+    titulo: ej.titulo ?? "",
+    enunciado: ej.enunciado_md ?? ej.enunciado ?? "",
+    inicial_codigo: ej.inicial_codigo ?? "",
+    rubrica: {},
+    rubricaRaw: "{}",
+  }))
+}
+
+function ejerciciosToEnunciado(ejercicios: EjercicioEdit[]): string {
+  return ejercicios
+    .map((ej, i) => `## Ejercicio ${i + 1}: ${ej.titulo}\n\n${ej.enunciado}`)
+    .join("\n\n---\n\n")
 }
 
 function TareaFormModal({
   isOpen,
   title,
   initial,
+  prefill,
   mode = "create",
   onClose,
   onSubmit,
@@ -517,70 +636,111 @@ function TareaFormModal({
   isOpen: boolean
   title: string
   initial: TareaPractica | null
-  // `mode=edit` activa el banner de drift cuando el TP viene de un
-  // template. En `create` y `version`, editar es el flujo esperado — no
-  // tiene sentido advertir drift (create no tiene template todavia, y
-  // new-version crea un TP nuevo derivado). Solo en `edit` el backend
-  // mutaria `has_drift=true` sobre una instancia existente.
+  prefill?: AIPrefill
   mode?: "create" | "edit" | "version"
   onClose: () => void
   onSubmit: (values: FormValues) => Promise<void>
 }) {
+  const initRubrica = prefill?.rubrica ?? initial?.rubrica ?? null
+  const initEjercicios = parseEjercicios(initial?.ejercicios, initRubrica as Record<string, unknown> | null)
+  const isEditing = mode === "edit" || mode === "version"
+
+  const [step, setStep] = useState<"basics" | "ejercicios">(isEditing ? "ejercicios" : "basics")
+
   const [codigo, setCodigo] = useState(initial?.codigo ?? "")
   const [titulo, setTitulo] = useState(initial?.titulo ?? "")
-  const [enunciado, setEnunciado] = useState(initial?.enunciado ?? "")
   const [fechaInicio, setFechaInicio] = useState(isoToLocalInput(initial?.fecha_inicio ?? null))
   const [fechaFin, setFechaFin] = useState(isoToLocalInput(initial?.fecha_fin ?? null))
   const [peso, setPeso] = useState(initial?.peso ?? "1.0")
-  const [rubricaRaw, setRubricaRaw] = useState(
-    initial?.rubrica ? JSON.stringify(initial.rubrica, null, 2) : "",
+  const [ejercicios, setEjercicios] = useState<EjercicioEdit[]>(
+    initEjercicios ?? [{ titulo: "Ejercicio 1", enunciado: "", inicial_codigo: "", rubrica: {}, rubricaRaw: "{}" }],
   )
+  const [expandedEj, setExpandedEj] = useState<number | null>(0)
+
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // ADR-016 drift banner: editar una instancia derivada de template
-  // desconecta la auto-sincronizacion. El docente tiene que reconocerlo
-  // antes de que el submit se habilite. Si la instancia ya drifteo
-  // (`has_drift=true`), el link ya se habia roto y no hay nada que
-  // advertir — el banner solo aparece la primera vez.
   const showDriftBanner = Boolean(mode === "edit" && initial?.template_id && !initial.has_drift)
   const [driftAck, setDriftAck] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError(null)
+  const updateEjercicio = (index: number, updates: Partial<EjercicioEdit>) => {
+    setEjercicios((prev) => prev.map((ej, i) => (i === index ? { ...ej, ...updates } : ej)))
+  }
 
-    // Validar coherencia de fechas antes de pegarle al backend (BUG-28).
+  const removeEjercicio = (index: number) => {
+    setEjercicios((prev) => prev.filter((_, i) => i !== index))
+    setExpandedEj(null)
+  }
+
+  const addEjercicio = () => {
+    setEjercicios((prev) => [
+      ...prev,
+      { titulo: `Ejercicio ${prev.length + 1}`, enunciado: "", inicial_codigo: "", rubrica: {}, rubricaRaw: "{}" },
+    ])
+    setExpandedEj(ejercicios.length)
+  }
+
+  const handleNextStep = () => {
+    setFormError(null)
+    if (!codigo.trim()) { setFormError("El codigo es obligatorio."); return }
+    if (!titulo.trim()) { setFormError("El titulo es obligatorio."); return }
     if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
       setFormError("La fecha de fin debe ser posterior a la fecha de inicio.")
       return
     }
+    setStep("ejercicios")
+  }
 
-    // Validar JSON de rubrica si hay contenido.
-    let rubrica: Record<string, unknown> | null = null
-    if (rubricaRaw.trim()) {
-      try {
-        const parsed = JSON.parse(rubricaRaw)
-        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-          throw new Error("La rúbrica debe ser un objeto JSON (no array ni primitivo).")
-        }
-        rubrica = parsed as Record<string, unknown>
-      } catch (err) {
-        setFormError(`Rúbrica inválida: ${String(err)}`)
-        return
-      }
+  const handleSubmit = async () => {
+    setFormError(null)
+
+    if (ejercicios.length === 0) {
+      setFormError("Agrega al menos un ejercicio.")
+      return
     }
+
+    const apiEjercicios: EjercicioInput[] = ejercicios.map((ej, i) => {
+      const n = ejercicios.length
+      const basePeso = Math.floor((1.0 / n) * 1000) / 1000
+      const isLast = i === n - 1
+      const ejPeso = isLast ? (1.0 - basePeso * (n - 1)).toFixed(3) : basePeso.toFixed(3)
+      return {
+        orden: i + 1,
+        titulo: ej.titulo,
+        enunciado_md: ej.enunciado,
+        inicial_codigo: ej.inicial_codigo || null,
+        peso: ejPeso,
+      }
+    })
+
+    const cleanEjercicios = ejercicios.map((ej) => {
+      let parsedRubrica = ej.rubrica
+      if (ej.rubricaRaw.trim()) {
+        try {
+          parsedRubrica = JSON.parse(ej.rubricaRaw)
+        } catch {
+          setFormError(`Rubrica invalida en ejercicio "${ej.titulo}".`)
+          return null
+        }
+      }
+      return { titulo: ej.titulo, enunciado: ej.enunciado, inicial_codigo: ej.inicial_codigo, rubrica: parsedRubrica }
+    })
+    if (cleanEjercicios.some((e) => e === null)) return
+
+    const rubrica = { ejercicios: cleanEjercicios }
+    const finalEnunciado = ejerciciosToEnunciado(ejercicios)
 
     setSubmitting(true)
     try {
       await onSubmit({
         codigo: codigo.trim(),
         titulo: titulo.trim(),
-        enunciado,
+        enunciado: finalEnunciado,
         fecha_inicio: localInputToIso(fechaInicio),
         fecha_fin: localInputToIso(fechaFin),
         peso: peso.trim(),
         rubrica,
+        ejercicios: apiEjercicios,
       })
     } catch (err) {
       setFormError(String(err))
@@ -589,189 +749,227 @@ function TareaFormModal({
     }
   }
 
+  const inputClass = "w-full px-2 py-1.5 text-sm border border-[#EAEAEA] rounded bg-white focus:outline-none focus:border-[#111111]"
+
+  const stepTitle = step === "basics"
+    ? title
+    : `${titulo || title} — Ejercicios (${ejercicios.length})`
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {showDriftBanner && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            <p className="font-medium">Este TP esta sincronizado con una plantilla de cátedra.</p>
-            <p className="text-xs mt-1">
-              Editar lo desconectara de la plantilla y lo marcara como drift. Ya no recibira nuevas
-              versiones automáticas del template. El link al template se preserva para trazabilidad.
-            </p>
-            {!driftAck && (
-              <button
-                type="button"
-                onClick={() => setDriftAck(true)}
-                className="mt-2 px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded font-medium"
-              >
-                Entiendo, continuar
-              </button>
-            )}
-            {driftAck && (
-              <p className="mt-2 text-xs italic text-amber-800">
-                Reconocido, al guardar el TP quedara marcado como drift.
-              </p>
-            )}
-          </div>
-        )}
-        <div className="flex items-center gap-2 mb-2">
-          <HelpButton
-            size="sm"
-            title="Formulario de Tarea Practica"
-            content={
-              <div className="space-y-3 text-zinc-300">
-                <p>
-                  <strong>Completa los siguientes campos</strong> para crear o editar el TP:
-                </p>
-                <ul className="list-disc pl-5 space-y-2">
-                  <li>
-                    <strong>Codigo:</strong> Identificador corto del TP (ej. TP1, TP-RECURSION).
-                    Obligatorio.
-                  </li>
-                  <li>
-                    <strong>Peso:</strong> Ponderacion del TP en la evaluacion. Valor entre 0 y 1.
-                    Ej: 0.25 para un 25%.
-                  </li>
-                  <li>
-                    <strong>Titulo:</strong> Nombre descriptivo del trabajo practico. Obligatorio.
-                  </li>
-                  <li>
-                    <strong>Enunciado (markdown):</strong> Descripcion completa del TP. Soporta
-                    markdown con formato, listas, codigo. Obligatorio.
-                  </li>
-                  <li>
-                    <strong>Fecha inicio / fin:</strong> Opcionales. Definen la ventana de tiempo en
-                    que los estudiantes pueden abrir episodios.
-                  </li>
-                  <li>
-                    <strong>Rubrica (JSON):</strong> Opcional. Criterios de evaluacion como objeto
-                    JSON. Se valida antes de enviar.
-                  </li>
-                </ul>
-              </div>
-            }
-          />
-          <span className="text-sm text-slate-500 dark:text-zinc-400">
-            Ayuda sobre el formulario
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Código</span>
-            <input
-              type="text"
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              required
-              placeholder="TP1"
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">Peso (0 – 1)</span>
-            <input
-              type="number"
-              min={0}
-              max={1}
-              step={0.05}
-              value={peso}
-              onChange={(e) => setPeso(e.target.value)}
-              required
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900 tabular-nums"
-            />
-          </label>
-        </div>
-
-        <label className="block">
-          <span className="block text-xs font-medium text-slate-600 mb-1">Título</span>
-          <input
-            type="text"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            required
-            placeholder="Ej: Recursión y divide & conquer"
-            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-          />
-        </label>
-
-        <label className="block">
-          <span className="block text-xs font-medium text-slate-600 mb-1">
-            Enunciado (markdown)
-          </span>
-          {/* TODO: añadir markdown renderer para preview */}
-          <textarea
-            value={enunciado}
-            onChange={(e) => setEnunciado(e.target.value)}
-            required
-            rows={15}
-            placeholder="Escribir en markdown..."
-            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono"
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Fecha de inicio (opcional)
-            </span>
-            <input
-              type="datetime-local"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-medium text-slate-600 mb-1">
-              Fecha de fin (opcional)
-            </span>
-            <input
-              type="datetime-local"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900"
-            />
-          </label>
-        </div>
-
-        <label className="block">
-          <span className="block text-xs font-medium text-slate-600 mb-1">
-            Rúbrica (JSON, opcional)
-          </span>
-          <textarea
-            value={rubricaRaw}
-            onChange={(e) => setRubricaRaw(e.target.value)}
-            rows={6}
-            placeholder='{"criterios": [...]}'
-            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900 font-mono"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            Se valida que sea JSON válido antes de enviar.
+    <Modal isOpen={isOpen} onClose={onClose} title={stepTitle} size="lg">
+      {showDriftBanner && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
+          <p className="font-medium">Este TP esta sincronizado con una plantilla de catedra.</p>
+          <p className="text-xs mt-1">
+            Editar lo desconectara de la plantilla y lo marcara como drift.
           </p>
-        </label>
-
-        {formError && <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{formError}</div>}
-
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            className="px-4 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={submitting || (showDriftBanner && !driftAck)}
-            className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
-          >
-            {submitting ? "Guardando..." : "Guardar"}
-          </button>
+          {!driftAck && (
+            <button
+              type="button"
+              onClick={() => setDriftAck(true)}
+              className="mt-2 px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded font-medium"
+            >
+              Entiendo, continuar
+            </button>
+          )}
         </div>
-      </form>
+      )}
+
+      {/* Step indicator */}
+      {!isEditing && (
+        <div className="flex items-center gap-2 mb-4 text-xs">
+          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "basics" ? "bg-[#111111] text-white" : "bg-[#EAEAEA] text-[#787774]"}`}>
+            1. Datos del TP
+          </span>
+          <span className="text-[#EAEAEA]">→</span>
+          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "ejercicios" ? "bg-[#111111] text-white" : "bg-[#EAEAEA] text-[#787774]"}`}>
+            2. Ejercicios
+          </span>
+        </div>
+      )}
+
+      {/* Step 1: Basics */}
+      {step === "basics" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-[#111111] mb-1">Codigo</span>
+              <input type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} required placeholder="TP1" className={inputClass} />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-[#111111] mb-1">Peso (0 - 1)</span>
+              <input type="number" min={0} max={1} step={0.05} value={peso} onChange={(e) => setPeso(e.target.value)} required className={`${inputClass} tabular-nums`} />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="block text-xs font-medium text-[#111111] mb-1">Titulo del TP</span>
+            <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ej: Listas y funciones en Python" className={inputClass} />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-[#111111] mb-1">Fecha de inicio (opcional)</span>
+              <input type="datetime-local" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-[#111111] mb-1">Fecha de fin (opcional)</span>
+              <input type="datetime-local" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className={inputClass} />
+            </label>
+          </div>
+
+          {formError && <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{formError}</div>}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#EAEAEA]">
+            <button type="button" onClick={onClose} className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors text-[#787774]">
+              Cancelar
+            </button>
+            <button type="button" onClick={handleNextStep} className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md font-medium transition-colors">
+              Siguiente: Ejercicios →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Ejercicios */}
+      {step === "ejercicios" && (
+        <div className="space-y-4">
+          {/* Summary strip of TP basics */}
+          {!isEditing && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#FAFAFA] border border-[#EAEAEA] text-xs text-[#787774]">
+              <span className="font-mono font-medium text-[#111111]">{codigo}</span>
+              <span className="text-[#EAEAEA]">·</span>
+              <span>{titulo}</span>
+              <span className="text-[#EAEAEA]">·</span>
+              <span>peso {peso}</span>
+              {fechaInicio && (
+                <>
+                  <span className="text-[#EAEAEA]">·</span>
+                  <span>{formatShortDate(localInputToIso(fechaInicio))}</span>
+                </>
+              )}
+              <button type="button" onClick={() => setStep("basics")} className="ml-auto text-[var(--color-accent-brand)] hover:underline">
+                Editar
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#111111] uppercase tracking-wider">
+                Ejercicios ({ejercicios.length})
+              </span>
+              <button type="button" onClick={addEjercicio} className="text-xs text-[#787774] hover:text-[#111111] transition-colors">
+                + Agregar ejercicio
+              </button>
+            </div>
+            <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1">
+              {ejercicios.map((ej, i) => (
+                <div key={i} className="border border-[#EAEAEA] rounded-xl overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedEj(expandedEj === i ? null : i)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-[#FAFAFA] hover:bg-[#f5f5f4] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-[#787774] bg-white border border-[#EAEAEA] rounded px-1.5 py-0.5">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium text-[#111111] truncate max-w-xs">
+                        {ej.titulo || `Ejercicio ${i + 1}`}
+                      </span>
+                      {ej.enunciado && (
+                        <span className="text-[10px] text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                          con contenido
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {ejercicios.length > 1 && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(ev) => { ev.stopPropagation(); removeEjercicio(i) }}
+                          onKeyDown={(ev) => { if (ev.key === "Enter") { ev.stopPropagation(); removeEjercicio(i) } }}
+                          className="text-xs text-red-500 hover:text-red-700 px-1"
+                        >
+                          Quitar
+                        </span>
+                      )}
+                      <span className="text-[#787774] text-xs">{expandedEj === i ? "▲" : "▼"}</span>
+                    </div>
+                  </button>
+                  {expandedEj === i && (
+                    <div className="p-4 space-y-3">
+                      <label className="block">
+                        <span className="block text-xs font-medium text-[#111111] mb-1">Titulo</span>
+                        <input type="text" value={ej.titulo} onChange={(e) => updateEjercicio(i, { titulo: e.target.value })} className={inputClass} />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-[#111111] mb-1">Enunciado (markdown)</span>
+                        <textarea
+                          value={ej.enunciado}
+                          onChange={(e) => updateEjercicio(i, { enunciado: e.target.value })}
+                          rows={8}
+                          placeholder="Describir el ejercicio en markdown..."
+                          className={`${inputClass} font-mono resize-y`}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-[#111111] mb-1">Codigo inicial (opcional)</span>
+                        <textarea
+                          value={ej.inicial_codigo}
+                          onChange={(e) => updateEjercicio(i, { inicial_codigo: e.target.value })}
+                          rows={5}
+                          placeholder="# Codigo que el alumno ve al empezar..."
+                          className="w-full px-2 py-1.5 text-sm font-mono border border-[#EAEAEA] rounded bg-[#1e1e1e] text-slate-100 resize-y focus:outline-none focus:border-[#111111]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-xs font-medium text-[#111111] mb-1">Rubrica (JSON, opcional)</span>
+                        <textarea
+                          value={ej.rubricaRaw}
+                          onChange={(e) => updateEjercicio(i, { rubricaRaw: e.target.value })}
+                          onBlur={(e) => {
+                            try {
+                              const parsed = JSON.parse(e.target.value)
+                              updateEjercicio(i, { rubrica: parsed })
+                            } catch { /* se parsea al guardar */ }
+                          }}
+                          rows={4}
+                          placeholder='{"criterios": [...]}'
+                          className={`${inputClass} text-xs font-mono resize-y`}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {formError && <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{formError}</div>}
+
+          <div className="flex justify-between gap-2 pt-2 border-t border-[#EAEAEA]">
+            <button
+              type="button"
+              onClick={() => isEditing ? onClose() : setStep("basics")}
+              disabled={submitting}
+              className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors disabled:opacity-40 text-[#787774]"
+            >
+              {isEditing ? "Cancelar" : "← Volver"}
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || (showDriftBanner && !driftAck)}
+              className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] disabled:bg-[#EAEAEA] text-white rounded-md font-medium transition-colors"
+            >
+              {submitting ? "Guardando..." : "Guardar TP"}
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   )
 }
@@ -869,18 +1067,18 @@ function TareaViewModal({
           </div>
         )}
 
-        <div className="flex justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex justify-between pt-2 border-t border-[#EAEAEA]">
           <button
             type="button"
             onClick={onShowVersions}
-            className="px-4 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors text-[#787774]"
           >
             Ver historial de versiones
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded"
+            className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md transition-colors"
           >
             Cerrar
           </button>
@@ -1005,11 +1203,11 @@ function VersionsModal({
           </ol>
         )}
 
-        <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex justify-end pt-2 border-t border-[#EAEAEA]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-slate-700 hover:bg-slate-800 text-white rounded"
+            className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md transition-colors"
           >
             Cerrar
           </button>
