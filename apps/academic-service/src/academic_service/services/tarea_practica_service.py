@@ -90,6 +90,8 @@ class TareaPracticaService:
                 "version": 1,
                 "parent_tarea_id": None,
                 "created_by": user.id,
+                # ADR-036: trazabilidad de TPs creadas via wizard IA
+                "created_via_ai": data.created_via_ai,
                 # ADR-041: propagate unidad_id at creation
                 "unidad_id": getattr(data, "unidad_id", None),
             }

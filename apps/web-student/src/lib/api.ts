@@ -667,8 +667,8 @@ export interface Calificacion {
   nota_final: number
   feedback_general: string
   detalle_criterios: CalificacionCriterio[]
-  calificado_at: string
-  calificador_id: string
+  graded_at: string
+  graded_by: string
 }
 
 /**
@@ -710,6 +710,10 @@ export async function submitEntrega(
 /**
  * Trae los ejercicios de una TP. Necesario para mostrar la lista con
  * enunciados y codigo inicial.
+ *
+ * Backend devuelve estructura `{tarea_id, ejercicios, count, tiene_ejercicios}`,
+ * NO un array plano. Sin desempaquetar `ejercicios`, los componentes que hacen
+ * `.map()` rompen con TypeError.
  */
 export async function listEjerciciosTp(
   tareaId: string,
@@ -719,7 +723,13 @@ export async function listEjerciciosTp(
     headers: await authHeaders(getToken),
   })
   if (!r.ok) throw new Error(`list ejercicios failed: ${r.status}`)
-  return (await r.json()) as Ejercicio[]
+  const body = (await r.json()) as {
+    tarea_id: string
+    ejercicios: Ejercicio[]
+    count: number
+    tiene_ejercicios: boolean
+  }
+  return body.ejercicios
 }
 
 /**
@@ -741,6 +751,9 @@ export async function getCalificacion(
 /**
  * Trae las entregas del estudiante para una TP, filtrado por comision.
  * Devuelve null si no hay entrega todavia.
+ *
+ * Backend devuelve envelope `{data, meta}`. Sin desempaquetar `data`, el
+ * indexado `[0]` cae siempre en undefined → el alumno nunca ve su entrega.
  */
 export async function getEntregaForTp(
   tareaId: string,
@@ -752,8 +765,8 @@ export async function getEntregaForTp(
     headers: await authHeaders(getToken),
   })
   if (!r.ok) throw new Error(`get entrega failed: ${r.status}`)
-  const body = (await r.json()) as Entrega[]
-  return body[0] ?? null
+  const body = (await r.json()) as { data: Entrega[]; meta: unknown }
+  return body.data[0] ?? null
 }
 
 /**

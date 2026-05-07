@@ -413,6 +413,10 @@ async def create_byok_key(
         )
         session.add(key)
         await session.commit()
+        # `set_config(..., is_local=true)` se resetea con commit; reaplicamos
+        # antes de cualquier SELECT (refresh) para que RLS no bloquee la
+        # lectura del row recien creado.
+        await _set_tenant_rls(session, tenant_id)
         await session.refresh(key)
         return _key_to_dict(key)
 
@@ -483,6 +487,7 @@ async def rotate_byok_key(
         row.encrypted_value = encrypt(new_plaintext_value.encode("utf-8"), master_key)
         row.fingerprint_last4 = new_plaintext_value[-4:]
         await session.commit()
+        await _set_tenant_rls(session, tenant_id)
         await session.refresh(row)
         return _key_to_dict(row)
 
@@ -497,6 +502,7 @@ async def revoke_byok_key(tenant_id: UUID, key_id: UUID) -> dict[str, Any] | Non
         if row.revoked_at is None:
             row.revoked_at = datetime.now(UTC)
             await session.commit()
+            await _set_tenant_rls(session, tenant_id)
             await session.refresh(row)
         return _key_to_dict(row)
 
