@@ -90,8 +90,8 @@ export function ReflectionModal({ isOpen, episodeId, onClose }: ReflectionModalP
       title="Antes de cerrar — una reflexion rapida"
       size="lg"
     >
-      <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
-        <p className="text-slate-600 dark:text-slate-400">
+      <div className="space-y-4 text-sm text-body">
+        <p className="text-muted">
           El episodio ya quedo cerrado. Tu respuesta es{" "}
           <span className="font-semibold">opcional</span> y nos ayuda a entender como pensaste el
           ejercicio. Podes saltearla sin problema.
@@ -122,7 +122,7 @@ export function ReflectionModal({ isOpen, episodeId, onClose }: ReflectionModalP
         />
 
         {error && (
-          <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-3 py-2 text-sm rounded">
+          <div className="bg-danger-soft text-danger px-3 py-2 text-sm rounded">
             {error}
           </div>
         )}
@@ -132,7 +132,7 @@ export function ReflectionModal({ isOpen, episodeId, onClose }: ReflectionModalP
             type="button"
             onClick={handleSkip}
             disabled={submitting}
-            className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+            className="px-4 py-2 text-sm border border-border rounded hover:bg-surface-alt disabled:opacity-50"
           >
             Saltar
           </button>
@@ -140,7 +140,7 @@ export function ReflectionModal({ isOpen, episodeId, onClose }: ReflectionModalP
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded disabled:opacity-50"
           >
             {submitting ? "Enviando..." : "Enviar"}
           </button>
@@ -167,7 +167,7 @@ function ReflectionTextarea({ id, label, hint, value, onChange }: ReflectionText
       <label htmlFor={id} className="block text-sm font-medium mb-1">
         {label}
       </label>
-      <p className="text-xs text-slate-500 dark:text-slate-500 mb-2">{hint}</p>
+      <p className="text-xs text-muted mb-2">{hint}</p>
       <textarea
         id={id}
         value={value}
@@ -177,11 +177,11 @@ function ReflectionTextarea({ id, label, hint, value, onChange }: ReflectionText
           if (e.target.value.length <= MAX_CHARS) onChange(e.target.value)
         }}
         rows={3}
-        className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-3 py-2 text-sm border border-border bg-white rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <p
         className={`text-xs mt-1 text-right ${
-          overLimit ? "text-red-600" : "text-slate-500 dark:text-slate-500"
+          overLimit ? "text-danger" : "text-muted"
         }`}
       >
         {remaining} chars restantes

@@ -5,7 +5,7 @@ type HelpContentMap = Record<string, ReactNode>
 
 export const helpContent: HelpContentMap = {
   home: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Tus comisiones</p>
       <p>
         Lista las cohortes asignadas a vos en este periodo. Una card por comision con 4 KPIs
@@ -38,8 +38,8 @@ export const helpContent: HelpContentMap = {
           <strong>Ver adversos:</strong> drill-down directo a la vista de intentos adversos.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-blue-400 font-medium">Sin comisiones asignadas?</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Sin comisiones asignadas?</p>
         <p className="text-sm mt-1">
           Pedile al admin que te asigne via bulk-import (ADR-029) o que cree una comision desde
           web-admin con tu rol docente activo.
@@ -49,7 +49,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   export: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Exportar Dataset Academico</p>
       <p>
         Genera un dataset anonimizado con los episodios, eventos y clasificaciones N4 de una
@@ -81,14 +81,14 @@ export const helpContent: HelpContentMap = {
           tiempo real; cuando llega a "Completado" aparece el boton de descarga.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Importante:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Importante:</p>
         <p className="text-sm mt-1">
           Guarda el salt en un lugar seguro. Sin el mismo salt no podras correlacionar este dataset
           con exportaciones posteriores de la misma cohorte.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Activar "Incluir prompts" expone texto libre que puede contener informacion
@@ -99,7 +99,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   kappaRating: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
         Inter-rater Agreement (Kappa)
       </p>
@@ -137,8 +137,8 @@ export const helpContent: HelpContentMap = {
           <strong>Reiniciar:</strong> Borra todas las etiquetas para empezar de nuevo.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Para el protocolo de tesis, dos docentes deben etiquetar de forma independiente el mismo
           batch de 50 episodios y luego comparar los resultados via kappa. Ver
@@ -149,7 +149,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   materiales: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Materiales del Curso</p>
       <p>
         Gestión del corpus del RAG (Retrieval-Augmented Generation). Los materiales subidos son
@@ -182,8 +182,8 @@ export const helpContent: HelpContentMap = {
           procesamiento se refrescan automáticamente cada 2 segundos.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Consejo:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Consejo:</p>
         <p className="text-sm mt-1">
           Subir el material antes de que los estudiantes empiecen a usarlo. El tutor solo puede
           citar material ya indexado (estado "Indexado").
@@ -193,7 +193,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   progression: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Progresion Longitudinal</p>
       <p>
         Analisis de la trayectoria de aprendizaje de cada estudiante a lo largo del cuatrimestre,
@@ -226,8 +226,8 @@ export const helpContent: HelpContentMap = {
           reflexiva.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Solo se muestran estudiantes con al menos 3 episodios clasificados en el campo "con datos
           suficientes". Los demas aparecen en "Insuficiente" en las tarjetas de resumen.
@@ -237,7 +237,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   tareasPracticas: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Trabajos Prácticos</p>
       <p>
         Gestión de los TPs de la comision. Solo los TPs en estado "Publicado" son visibles para los
@@ -281,14 +281,14 @@ export const helpContent: HelpContentMap = {
           del template ya no se propagan automáticamente a esta instancia.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           El orden correcto es: crear borrador → revisar → publicar. Una vez publicado, usar "Nueva
           version" para modificar el contenido sin invalidar los episodios ya registrados.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Publicar un TP es irreversible en cuanto al contenido: el enunciado queda congelado.
@@ -299,7 +299,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   templates: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
         Plantillas de Trabajos Prácticos
       </p>
@@ -335,8 +335,8 @@ export const helpContent: HelpContentMap = {
           no se tocan (preservan evidencia CTR).
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Que es "Drift":</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Que es "Drift":</p>
         <p className="text-sm mt-1">
           Drift ocurre cuando el docente de una comision edita una instancia de TP que vino del
           template. El link al template se preserva pero la auto-actualizacion se desactiva. Esto
@@ -344,7 +344,7 @@ export const helpContent: HelpContentMap = {
           no recibe mas versiones automáticas del template.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Eliminar una plantilla es soft delete: las instancias ya creadas en comisiones NO se
@@ -355,7 +355,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   episodeNLevel: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
         Distribucion N1-N4 por episodio
       </p>
@@ -378,8 +378,8 @@ export const helpContent: HelpContentMap = {
           <strong>Tarjetas por nivel:</strong> tiempo absoluto, porcentaje, y conteo de eventos.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-blue-400 font-medium">Como leer la distribucion:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Como leer la distribucion:</p>
         <p className="text-sm mt-1">
           Un episodio "saludable" suele tener tiempo en N1 (entendio el problema), N2 (escribio
           codigo), N3 (lo probo), N4 (interactuo con tutor). Un episodio dominado por N4 puede
@@ -387,8 +387,8 @@ export const helpContent: HelpContentMap = {
           verificar.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2">
-        <p className="text-orange-400 font-medium">Limitacion v1.0.0:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2">
+        <p className="text-warning font-medium">Limitacion v1.0.0:</p>
         <p className="text-sm mt-1">
           `anotacion_creada` se etiqueta como N2 fijo (override por contenido es agenda futura). Una
           `edicion_codigo` con `origin=copied_from_tutor` se reclasifica a N4 automáticamente. Ver
@@ -399,7 +399,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   studentLongitudinal: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
         Evolucion longitudinal del estudiante
       </p>
@@ -426,16 +426,16 @@ export const helpContent: HelpContentMap = {
           por classified_at.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-blue-400 font-medium">Cuando hay "datos insuficientes":</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Cuando hay "datos insuficientes":</p>
         <p className="text-sm mt-1">
           Templates con menos de 3 episodios cerrados tienen `slope=null` con flag
           `insufficient_data`. La tesis exige longitudinalidad real: con 1-2 episodios el slope es
           trivial o indefinido. Documentado en RN-130.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2">
-        <p className="text-orange-400 font-medium">Limitaciones declaradas:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2">
+        <p className="text-warning font-medium">Limitaciones declaradas:</p>
         <p className="text-sm mt-1">
           TPs sin `template_id` (huerfanas pre-ADR-016) NO entran al calculo. El slope cardinal
           sobre datos ordinales es operacionalizacion conservadora, defendible pero no afirmamos
@@ -447,7 +447,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   cohortAdversarial: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Intentos adversos detectados</p>
       <p>
         Visibilidad pedagogica de los matches del corpus de guardrails (ADR-019, RN-129) en los
@@ -471,16 +471,16 @@ export const helpContent: HelpContentMap = {
           <strong>Eventos recientes:</strong> ultimos 50 con texto matcheado truncado a 200 chars.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-blue-400 font-medium">Importante: la deteccion NO bloquea.</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Importante: la deteccion NO bloquea.</p>
         <p className="text-sm mt-1">
           El prompt llega al LLM aunque triggeree un match. El evento es side-channel para analisis
           empirico (Seccion 17.8). Los regex son fragiles: falsos positivos y negativos son
           esperados. Ver RN-129 para limitaciones.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2">
-        <p className="text-orange-400 font-medium">Limitaciones v1.1.0:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2">
+        <p className="text-warning font-medium">Limitaciones v1.1.0:</p>
         <p className="text-sm mt-1">
           Evasion intra-palabra (`olvi-da tus instrucciones`) y encadenamientos sofisticados
           (Seccion 8.5.1 tecnica 4) NO estan cubiertos por regex, requieren clasificador ML (Fase
@@ -492,7 +492,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   unidades: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Unidades de Trazabilidad</p>
       <p>
         Agrupacion tematica de TPs dentro de una comision. Las unidades permiten calcular el slope de
@@ -522,8 +522,8 @@ export const helpContent: HelpContentMap = {
           del estudiante".
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-blue-400 font-medium">Diferencia con Templates:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Diferencia con Templates:</p>
         <p className="text-sm mt-1">
           Los templates agrupan TPs de distintas comisiones que comparten el mismo enunciado
           academico. Las unidades agrupan TPs DENTRO de una comision por tema pedagogico.
@@ -534,7 +534,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   correcciones: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Correcciones</p>
       <p>
         Lista las entregas de trabajos practicos de los estudiantes de la comision. Cada fila

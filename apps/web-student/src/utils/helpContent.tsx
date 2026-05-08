@@ -5,7 +5,7 @@ type HelpContentMap = Record<string, ReactNode>
 
 export const helpContent: HelpContentMap = {
   episode: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">
         Tutor Socratico de Programacion
       </p>
@@ -43,15 +43,15 @@ export const helpContent: HelpContentMap = {
           hecho: queda registrado en el CTR.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Consejo:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Consejo:</p>
         <p className="text-sm mt-1">
           Si recargas la pestana (F5), tu episodio se recupera automáticamente. Si cerras la
           pestana, el episodio queda abierto pero volves al selector la proxima vez.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2">
-        <p className="text-orange-400 font-medium">Las tres coherencias N4:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2">
+        <p className="text-warning font-medium">Las tres coherencias N4:</p>
         <ul className="text-sm mt-2 space-y-1">
           <li>
             <strong>Temporal (CT):</strong> Patron de trabajo sostenido en el tiempo.

@@ -119,12 +119,12 @@ export function ComisionSelector({ value, onChange }: Props) {
   }
 
   if (loading) {
-    return <div className="text-xs text-slate-500 px-3 py-2">Cargando comisiones...</div>
+    return <div className="text-xs text-muted px-3 py-2">Cargando comisiones...</div>
   }
 
   if (error) {
     return (
-      <div className="text-xs text-red-700 dark:text-red-300 px-3 py-2">
+      <div className="text-xs text-danger px-3 py-2">
         Error cargando comisiones: <span className="font-mono">{error}</span>
       </div>
     )
@@ -132,7 +132,7 @@ export function ComisionSelector({ value, onChange }: Props) {
 
   if (!comisiones || comisiones.length === 0) {
     return (
-      <div className="text-xs text-slate-500 px-3 py-2">
+      <div className="text-xs text-muted px-3 py-2">
         No tenés comisiones asignadas. Pedile al admin que te agregue a una comisión.
       </div>
     )
@@ -140,11 +140,11 @@ export function ComisionSelector({ value, onChange }: Props) {
 
   return (
     <label className="flex items-center gap-2 text-sm">
-      <span className="text-slate-600 dark:text-slate-400">Comisión:</span>
+      <span className="text-muted dark:text-muted-soft">Comisión:</span>
       <select
         value={value ?? ""}
         onChange={handleSelect}
-        className="rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+        className="rounded border border-border bg-surface text-ink px-2 py-1 text-sm focus:outline-none focus:border-accent-brand focus:ring-1 focus:ring-accent-brand/30"
       >
         <option value="" disabled>
           Seleccioná una comisión

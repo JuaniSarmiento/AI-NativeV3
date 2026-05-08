@@ -180,7 +180,7 @@ function MateriaPage() {
       <ContextualHeader materia={materia} />
 
       {currentView.kind === "opening" && currentView.error && (
-        <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-6 py-2 text-sm">
+        <div className="bg-danger-soft text-danger px-6 py-2 text-sm">
           {currentView.error}
         </div>
       )}
@@ -232,20 +232,20 @@ function ContextualHeader({ materia }: { materia: MateriaInscripta }) {
   return (
     <div
       data-testid="materia-context-header"
-      className="border-b border-slate-200 dark:border-slate-800 px-6 py-3 bg-white dark:bg-slate-900 flex items-center gap-3 flex-wrap"
+      className="border-b border-border-soft px-6 py-3 bg-white flex items-center gap-3 flex-wrap"
     >
       <Link
         to="/"
-        className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+        className="text-xs text-muted hover:text-body"
         data-testid="materia-back-link"
       >
         ← Mis materias
       </Link>
-      <span aria-hidden="true" className="text-slate-300 dark:text-slate-700">
+      <span aria-hidden="true" className="text-muted-soft">
         |
       </span>
       <MateriaContextLine materia={materia} />
-      <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate ml-auto">
+      <span className="text-sm font-medium text-ink truncate ml-auto">
         {materia.nombre}
       </span>
     </div>
@@ -261,12 +261,12 @@ export function MateriaContextLine({ materia }: { materia: MateriaInscripta }) {
   return (
     <p
       data-testid="materia-context-line"
-      className="text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300"
+      className="text-xs font-mono uppercase tracking-wider text-body"
     >
       <span data-testid="materia-header-codigo">{materia.codigo}</span>
-      <span className="text-slate-400 mx-1.5">·</span>
+      <span className="text-muted-soft mx-1.5">·</span>
       <span data-testid="materia-header-comision">{comisionLabel}</span>
-      <span className="text-slate-400 mx-1.5">·</span>
+      <span className="text-muted-soft mx-1.5">·</span>
       <span data-testid="materia-header-periodo">{materia.periodo_codigo}</span>
     </p>
   )
@@ -287,10 +287,10 @@ function PageError({ detail }: { detail: string }) {
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="max-w-md text-center">
-        <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+        <p className="text-sm font-medium text-danger mb-2">
           No pudimos cargar la materia.
         </p>
-        <p className="text-xs font-mono text-slate-500">{detail}</p>
+        <p className="text-xs font-mono text-muted">{detail}</p>
       </div>
     </div>
   )
@@ -300,13 +300,13 @@ function MateriaNotFound({ id }: { id: string }) {
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="max-w-md text-center">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        <p className="text-sm font-medium text-body mb-2">
           Esta materia no esta entre tus inscripciones activas.
         </p>
-        <p className="text-xs font-mono text-slate-500 mb-4">id: {id}</p>
+        <p className="text-xs font-mono text-muted mb-4">id: {id}</p>
         <Link
           to="/"
-          className="text-sm underline text-slate-700 dark:text-slate-300"
+          className="text-sm underline text-body"
           data-testid="materia-not-found-back"
         >
           Volver a mis materias

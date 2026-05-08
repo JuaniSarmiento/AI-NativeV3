@@ -86,7 +86,7 @@ function NLevelDistributionChart({
 
   if (total === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#EAEAEA] p-8 text-center text-[#787774] text-sm">
+      <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted text-sm">
         {isDocente
           ? "Todavia no hay datos de esta sesion."
           : "Sin datos de duracion. El episodio aun no tiene eventos persistidos o el modo dev del analytics-service no tiene CTR configurado."}
@@ -148,23 +148,23 @@ function NLevelDistributionChart({
                     className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: colors[lvl] }}
                   />
-                  <span className="text-sm font-medium text-[#111111]">
+                  <span className="text-sm font-medium text-ink">
                     {levelLabels[lvl] ?? lvl}
                   </span>
                 </div>
-                <span className="text-xs text-[#787774] font-mono">
+                <span className="text-xs text-muted font-mono">
                   {(ratio * 100).toFixed(1)}%
-                  <span className="mx-1 text-[#EAEAEA]">·</span>
+                  <span className="mx-1 text-border">·</span>
                   {isDocente ? formatMinutes(secs) : formatSeconds(secs)}
                   {!isDocente && (
                     <>
-                      <span className="mx-1 text-[#EAEAEA]">·</span>
+                      <span className="mx-1 text-border">·</span>
                       {count} ev.
                     </>
                   )}
                 </span>
               </div>
-              <div className="h-1.5 bg-[#EAEAEA] rounded-full overflow-hidden">
+              <div className="h-1.5 bg-border rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{ width: `${barWidth}%`, backgroundColor: colors[lvl] }}
@@ -229,8 +229,8 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
     >
       <div className="space-y-6">
         {!initialEpisodeId && !data && !loading && (
-          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774] space-y-2">
-            <p className="font-semibold text-[#111111]">
+          <div className="rounded-xl border border-dashed border-border bg-white p-6 text-sm text-muted space-y-2">
+            <p className="font-semibold text-ink">
               {isDocente
                 ? "No hay ninguna sesion seleccionada."
                 : "Llegaste aca sin episodio seleccionado."}
@@ -261,7 +261,7 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
               )}
             </p>
             {!isDocente && (
-              <p className="text-xs text-[#787774] pt-2 border-t border-[#EAEAEA] mt-3">
+              <p className="text-xs text-muted pt-2 border-t border-border mt-3">
                 Tambien podes pegar un UUID a mano (auditoria) en el formulario de abajo.
               </p>
             )}
@@ -269,7 +269,7 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             <div className="font-semibold">Error consultando el episodio</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
@@ -280,18 +280,18 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
             {isDocente && dom && (
               <DocenteInterpretation dominant={dom} />
             )}
-            <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
-              <div className="flex items-start justify-between gap-4 border-b border-[#EAEAEA] px-6 py-4">
+            <div className="rounded-xl border border-border bg-white overflow-hidden">
+              <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
                 <div>
-                  <div className="text-xs uppercase tracking-wider text-[#787774] mb-1">
+                  <div className="text-xs uppercase tracking-wider text-muted mb-1">
                     {isDocente ? "Sesion" : "Episodio"}
                   </div>
-                  <div className="font-mono text-sm text-[#111111] break-all">
+                  <div className="font-mono text-sm text-ink break-all">
                     {isDocente ? data.episode_id.slice(0, 8) : data.episode_id}
                   </div>
                 </div>
                 {!isDocente && (
-                  <div className="text-right text-xs text-[#787774] shrink-0">
+                  <div className="text-right text-xs text-muted shrink-0">
                     <div>labeler v{data.labeler_version}</div>
                     <div>
                       {Object.values(data.total_events_per_level).reduce((a, b) => a + b, 0)}{" "}
@@ -309,10 +309,10 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
 
         {!isDocente && (
           <details
-            className="rounded-xl border border-[#EAEAEA] bg-white"
+            className="rounded-xl border border-border bg-white"
             open={!initialEpisodeId && !data}
           >
-            <summary className="cursor-pointer px-6 py-3 text-sm font-medium text-[#111111] hover:bg-[#FAFAFA] transition-colors">
+            <summary className="cursor-pointer px-6 py-3 text-sm font-medium text-ink hover:bg-canvas transition-colors">
               Buscar otro episodio por UUID
             </summary>
             <div className="px-6 pb-5 pt-2">
@@ -332,7 +332,7 @@ export function EpisodeNLevelView({ getToken, initialEpisodeId }: Props) {
                   {loading ? "Cargando..." : "Analizar"}
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-[#787774]">
+              <p className="mt-2 text-xs text-muted">
                 El UUID se obtiene desde la lista de episodios del estudiante o del CTR.
               </p>
             </div>
@@ -358,7 +358,7 @@ function DocenteInterpretation({
   }
 
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4 text-sm text-[#111111]">
+    <div className="rounded-xl border border-border bg-white px-6 py-4 text-sm text-ink">
       <strong>{pct}% del tiempo</strong> lo paso <strong>{dominant.label.toLowerCase()}</strong>.{" "}
       {insights[dominant.level]}
     </div>

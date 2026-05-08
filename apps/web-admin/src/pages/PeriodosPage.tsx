@@ -92,7 +92,7 @@ export function PeriodosPage(): ReactNode {
           <button
             type="button"
             onClick={() => setShowForm(!showForm)}
-            className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
+            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep"
           >
             {showForm ? "Cancelar" : "Nuevo periodo"}
           </button>
@@ -108,28 +108,28 @@ export function PeriodosPage(): ReactNode {
         )}
 
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
             {error}
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
+            <div className="p-8 text-center text-muted text-sm">Cargando…</div>
           ) : items.length === 0 ? (
             <div className="p-8 text-center space-y-3">
-              <p className="text-slate-500 text-sm">No hay periodos registrados todavia.</p>
+              <p className="text-muted text-sm">No hay periodos registrados todavia.</p>
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+                className="rounded-md bg-accent-brand text-white px-4 py-1.5 text-sm hover:bg-accent-brand-deep"
               >
                 Crear primer periodo
               </button>
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-left">
+              <thead className="bg-surface-alt border-b border-border-soft text-left">
                 <tr>
                   <th className="px-4 py-2 font-medium">Código</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
@@ -145,23 +145,23 @@ export function PeriodosPage(): ReactNode {
                   const isBusy = busyId === p.id
                   const isAbierto = p.estado === "abierto"
                   return (
-                    <tr key={p.id} className="border-b border-slate-100">
+                    <tr key={p.id} className="border-b border-border-soft">
                       <td className="px-4 py-2 font-mono text-xs">{p.codigo}</td>
                       <td className="px-4 py-2">{p.nombre}</td>
-                      <td className="px-4 py-2 text-slate-700 text-xs">{p.fecha_inicio}</td>
-                      <td className="px-4 py-2 text-slate-700 text-xs">{p.fecha_fin}</td>
+                      <td className="px-4 py-2 text-body text-xs">{p.fecha_inicio}</td>
+                      <td className="px-4 py-2 text-body text-xs">{p.fecha_fin}</td>
                       <td className="px-4 py-2">
                         <span
                           className={
                             isAbierto
-                              ? "inline-flex rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-medium"
-                              : "inline-flex rounded-full bg-slate-200 text-slate-700 px-2 py-0.5 text-xs font-medium"
+                              ? "inline-flex rounded-full bg-success-soft text-success px-2 py-0.5 text-xs font-medium"
+                              : "inline-flex rounded-full bg-surface-alt text-body px-2 py-0.5 text-xs font-medium"
                           }
                         >
                           {p.estado}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-slate-600 text-xs">
+                      <td className="px-4 py-2 text-muted text-xs">
                         {new Date(p.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -171,7 +171,7 @@ export function PeriodosPage(): ReactNode {
                               type="button"
                               onClick={() => setEditing(p)}
                               disabled={isBusy}
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-alt px-2.5 py-1 text-xs font-medium text-body hover:bg-surface-alt disabled:opacity-50"
                               title="Editar nombre y fechas del periodo"
                             >
                               <Pencil className="h-3 w-3" aria-hidden="true" />
@@ -183,7 +183,7 @@ export function PeriodosPage(): ReactNode {
                               type="button"
                               onClick={() => void closePeriodo(p)}
                               disabled={isBusy}
-                              className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                              className="rounded-md border border-warning/40 bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning-soft disabled:opacity-50"
                               title="Cerrar periodo (one-way — no se puede reabrir)"
                             >
                               {isBusy ? "..." : "Cerrar"}
@@ -193,7 +193,7 @@ export function PeriodosPage(): ReactNode {
                             type="button"
                             onClick={() => void deletePeriodo(p)}
                             disabled={isBusy}
-                            className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-900 hover:bg-red-100 disabled:opacity-50"
+                            className="rounded-md border border-danger/40 bg-danger-soft px-2.5 py-1 text-xs font-medium text-danger hover:bg-danger-soft disabled:opacity-50"
                             title="Eliminar periodo (falla si tiene comisiones asociadas)"
                           >
                             {isBusy ? "..." : "Eliminar"}
@@ -253,13 +253,13 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
           title="Formulario de Periodo"
           content={
-            <div className="space-y-3 text-zinc-300">
+            <div className="space-y-3 text-muted-soft">
               <p>
                 <strong>Completa los siguientes campos</strong> para crear un nuevo periodo:
               </p>
@@ -286,7 +286,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
             </div>
           }
         />
-        <span className="text-sm text-slate-500">Ayuda sobre el formulario</span>
+        <span className="text-sm text-muted">Ayuda sobre el formulario</span>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -353,7 +353,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+        <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
           {error}
         </div>
       )}
@@ -362,7 +362,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
         >
           {submitting ? "Creando..." : "Crear"}
         </button>
@@ -372,7 +372,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
 }
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
 
 function Field({
   label,
@@ -386,9 +386,9 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children es el control (input/select/textarea) wrappeado por el padre — patrón de form helper.
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-700">
+      <span className="text-xs font-medium text-body">
         {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
+        {required && <span className="text-danger ml-0.5">*</span>}
       </span>
       {children}
     </label>
@@ -452,7 +452,7 @@ function EditPeriodoModal({
             size="sm"
             title="Campos del formulario"
             content={
-              <div className="space-y-3 text-zinc-300">
+              <div className="space-y-3 text-muted-soft">
                 <p>
                   <strong>Modifica los siguientes campos</strong> del periodo:
                 </p>
@@ -475,7 +475,7 @@ function EditPeriodoModal({
               </div>
             }
           />
-          <span className="text-sm text-zinc-400">Ayuda sobre los campos</span>
+          <span className="text-sm text-muted">Ayuda sobre los campos</span>
         </div>
 
         <Field label="Código">
@@ -483,9 +483,9 @@ function EditPeriodoModal({
             type="text"
             value={periodo.codigo}
             disabled
-            className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`}
+            className={`${inputClass} cursor-not-allowed bg-surface-alt text-muted`}
           />
-          <span className="text-xs text-slate-500">El código es inmutable.</span>
+          <span className="text-xs text-muted">El código es inmutable.</span>
         </Field>
 
         <Field label="Nombre" required>
@@ -523,24 +523,24 @@ function EditPeriodoModal({
         </div>
 
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
             {error}
           </div>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-zinc-700 pt-4">
+        <div className="flex justify-end gap-2 border-t border-sidebar-bg-edge pt-4">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-accent-brand px-4 py-2 text-sm font-medium text-white hover:bg-accent-brand-deep disabled:opacity-50"
           >
             {submitting ? "Guardando..." : "Guardar"}
           </button>

@@ -193,15 +193,15 @@ function PromptStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-[#787774]">
+      <p className="text-sm text-muted">
         Describe el trabajo practico. La IA generara los ejercicios con enunciado, codigo inicial,
         rubrica y casos de prueba. Despues podes editar cada uno.
       </p>
 
       <div>
-        <label className="block text-xs font-medium text-[#111111] mb-1.5">
+        <label className="block text-xs font-medium text-ink mb-1.5">
           Descripcion del TP
-          <span className="text-[#787774] font-normal ml-1">(obligatorio)</span>
+          <span className="text-muted font-normal ml-1">(obligatorio)</span>
         </label>
         <textarea
           value={descripcion}
@@ -209,15 +209,15 @@ function PromptStep({
           rows={5}
           maxLength={2000}
           placeholder="Descri el TP que necesitas. Ej: Un trabajo practico de listas enlazadas con ejercicios de insercion, busqueda y eliminacion..."
-          className="w-full px-3 py-2 text-sm text-[#111111] border border-[#EAEAEA] rounded-lg bg-white resize-none focus:outline-none focus:border-[#111111] transition-colors"
+          className="w-full px-3 py-2 text-sm text-ink border border-border rounded-lg bg-white resize-none focus:outline-none focus:border-ink transition-colors"
         />
         <div className="flex justify-end mt-1">
-          <span className="text-xs text-[#787774]">{descripcion.length}/2000</span>
+          <span className="text-xs text-muted">{descripcion.length}/2000</span>
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-[#111111] mb-1.5">
+        <label className="block text-xs font-medium text-ink mb-1.5">
           Cantidad de ejercicios
         </label>
         <div className="flex items-center gap-3">
@@ -229,16 +229,16 @@ function PromptStep({
             onChange={(e) => onNumEjerciciosChange(Number(e.target.value))}
             className="flex-1 accent-[#111111]"
           />
-          <span className="text-sm font-medium text-[#111111] w-6 text-center tabular-nums">
+          <span className="text-sm font-medium text-ink w-6 text-center tabular-nums">
             {numEjercicios}
           </span>
         </div>
       </div>
 
       <div>
-        <span className="block text-xs font-medium text-[#111111] mb-2">
+        <span className="block text-xs font-medium text-ink mb-2">
           Dificultad
-          <span className="text-[#787774] font-normal ml-1">(opcional)</span>
+          <span className="text-muted font-normal ml-1">(opcional)</span>
         </span>
         <div className="flex gap-2">
           {DIFICULTADES.map((d) => (
@@ -248,8 +248,8 @@ function PromptStep({
               onClick={() => onDificultadChange(dificultad === d.value ? null : d.value)}
               className={`px-4 py-1.5 text-xs font-medium rounded-md border transition-colors ${
                 dificultad === d.value
-                  ? "bg-[#111111] text-white border-[#111111]"
-                  : "bg-white text-[#111111] border-[#EAEAEA] hover:border-[#111111]"
+                  ? "bg-ink text-white border-ink"
+                  : "bg-white text-ink border-border hover:border-ink"
               }`}
             >
               {d.label}
@@ -259,9 +259,9 @@ function PromptStep({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-[#111111] mb-1.5">
+        <label className="block text-xs font-medium text-ink mb-1.5">
           Contexto adicional
-          <span className="text-[#787774] font-normal ml-1">(opcional)</span>
+          <span className="text-muted font-normal ml-1">(opcional)</span>
         </label>
         <textarea
           value={contexto}
@@ -269,31 +269,31 @@ function PromptStep({
           rows={3}
           maxLength={2000}
           placeholder="Contexto adicional: temas vistos, restricciones, etc."
-          className="w-full px-3 py-2 text-sm text-[#111111] border border-[#EAEAEA] rounded-lg bg-white resize-none focus:outline-none focus:border-[#111111] transition-colors"
+          className="w-full px-3 py-2 text-sm text-ink border border-border rounded-lg bg-white resize-none focus:outline-none focus:border-ink transition-colors"
         />
         <div className="flex justify-end mt-1">
-          <span className="text-xs text-[#787774]">{contexto.length}/2000</span>
+          <span className="text-xs text-muted">{contexto.length}/2000</span>
         </div>
       </div>
 
       {!materiaResolved && (
-        <div className="text-xs text-[#787774] bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg p-3">
+        <div className="text-xs text-muted bg-canvas border border-border rounded-lg p-3">
           Resolviendo materia de la comision...
         </div>
       )}
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="text-sm text-danger bg-danger-soft border border-danger/30 rounded-lg px-3 py-2">
           {error}
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-[#EAEAEA]">
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
         <button
           type="button"
           onClick={onClose}
           disabled={generating}
-          className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors disabled:opacity-40 text-[#787774]"
+          className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors disabled:opacity-40 text-muted"
         >
           Cancelar
         </button>
@@ -303,8 +303,8 @@ function PromptStep({
           disabled={generating || !materiaResolved || descripcion.trim().length < 10}
           className={`px-5 py-1.5 text-sm font-medium rounded-md text-white transition-colors ${
             generating
-              ? "bg-[#333333] animate-pulse cursor-not-allowed"
-              : "bg-[#111111] hover:bg-[#333333] disabled:bg-[#EAEAEA] disabled:text-[#787774] disabled:cursor-not-allowed"
+              ? "bg-sidebar-bg-edge animate-pulse cursor-not-allowed"
+              : "bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border disabled:text-muted disabled:cursor-not-allowed"
           }`}
         >
           {generating ? "Generando..." : "Generar"}
@@ -356,8 +356,8 @@ function PreviewStep({
         ))}
       </div>
 
-      <div className="flex items-center gap-3 bg-[#FAFAFA] border border-[#EAEAEA] rounded-xl px-4 py-3">
-        <div className="text-xs text-[#787774] flex flex-wrap gap-x-4 gap-y-1">
+      <div className="flex items-center gap-3 bg-canvas border border-border rounded-xl px-4 py-3">
+        <div className="text-xs text-muted flex flex-wrap gap-x-4 gap-y-1">
           <span>
             <span className="font-medium">Modelo:</span> {result.model_used}
           </span>
@@ -371,11 +371,11 @@ function PreviewStep({
         </div>
       </div>
 
-      <div className="flex justify-between pt-2 border-t border-[#EAEAEA]">
+      <div className="flex justify-between pt-2 border-t border-border">
         <button
           type="button"
           onClick={onEditar}
-          className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors text-[#787774]"
+          className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors text-muted"
         >
           Regenerar
         </button>
@@ -383,7 +383,7 @@ function PreviewStep({
           type="button"
           onClick={onUsar}
           disabled={ejercicios.length === 0}
-          className="px-5 py-1.5 text-sm font-medium bg-[#111111] hover:bg-[#333333] text-white rounded-md transition-colors disabled:bg-[#EAEAEA] disabled:text-[#787774]"
+          className="px-5 py-1.5 text-sm font-medium bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md transition-colors disabled:bg-border disabled:text-muted"
         >
           Crear {ejercicios.length} {ejercicios.length === 1 ? "TP" : "TPs"}
         </button>
@@ -432,21 +432,21 @@ function EjercicioCard({
   }
 
   return (
-    <div className="border border-[#EAEAEA] rounded-xl overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden">
       {/* Header */}
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 bg-[#FAFAFA] hover:bg-[#f5f5f4] transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-3 bg-canvas hover:bg-surface-alt transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#787774] bg-white border border-[#EAEAEA] rounded px-1.5 py-0.5">
+          <span className="text-xs font-medium text-muted bg-white border border-border rounded px-1.5 py-0.5">
             {index + 1}
           </span>
-          <span className="text-sm font-medium text-[#111111] truncate max-w-md">
+          <span className="text-sm font-medium text-ink truncate max-w-md">
             {ejercicio.titulo || `Ejercicio ${index + 1}`}
           </span>
-          <span className="text-xs text-[#787774]">
+          <span className="text-xs text-muted">
             {ejercicio.test_cases.length} tests
           </span>
         </div>
@@ -465,12 +465,12 @@ function EjercicioCard({
                   onRemove()
                 }
               }}
-              className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5"
+              className="text-xs text-danger hover:text-danger px-2 py-0.5"
             >
               Quitar
             </span>
           )}
-          <span className="text-[#787774] text-xs">{isExpanded ? "▲" : "▼"}</span>
+          <span className="text-muted text-xs">{isExpanded ? "▲" : "▼"}</span>
         </div>
       </button>
 
@@ -489,11 +489,11 @@ function EjercicioCard({
                 type="text"
                 value={ejercicio.titulo}
                 onChange={(e) => onUpdate({ titulo: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-[#111111] rounded-lg focus:outline-none"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface text-ink focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 focus:outline-none"
                 autoFocus
               />
             ) : (
-              <p className="text-sm text-[#111111]">{ejercicio.titulo}</p>
+              <p className="text-sm text-ink">{ejercicio.titulo}</p>
             )}
           </EditableSection>
 
@@ -509,11 +509,11 @@ function EjercicioCard({
                 value={ejercicio.enunciado}
                 onChange={(e) => onUpdate({ enunciado: e.target.value })}
                 rows={8}
-                className="w-full px-3 py-2 text-sm font-mono border border-[#111111] rounded-lg resize-y focus:outline-none"
+                className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg bg-surface text-ink focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 resize-y focus:outline-none"
                 autoFocus
               />
             ) : (
-              <div className="bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg p-3 max-h-48 overflow-y-auto">
+              <div className="bg-canvas border border-border rounded-lg p-3 max-h-48 overflow-y-auto">
                 <MarkdownRenderer content={ejercicio.enunciado} />
               </div>
             )}
@@ -531,12 +531,14 @@ function EjercicioCard({
                 value={ejercicio.inicial_codigo}
                 onChange={(e) => onUpdate({ inicial_codigo: e.target.value })}
                 rows={6}
-                className="w-full px-3 py-2 text-sm font-mono border border-[#111111] rounded-lg resize-y focus:outline-none bg-[#1e1e1e] text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg bg-surface text-ink focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 resize-y focus:outline-none"
                 autoFocus
               />
             ) : (
-              <pre className="bg-[#111111] text-slate-100 rounded-lg px-3 py-2 text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto">
-                {ejercicio.inicial_codigo || "(vacio)"}
+              <pre className="bg-surface-alt border border-border-soft text-ink rounded-lg px-3 py-2 text-xs font-mono whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed">
+                {ejercicio.inicial_codigo || (
+                  <span className="text-muted-soft italic">(vacío)</span>
+                )}
               </pre>
             )}
           </EditableSection>
@@ -553,19 +555,19 @@ function EjercicioCard({
                 value={rubricaRaw}
                 onChange={(e) => setRubricaRaw(e.target.value)}
                 rows={6}
-                className="w-full px-3 py-2 text-xs font-mono border border-[#111111] rounded-lg resize-y focus:outline-none"
+                className="w-full px-3 py-2 text-xs font-mono border border-border rounded-lg bg-surface text-ink focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 resize-y focus:outline-none"
                 autoFocus
               />
             ) : (
-              <div className="bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg p-3 max-h-32 overflow-y-auto">
+              <div className="bg-canvas border border-border rounded-lg p-3 max-h-32 overflow-y-auto">
                 {Array.isArray((ejercicio.rubrica as { criterios?: unknown[] })?.criterios) ? (
                   <div className="space-y-1">
                     {((ejercicio.rubrica as { criterios: { nombre: string; peso: number; descripcion: string }[] }).criterios).map(
                       (c, ci) => (
                         <div key={ci} className="flex items-baseline gap-2 text-xs">
-                          <span className="font-medium text-[#111111]">{c.nombre}</span>
-                          <span className="text-[#787774]">({(c.peso * 100).toFixed(0)}%)</span>
-                          <span className="text-[#787774] truncate">{c.descripcion}</span>
+                          <span className="font-medium text-ink">{c.nombre}</span>
+                          <span className="text-muted">({(c.peso * 100).toFixed(0)}%)</span>
+                          <span className="text-muted truncate">{c.descripcion}</span>
                         </div>
                       ),
                     )}
@@ -582,23 +584,23 @@ function EjercicioCard({
           {/* Test cases (read-only preview) */}
           {ejercicio.test_cases.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-[#111111] mb-1.5 uppercase tracking-wider">
+              <div className="text-xs font-medium text-ink mb-1.5 uppercase tracking-wider">
                 Casos de prueba ({ejercicio.test_cases.length})
               </div>
               <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 {ejercicio.test_cases.map((tc, ti) => (
                   <div
                     key={ti}
-                    className="bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg px-3 py-1.5 text-xs flex items-center gap-2"
+                    className="bg-canvas border border-border rounded-lg px-3 py-1.5 text-xs flex items-center gap-2"
                   >
-                    <span className="font-medium text-[#111111]">{tc.name ?? `Caso ${ti + 1}`}</span>
+                    <span className="font-medium text-ink">{tc.name ?? `Caso ${ti + 1}`}</span>
                     {tc.is_public === false && (
-                      <span className="text-[10px] bg-slate-100 border border-slate-200 text-[#787774] rounded px-1.5 py-0.5">
+                      <span className="text-[10px] bg-surface-alt border border-border-soft text-muted rounded px-1.5 py-0.5">
                         privado
                       </span>
                     )}
                     {tc.expected && (
-                      <span className="text-[#787774] font-mono truncate ml-auto">
+                      <span className="text-muted font-mono truncate ml-auto">
                         = {tc.expected}
                       </span>
                     )}
@@ -629,11 +631,11 @@ function EditableSection({
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-[#111111] uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium text-ink uppercase tracking-wider">{label}</span>
         <button
           type="button"
           onClick={isEditing ? onStopEdit : onStartEdit}
-          className="text-xs text-[#787774] hover:text-[#111111] transition-colors"
+          className="text-xs text-muted hover:text-ink transition-colors"
         >
           {isEditing ? "Listo" : "Editar"}
         </button>

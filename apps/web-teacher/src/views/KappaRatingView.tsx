@@ -21,8 +21,8 @@ const CATEGORIES: AppropriationLabel[] = [
 ]
 
 const CATEGORY_COLORS: Record<AppropriationLabel, string> = {
-  delegacion_pasiva: "bg-red-500 hover:bg-red-600",
-  apropiacion_superficial: "bg-amber-500 hover:bg-amber-600",
+  delegacion_pasiva: "bg-danger hover:bg-danger",
+  apropiacion_superficial: "bg-warning hover:bg-warning",
   apropiacion_reflexiva: "bg-green-600 hover:bg-green-700",
 }
 
@@ -100,8 +100,8 @@ export function KappaRatingView({ getToken, episodes }: Props) {
         {!result && (
           <>
             {isDocente && (
-              <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4 text-sm text-[#787774]">
-                <p className="text-[#111111] font-medium mb-1">Como funciona</p>
+              <div className="rounded-xl border border-border bg-white px-6 py-4 text-sm text-muted">
+                <p className="text-ink font-medium mb-1">Como funciona</p>
                 <p>
                   Para cada trabajo, el sistema ya tiene su evaluacion automatica. Vos tenes que
                   marcar como evaluarias cada uno. Al terminar, comparamos ambas evaluaciones para
@@ -110,7 +110,7 @@ export function KappaRatingView({ getToken, episodes }: Props) {
               </div>
             )}
 
-            <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="text-sm">
                 <span className="font-medium">{labeledCount}</span> de{" "}
                 <span className="font-medium">{episodes.length}</span>{" "}
@@ -121,7 +121,7 @@ export function KappaRatingView({ getToken, episodes }: Props) {
                   type="button"
                   onClick={handleReset}
                   disabled={labeledCount === 0}
-                  className="px-3 py-1.5 text-sm border border-[#EAEAEA] rounded hover:bg-[#FAFAFA] disabled:opacity-40"
+                  className="px-3 py-1.5 text-sm border border-border rounded hover:bg-canvas disabled:opacity-40"
                 >
                   Reiniciar
                 </button>
@@ -129,7 +129,7 @@ export function KappaRatingView({ getToken, episodes }: Props) {
                   type="button"
                   onClick={handleCompute}
                   disabled={!allLabeled || computing}
-                  className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333] disabled:bg-[#EAEAEA] disabled:text-[#787774] text-white rounded font-medium"
+                  className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border disabled:text-muted text-white rounded font-medium"
                 >
                   {computing
                     ? "Calculando..."
@@ -158,7 +158,7 @@ export function KappaRatingView({ getToken, episodes }: Props) {
           </>
         )}
 
-        {error && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{error}</div>}
+        {error && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{error}</div>}
 
         {result &&
           (isDocente ? (
@@ -185,16 +185,16 @@ function EpisodeRatingCard({
   isDocente: boolean
 }) {
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+    <div className="rounded-xl border border-border bg-white p-4">
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-xs text-[#787774]">
+          <div className="font-mono text-xs text-muted">
             {isDocente ? episode.episode_id.slice(0, 8) : episode.episode_id.slice(0, 12)}
           </div>
           <p className="text-sm mt-1 line-clamp-2">{episode.summary}</p>
         </div>
         <div className="text-xs text-right shrink-0">
-          <div className="text-[#787774]">
+          <div className="text-muted">
             {isDocente ? "El sistema evaluo:" : "Modelo dijo:"}
           </div>
           <div className="font-medium">
@@ -244,7 +244,7 @@ function DocenteResultPanel({
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+      <div className="rounded-xl border border-border bg-white p-4">
         <h3 className="font-medium mb-3 text-sm">Coincidencia por tipo</h3>
         <div className="space-y-2">
           {CATEGORIES.map((c) => {
@@ -254,7 +254,7 @@ function DocenteResultPanel({
                 <div className="min-w-[180px] text-sm">
                   {APPROPRIATION_DOCENTE[c] ?? c}
                 </div>
-                <div className="flex-1 h-3 bg-[#EAEAEA] rounded overflow-hidden">
+                <div className="flex-1 h-3 bg-border rounded overflow-hidden">
                   <div
                     className="h-full rounded"
                     style={{
@@ -268,7 +268,7 @@ function DocenteResultPanel({
                     }}
                   />
                 </div>
-                <div className="text-xs text-[#787774] min-w-[50px] text-right">
+                <div className="text-xs text-muted min-w-[50px] text-right">
                   {(val * 100).toFixed(0)}%
                 </div>
               </div>
@@ -280,7 +280,7 @@ function DocenteResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="px-4 py-2 border border-[#EAEAEA] rounded hover:bg-[#FAFAFA]"
+        className="px-4 py-2 border border-border rounded hover:bg-canvas"
       >
         Evaluar otro grupo
       </button>
@@ -303,8 +303,8 @@ function InvestigadorResultPanel({
       : kappa >= 0.61
         ? "text-green-700 bg-green-50"
         : kappa >= 0.41
-          ? "text-amber-700 bg-amber-50"
-          : "text-red-700 bg-red-50"
+          ? "text-warning/85 bg-warning-soft"
+          : "text-danger bg-danger-soft"
 
   return (
     <div className="space-y-5">
@@ -326,14 +326,14 @@ function InvestigadorResultPanel({
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+      <div className="rounded-xl border border-border bg-white p-4">
         <h3 className="font-medium mb-3">Matriz de confusion</h3>
-        <p className="text-xs text-[#787774] mb-3">
+        <p className="text-xs text-muted mb-3">
           Filas = etiqueta del modelo · Columnas = etiqueta humana
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#EAEAEA]">
+            <tr className="border-b border-border">
               <th className="text-left py-2 font-medium"> </th>
               {CATEGORIES.map((c) => (
                 <th key={c} className="text-center py-2 font-medium text-xs px-2">
@@ -344,8 +344,8 @@ function InvestigadorResultPanel({
           </thead>
           <tbody>
             {CATEGORIES.map((row) => (
-              <tr key={row} className="border-b border-[#EAEAEA]/50">
-                <td className="py-2 pr-4 text-xs text-[#787774]">
+              <tr key={row} className="border-b border-border/50">
+                <td className="py-2 pr-4 text-xs text-muted">
                   {APPROPRIATION_INVESTIGADOR[row] ?? row}
                 </td>
                 {CATEGORIES.map((col) => {
@@ -368,7 +368,7 @@ function InvestigadorResultPanel({
         </table>
       </div>
 
-      <div className="rounded-xl border border-[#EAEAEA] bg-white p-4">
+      <div className="rounded-xl border border-border bg-white p-4">
         <h3 className="font-medium mb-3">Acuerdo por clase</h3>
         <div className="space-y-2">
           {CATEGORIES.map((c) => {
@@ -378,10 +378,10 @@ function InvestigadorResultPanel({
                 <div className="min-w-[180px] text-sm">
                   {APPROPRIATION_INVESTIGADOR[c] ?? c}
                 </div>
-                <div className="flex-1 h-3 bg-[#EAEAEA] rounded overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded" style={{ width: `${val * 100}%` }} />
+                <div className="flex-1 h-3 bg-border rounded overflow-hidden">
+                  <div className="h-full bg-accent-brand rounded" style={{ width: `${val * 100}%` }} />
                 </div>
-                <div className="text-xs text-[#787774] min-w-[50px] text-right">
+                <div className="text-xs text-muted min-w-[50px] text-right">
                   {(val * 100).toFixed(1)}%
                 </div>
               </div>
@@ -393,7 +393,7 @@ function InvestigadorResultPanel({
       <button
         type="button"
         onClick={onReset}
-        className="px-4 py-2 border border-[#EAEAEA] rounded hover:bg-[#FAFAFA]"
+        className="px-4 py-2 border border-border rounded hover:bg-canvas"
       >
         Clasificar otro batch
       </button>

@@ -10,13 +10,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
 }
 
+/* Paleta v2 — "Stack Blue institucional".
+   primary: acento brand (#185FA5 OKLCH) — honra el favicon UNSL.
+   secondary: surface-alt (off-white cálido) sobre ink — densidad académica, no SaaS.
+   ghost: transparente con hover sutil sobre surface-alt.
+   danger: severity profundo (no Tailwind red-600 saturado). */
 const variants: Record<Variant, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-600",
+  primary:
+    "bg-accent-brand text-white hover:bg-accent-brand-deep focus-visible:ring-accent-brand",
   secondary:
-    "bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700 focus-visible:ring-slate-400",
+    "bg-surface-alt text-ink hover:bg-border-soft focus-visible:ring-border-strong",
   ghost:
-    "bg-transparent text-slate-900 hover:bg-slate-100 dark:text-slate-50 dark:hover:bg-slate-800 focus-visible:ring-slate-400",
-  danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600",
+    "bg-transparent text-ink hover:bg-surface-alt focus-visible:ring-border-strong",
+  danger: "bg-danger text-white hover:bg-danger/90 focus-visible:ring-danger",
 }
 
 const sizes: Record<Size, string> = {

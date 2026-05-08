@@ -59,7 +59,7 @@ export function slopeToDocente(slope: number | null): {
     return {
       label: "Sin datos suficientes",
       emoji: "?",
-      color: "text-[#787774]",
+      color: "text-muted",
       action: "Necesita completar mas trabajos para tener una tendencia.",
     }
   }
@@ -82,7 +82,7 @@ export function slopeToDocente(slope: number | null): {
   return {
     label: "Estable",
     emoji: "→",
-    color: "text-[#787774]",
+    color: "text-muted",
     action: null,
   }
 }
@@ -113,14 +113,14 @@ export function kappaToDocente(kappa: number): {
       label: "Acuerdo moderado",
       description:
         "Hay diferencias entre tu criterio y el del clasificador. Conviene revisar los casos donde no coinciden.",
-      color: "text-amber-700 bg-amber-50",
+      color: "text-warning/85 bg-warning-soft",
     }
   }
   return {
     label: "Acuerdo bajo",
     description:
       "Tu criterio y el del clasificador difieren bastante. Revisá los criterios de evaluacion y re-calibrá.",
-    color: "text-red-700 bg-red-50",
+    color: "text-danger bg-danger-soft",
   }
 }
 

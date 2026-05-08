@@ -142,19 +142,19 @@ export function GovernanceEventsPage(): ReactNode {
         />
 
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 text-red-900 p-4">
+          <div className="rounded-lg bg-danger-soft border border-danger/30 text-danger p-4">
             <p className="font-medium">Error al cargar</p>
             <p className="text-sm mt-1">{error}</p>
           </div>
         )}
 
         <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-600">{summaryText}</p>
+          <p className="text-sm text-muted">{summaryText}</p>
           <button
             type="button"
             onClick={handleExportCsv}
             disabled={events.length === 0 || loading}
-            className="rounded bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm px-3 py-2"
+            className="rounded bg-success hover:bg-success disabled:bg-border disabled:cursor-not-allowed text-white text-sm px-3 py-2"
           >
             Exportar CSV
           </button>
@@ -168,7 +168,7 @@ export function GovernanceEventsPage(): ReactNode {
               type="button"
               onClick={handleLoadMore}
               disabled={loading}
-              className="rounded border border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed text-sm px-4 py-2"
+              className="rounded border border-border hover:bg-surface-alt disabled:cursor-not-allowed text-sm px-4 py-2"
             >
               {loading ? "Cargando..." : "Cargar mas"}
             </button>
@@ -176,7 +176,7 @@ export function GovernanceEventsPage(): ReactNode {
         )}
 
         {!loading && events.length === 0 && !error && (
-          <p className="text-sm text-slate-500 text-center py-8">
+          <p className="text-sm text-muted text-center py-8">
             Sin eventos para los filtros actuales.
           </p>
         )}
@@ -211,7 +211,7 @@ function FilterPanel({
         e.preventDefault()
         onApply()
       }}
-      className="rounded-lg border border-slate-200 bg-white p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
+      className="rounded-lg border border-border-soft bg-white p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
     >
       <FilterText
         label="Facultad ID (UUID)"
@@ -248,7 +248,7 @@ function FilterPanel({
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm px-4 py-2"
+          className="rounded bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border text-white text-sm px-4 py-2"
         >
           {loading ? "Filtrando..." : "Aplicar filtros"}
         </button>
@@ -256,7 +256,7 @@ function FilterPanel({
           type="button"
           onClick={onReset}
           disabled={loading}
-          className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2"
+          className="text-sm text-muted hover:text-body px-3 py-2"
         >
           Limpiar
         </button>
@@ -276,12 +276,12 @@ function FilterText({
 }): ReactNode {
   return (
     <label className="text-sm">
-      <span className="block text-slate-700 font-medium mb-1">{label}</span>
+      <span className="block text-body font-medium mb-1">{label}</span>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full font-mono text-xs rounded border border-slate-300 px-2 py-1.5"
+        className="w-full font-mono text-xs rounded border border-border px-2 py-1.5"
         placeholder="(opcional)"
       />
     </label>
@@ -299,14 +299,14 @@ function FilterNumber({
 }): ReactNode {
   return (
     <label className="text-sm">
-      <span className="block text-slate-700 font-medium mb-1">{label}</span>
+      <span className="block text-body font-medium mb-1">{label}</span>
       <input
         type="number"
         min={1}
         max={5}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm rounded border border-slate-300 px-2 py-1.5"
+        className="w-full text-sm rounded border border-border px-2 py-1.5"
         placeholder="(opcional)"
       />
     </label>
@@ -326,11 +326,11 @@ function FilterSelect({
 }): ReactNode {
   return (
     <label className="text-sm">
-      <span className="block text-slate-700 font-medium mb-1">{label}</span>
+      <span className="block text-body font-medium mb-1">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm rounded border border-slate-300 px-2 py-1.5 bg-white"
+        className="w-full text-sm rounded border border-border px-2 py-1.5 bg-white"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -345,9 +345,9 @@ function FilterSelect({
 function EventsTable({ events }: { events: GovernanceEvent[] }): ReactNode {
   if (events.length === 0) return null
   return (
-    <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
+    <div className="rounded-lg border border-border-soft bg-white overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase text-slate-600">
+        <thead className="bg-surface-alt text-left text-xs uppercase text-muted">
           <tr>
             <th className="px-3 py-2">Timestamp</th>
             <th className="px-3 py-2">Estudiante</th>
@@ -361,7 +361,7 @@ function EventsTable({ events }: { events: GovernanceEvent[] }): ReactNode {
           {events.map((ev) => (
             <tr
               key={`${ev.episode_id}-${ev.ts}-${ev.pattern_id}`}
-              className="border-t border-slate-100"
+              className="border-t border-border-soft"
             >
               <td className="px-3 py-2 font-mono text-xs">{ev.ts}</td>
               <td className="px-3 py-2 font-mono text-xs">{ev.student_pseudonym.slice(0, 8)}...</td>
@@ -370,7 +370,7 @@ function EventsTable({ events }: { events: GovernanceEvent[] }): ReactNode {
                 <SeverityBadge severity={ev.severity} />
               </td>
               <td className="px-3 py-2 font-mono text-xs">{ev.pattern_id}</td>
-              <td className="px-3 py-2 text-slate-700 max-w-md truncate" title={ev.matched_text}>
+              <td className="px-3 py-2 text-body max-w-md truncate" title={ev.matched_text}>
                 {ev.matched_text}
               </td>
             </tr>
@@ -384,10 +384,10 @@ function EventsTable({ events }: { events: GovernanceEvent[] }): ReactNode {
 function SeverityBadge({ severity }: { severity: number }): ReactNode {
   const palette =
     severity >= 4
-      ? "bg-red-100 text-red-800"
+      ? "bg-danger-soft text-danger"
       : severity === 3
-        ? "bg-orange-100 text-orange-800"
-        : "bg-slate-100 text-slate-700"
+        ? "bg-warning-soft text-warning"
+        : "bg-surface-alt text-body"
   return (
     <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${palette}`}>
       {severity}
@@ -399,10 +399,10 @@ function SeverityCountsRow({ counts }: { counts: Record<string, number> }): Reac
   const entries = Object.entries(counts).sort(([a], [b]) => Number(a) - Number(b))
   if (entries.length === 0) return null
   return (
-    <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+    <div className="flex flex-wrap gap-2 text-xs text-muted">
       <span className="font-medium">Por severidad:</span>
       {entries.map(([sev, n]) => (
-        <span key={sev} className="rounded bg-slate-100 px-2 py-0.5">
+        <span key={sev} className="rounded bg-surface-alt px-2 py-0.5">
           sev {sev}: {n}
         </span>
       ))}

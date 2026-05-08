@@ -30,24 +30,24 @@ export function MateriaCard({ materia, onEnter }: MateriaCardProps) {
     <article
       data-testid="materia-card"
       data-materia-codigo={materia.codigo}
-      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6"
+      className="rounded-lg border border-border bg-white p-6"
     >
       <p
-        className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2"
+        className="text-xs font-mono uppercase tracking-wider text-muted mb-2"
         data-testid="materia-card-kicker"
       >
-        {materia.codigo} <span className="text-slate-400">·</span> {comisionLabel}
+        {materia.codigo} <span className="text-muted-soft">·</span> {comisionLabel}
       </p>
 
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-3">
+      <h3 className="text-lg font-semibold text-ink mb-3">
         {materia.nombre}
       </h3>
 
-      <p className="text-xs text-slate-600 dark:text-slate-400 mb-5">
+      <p className="text-xs text-muted mb-5">
         <span data-testid="materia-card-periodo">{materia.periodo_codigo}</span>
         {horario && (
           <>
-            <span className="text-slate-400 mx-1.5">·</span>
+            <span className="text-muted-soft mx-1.5">·</span>
             <span data-testid="materia-card-horario">{horario}</span>
           </>
         )}

@@ -64,10 +64,10 @@ export function AuditoriaPage(): ReactNode {
       helpContent={helpContent.auditoria}
     >
       <div className="space-y-6">
-        <form onSubmit={onSubmit} className="rounded-lg border border-slate-200 bg-white p-4">
+        <form onSubmit={onSubmit} className="rounded-lg border border-border-soft bg-white p-4">
           <label
             htmlFor="auditoria-episode-id"
-            className="block text-sm font-medium text-slate-700 mb-2"
+            className="block text-sm font-medium text-body mb-2"
           >
             Episode ID (UUID)
           </label>
@@ -78,14 +78,14 @@ export function AuditoriaPage(): ReactNode {
               value={episodeId}
               onChange={(e) => setEpisodeId(e.target.value)}
               placeholder="00000000-0000-0000-0000-000000000000"
-              className="flex-1 min-w-[280px] font-mono text-sm rounded border border-slate-300 px-3 py-2"
+              className="flex-1 min-w-[280px] font-mono text-sm rounded border border-border px-3 py-2"
               disabled={state.status === "loading"}
               aria-invalid={episodeId.length > 0 && !idValid}
             />
             <button
               type="submit"
               disabled={!idValid || state.status === "loading"}
-              className="rounded bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm px-4 py-2"
+              className="rounded bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border disabled:cursor-not-allowed text-white text-sm px-4 py-2"
             >
               {state.status === "loading" ? "Verificando..." : "Verificar integridad"}
             </button>
@@ -93,7 +93,7 @@ export function AuditoriaPage(): ReactNode {
               <button
                 type="button"
                 onClick={reset}
-                className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2"
+                className="text-sm text-muted hover:text-body px-3 py-2"
               >
                 Limpiar
               </button>
@@ -107,11 +107,11 @@ export function AuditoriaPage(): ReactNode {
         </form>
 
         {state.status === "error" && (
-          <div className="rounded-lg bg-red-50 border border-red-200 text-red-900 p-4">
+          <div className="rounded-lg bg-danger-soft border border-danger/30 text-danger p-4">
             <p className="font-medium">Error al verificar</p>
             <p className="text-sm mt-1">{state.message}</p>
             {state.statusCode === 404 && (
-              <p className="text-xs mt-2 text-red-700">
+              <p className="text-xs mt-2 text-danger">
                 El episodio no existe (todavia no se cerro o pertenece a otro tenant).
               </p>
             )}
@@ -134,7 +134,7 @@ function VerificationResultCard({ result }: { result: ChainVerificationResult })
       data-valid={result.valid ? "true" : "false"}
       data-events-count={String(result.events_count)}
       className={`rounded-lg border p-5 ${
-        ok ? "bg-green-50 border-green-200 text-green-900" : "bg-red-50 border-red-200 text-red-900"
+        ok ? "bg-success-soft border-green-200 text-green-900" : "bg-danger-soft border-danger/30 text-danger"
       }`}
     >
       <div className="flex items-baseline gap-3">

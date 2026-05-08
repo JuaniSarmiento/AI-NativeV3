@@ -1,23 +1,24 @@
 /**
- * Vista home del docente (shape docente, brief seccion 3.1).
+ * Vista home del docente — rediseño v2 (layout dashboard 2026).
  *
- * Lista las comisiones del docente como cards densas. Patron equivalente
- * al MateriaCard del web-student. Cada card tiene 4 KPIs en strip inline
- * (alumnos / episodios sem. / alertas / adversos sem.) y CTAs para abrir
- * la cohorte y ver adversos.
+ * Patrón:
+ * - HERO con stats agregados (cifras grandes en mono + labels uppercase).
+ * - GRID de cohortes con cards hover-lift, sparkline-mini y CTAs claros.
+ * - SECCIÓN tools transversales como cards secundarias, no link list.
  *
- * Honestidad tecnica:
- *   - el endpoint /comisiones/mis devuelve solo IDs y codigo;
- *     los KPIs de progression/adversos se enriquen en paralelo.
- *   - sin endpoint agregado de "alertas por cohorte", el campo `alertas`
- *     queda como null (UI muestra "datos insuf.").
- *   - empty state literal: "no tenes comisiones asignadas, ADR-029".
+ * Honestidad técnica:
+ * - el endpoint /comisiones/mis devuelve solo IDs y código; los KPIs de
+ *   progression/adversos se enriquecen en paralelo (best-effort).
+ * - sin endpoint agregado de "alertas por cohorte", el campo `alertas`
+ *   queda como null (UI muestra "—").
  *
  * Sub-tarea pendiente declarable: agregar endpoint
  *   GET /api/v1/analytics/cohort/{id}/alerts-summary
- * que itere sobre estudiantes y agregue n_alerts. Hoy se omite (R1 del brief).
+ * que itere sobre estudiantes y agregue n_alerts.
  */
-import { PageContainer } from "@platform/ui"
+import { HelpButton } from "@platform/ui"
+import { Download, FileText, Scale, Users } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import { useCallback, useEffect, useState } from "react"
 import { ComisionDelDocenteCard, type ComisionKpis } from "../components/ComisionDelDocenteCard"
 import { comisionLabel } from "../components/ComisionSelector"
@@ -61,9 +62,6 @@ export function HomeView({ getToken }: Props) {
     setError(null)
     try {
       const { items: comisiones } = await comisionesApi.listMine(getToken)
-      // Fetch KPIs en paralelo. Cada fetch es best-effort: si falla uno,
-      // sus KPIs quedan null y la card muestra "datos insuf." en vez de
-      // bloquear toda la home. El degradado es la honestidad tecnica.
       const enriched = await Promise.all(
         comisiones.map(async (c) => {
           const [prog, adv] = await Promise.allSettled([
@@ -71,17 +69,12 @@ export function HomeView({ getToken }: Props) {
             getCohortAdversarialEvents(c.id, getToken) as Promise<CohortAdversarialEvents>,
           ])
           const alumnos = prog.status === "fulfilled" ? prog.value.n_students : null
-          // Episodios "esta semana" no esta directo en progression (el endpoint
-          // es agregado por trayectoria). Lo aproximamos por trajectories totales
-          // > 0; queda como conteo conservador hasta que haya endpoint dedicado.
           const episodiosSemana =
             prog.status === "fulfilled"
               ? prog.value.trajectories.reduce((a, t) => a + t.n_episodes, 0)
               : null
           const adversosSemana =
             adv.status === "fulfilled" ? countLastWeek(adv.value.recent_events) : null
-          // alertas: no hay endpoint agregado por cohorte; declaramos null
-          // para que la UI muestre "datos insuf." en vez de un 0 ambiguo.
           const alertas: number | null = null
           return {
             comision: c,
@@ -107,73 +100,106 @@ export function HomeView({ getToken }: Props) {
   const totalAdversos = items?.reduce((s, e) => s + (e.kpis.adversosSemana ?? 0), 0) ?? null
 
   return (
-    <PageContainer
-      title="Tus comisiones"
-      description="Cohortes asignadas a vos en este periodo."
-      helpContent={helpContent.home}
-    >
-      <div className="space-y-8">
-        {loading && (
-          <div className="rounded-xl border border-[#EAEAEA] bg-white p-4 text-sm text-[#787774]">
-            Cargando tus comisiones...
-          </div>
-        )}
+    <div className="page-enter space-y-10 max-w-7xl mx-auto">
+      {/* ═══ HERO ═════════════════════════════════════════════════════ */}
+      <header className="flex items-start justify-between gap-6 animate-fade-in-down">
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <span className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted">
+            Panel docente · Periodo en curso
+          </span>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink leading-none">
+            Tus comisiones
+          </h1>
+          <p className="text-sm text-muted leading-relaxed mt-1.5 max-w-xl">
+            Cohortes asignadas a vos. Cada tarjeta condensa el pulso de la semana — episodios,
+            alumnos, intentos adversos detectados.
+          </p>
+        </div>
+        <HelpButton title="Tus comisiones" content={helpContent.home} />
+      </header>
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <div className="font-semibold">No pudimos cargar tus comisiones.</div>
-            <div className="mt-1 font-mono text-xs">{error}</div>
-          </div>
-        )}
+      {/* ═══ STATS HERO PANEL ═════════════════════════════════════════ */}
+      {items && items.length > 0 && !loading && (
+        <section
+          className="relative overflow-hidden rounded-2xl bg-surface border border-border p-6 sm:p-8 animate-fade-in-up animate-delay-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)]"
+          aria-label="Resumen agregado de tus comisiones"
+        >
+          {/* Banda vertical Stack Blue — firma identitaria */}
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-brand via-accent-brand to-accent-brand/40"
+          />
+          {/* Glow muy sutil */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-32 -right-32 w-72 h-72 rounded-full bg-accent-brand/5 blur-3xl"
+          />
 
-        {items && items.length > 0 && !loading && (
-          <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
-            <div className="flex flex-wrap gap-x-10 gap-y-4">
-              <div>
-                <div className="text-2xl font-semibold text-[#111111]">{items.length}</div>
-                <div className="text-xs text-[#787774] mt-0.5">comisiones</div>
-              </div>
-              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
-              <div>
-                <div className="text-2xl font-semibold text-[#111111]">
-                  {totalAlumnos !== null ? totalAlumnos : <span className="text-[#787774] text-base">—</span>}
-                </div>
-                <div className="text-xs text-[#787774] mt-0.5">alumnos totales</div>
-              </div>
-              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
-              <div>
-                <div className="text-2xl font-semibold text-[#111111]">
-                  {totalEpisodios !== null ? totalEpisodios : <span className="text-[#787774] text-base">—</span>}
-                </div>
-                <div className="text-xs text-[#787774] mt-0.5">episodios esta semana</div>
-              </div>
-              <div className="w-px bg-[#EAEAEA] hidden sm:block" />
-              <div>
-                <div className="text-2xl font-semibold text-[#111111]">
-                  {totalAdversos !== null ? totalAdversos : <span className="text-[#787774] text-base">—</span>}
-                </div>
-                <div className="text-xs text-[#787774] mt-0.5">adversos esta semana</div>
-              </div>
-            </div>
+          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
+            <HeroStat label="Comisiones" value={items.length} unit="activas" />
+            <HeroStat label="Alumnos" value={totalAlumnos} unit="totales" />
+            <HeroStat label="Episodios" value={totalEpisodios} unit="esta semana" />
+            <HeroStat
+              label="Adversos"
+              value={totalAdversos}
+              unit="esta semana"
+              tone={totalAdversos !== null && totalAdversos > 0 ? "warning" : "neutral"}
+            />
           </div>
-        )}
+        </section>
+      )}
 
-        {items && items.length === 0 && !loading && (
-          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-sm text-[#787774] max-w-2xl">
-            <p className="font-semibold text-[#111111] mb-2">
-              No tenes comisiones asignadas todavia.
-            </p>
-            <p>
-              El admin de tu facultad debe agregarte via bulk-import (ADR-029) o crear una
-              comision desde web-admin asignandote el rol docente.
-            </p>
+      {/* ═══ LOADING SKELETON ═════════════════════════════════════════ */}
+      {loading && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="skeleton h-32 rounded-2xl" />
+          <div className="space-y-4">
+            <div className="skeleton h-28 rounded-xl" />
+            <div className="skeleton h-28 rounded-xl" />
+            <div className="skeleton h-28 rounded-xl" />
           </div>
-        )}
+        </div>
+      )}
 
-        {items && items.length > 0 && (
-          <ul className="space-y-4" data-testid="comisiones-list">
-            {items.map((entry) => (
-              <li key={entry.comision.id}>
+      {/* ═══ ERROR STATE ══════════════════════════════════════════════ */}
+      {error && (
+        <div className="rounded-xl border border-danger/30 bg-danger-soft p-5 animate-fade-in-up">
+          <div className="text-sm font-semibold text-danger">No pudimos cargar tus comisiones</div>
+          <div className="mt-2 font-mono text-xs text-danger/80 break-all">{error}</div>
+        </div>
+      )}
+
+      {/* ═══ EMPTY STATE ══════════════════════════════════════════════ */}
+      {items && items.length === 0 && !loading && (
+        <div className="rounded-2xl border border-dashed border-border bg-surface p-10 max-w-2xl mx-auto text-center animate-fade-in-up">
+          <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+            <Users className="h-7 w-7 text-muted" />
+          </div>
+          <h2 className="text-lg font-semibold text-ink mb-2">
+            Todavía no tenés comisiones asignadas
+          </h2>
+          <p className="text-sm text-muted leading-relaxed max-w-sm mx-auto">
+            El admin de tu facultad debe agregarte vía bulk-import (ADR-029) o crear una comisión
+            desde web-admin asignándote el rol docente.
+          </p>
+        </div>
+      )}
+
+      {/* ═══ GRID DE COHORTES ════════════════════════════════════════ */}
+      {items && items.length > 0 && (
+        <section aria-label="Lista de comisiones">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted">
+              Cohortes ({items.length})
+            </h2>
+          </div>
+          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="comisiones-list">
+            {items.map((entry, idx) => (
+              <li
+                key={entry.comision.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${150 + idx * 50}ms` }}
+              >
                 <ComisionDelDocenteCard
                   comision={entry.comision}
                   displayName={entry.displayName}
@@ -182,42 +208,106 @@ export function HomeView({ getToken }: Props) {
               </li>
             ))}
           </ul>
-        )}
+        </section>
+      )}
 
-        {items && items.length > 0 && (
-          <section className="pt-6 border-t border-[#EAEAEA]">
-            <p className="text-xs uppercase tracking-wider text-[#787774] mb-3 font-medium">
-              Tools transversales
-            </p>
-            <ul className="text-sm space-y-2">
-              <li>
-                <a
-                  href="/templates"
-                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
-                >
-                  Plantillas (catedra)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/kappa"
-                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
-                >
-                  Inter-rater (kappa)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/export"
-                  className="text-[#111111] hover:text-[var(--color-accent-brand)] transition-colors"
-                >
-                  Exportar dataset academico
-                </a>
-              </li>
-            </ul>
-          </section>
-        )}
+      {/* ═══ TOOLS TRANSVERSALES ═════════════════════════════════════ */}
+      {items && items.length > 0 && (
+        <section
+          className="pt-2 animate-fade-in-up animate-delay-300"
+          aria-label="Herramientas transversales"
+        >
+          <h2 className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted mb-4">
+            Herramientas transversales
+          </h2>
+          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ToolCard
+              to="/templates"
+              icon={<FileText className="h-4 w-4" />}
+              title="Plantillas"
+              description="Catálogo de TPs canónicos por materia"
+            />
+            <ToolCard
+              to="/kappa"
+              icon={<Scale className="h-4 w-4" />}
+              title="Inter-rater κ"
+              description="Acuerdo entre coders sobre clasificación N4"
+            />
+            <ToolCard
+              to="/export"
+              icon={<Download className="h-4 w-4" />}
+              title="Exportar dataset"
+              description="Datos académicos anonimizados (SHA-256+salt)"
+            />
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
+/* ═══ Componentes locales ═══════════════════════════════════════════ */
+
+function HeroStat({
+  label,
+  value,
+  unit,
+  tone = "neutral",
+}: {
+  label: string
+  value: number | null
+  unit: string
+  tone?: "neutral" | "warning"
+}) {
+  const isWarn = tone === "warning" && value !== null && value > 0
+  const valueColor = isWarn ? "text-warning" : "text-ink"
+  const dotColor = isWarn ? "bg-warning" : "bg-muted-soft"
+  return (
+    <div className="flex flex-col gap-2 min-w-0">
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotColor} ${isWarn ? "animate-pulse-soft" : ""}`}
+        />
+        <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted truncate">
+          {label}
+        </span>
       </div>
-    </PageContainer>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className={`font-mono text-4xl font-semibold tracking-tight leading-none ${valueColor}`}>
+          {value !== null ? value : <span className="text-muted-soft text-2xl">—</span>}
+        </span>
+        <span className="text-xs text-muted">{unit}</span>
+      </div>
+    </div>
+  )
+}
+
+function ToolCard({
+  to,
+  icon,
+  title,
+  description,
+}: {
+  to: string
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <li>
+      <Link
+        to={to}
+        className="hover-lift press-shrink group flex items-start gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-accent-brand/40"
+      >
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-accent-brand-soft text-accent-brand-deep transition-colors group-hover:bg-accent-brand group-hover:text-white">
+          {icon}
+        </span>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-sm font-medium text-ink leading-tight">{title}</span>
+          <span className="text-xs text-muted leading-relaxed">{description}</span>
+        </div>
+      </Link>
+    </li>
   )
 }

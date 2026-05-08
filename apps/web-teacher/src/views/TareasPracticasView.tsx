@@ -45,9 +45,9 @@ const ESTADO_LABEL: Record<TareaEstado, string> = {
 }
 
 const ESTADO_COLOR: Record<TareaEstado, string> = {
-  draft: "text-[#787774]",
-  published: "text-green-700",
-  archived: "text-amber-700",
+  draft: "text-muted",
+  published: "text-success",
+  archived: "text-warning/85",
 }
 
 type EstadoFilter = "all" | TareaEstado
@@ -74,7 +74,7 @@ function TemplateBadge({ templateId }: { templateId: string }) {
   const title = `Derivado de plantilla de cátedra: ${templateId}`
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200"
+      className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-surface-alt text-body border border-border-soft"
       title={title}
     >
       Plantilla
@@ -89,7 +89,7 @@ function TemplateBadge({ templateId }: { templateId: string }) {
 function DriftBadge() {
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-800 border border-orange-200"
+      className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-warning-soft text-warning border border-warning/30"
       title="Este TP divergio de la plantilla de cátedra. No recibira nuevas versiones automáticas del template."
     >
       Drift
@@ -210,7 +210,7 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
     >
       <div className="space-y-6 max-w-6xl">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-1 bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-canvas border border-border rounded-lg p-1">
             {(["all", "draft", "published", "archived"] as const).map((f) => {
               const labels: Record<typeof f, string> = {
                 all: "Todos",
@@ -225,8 +225,8 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                   onClick={() => setEstadoFilter(f)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     estadoFilter === f
-                      ? "bg-[#111111] text-white"
-                      : "text-[#787774] hover:text-[#111111] bg-transparent"
+                      ? "bg-ink text-white"
+                      : "text-muted hover:text-ink bg-transparent"
                   }`}
                 >
                   {labels[f]}
@@ -239,21 +239,21 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
               type="button"
               onClick={refreshList}
               disabled={loading}
-              className="px-3 py-1.5 text-xs border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors disabled:opacity-40 text-[#787774]"
+              className="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-canvas transition-colors disabled:opacity-40 text-muted"
             >
               {loading ? "Cargando..." : "Refrescar"}
             </button>
             <button
               type="button"
               onClick={() => setModal({ kind: "generar-ia" })}
-              className="px-4 py-1.5 text-sm border border-[#EAEAEA] hover:bg-[#FAFAFA] text-[#111111] rounded-md font-medium transition-colors"
+              className="px-4 py-1.5 text-sm border border-border hover:bg-canvas text-ink rounded-md font-medium transition-colors"
             >
               Generar con IA
             </button>
             <button
               type="button"
               onClick={() => setModal({ kind: "create" })}
-              className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md font-medium transition-colors"
+              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors"
             >
               + Nuevo TP
             </button>
@@ -261,22 +261,22 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-900 text-sm">
+          <div className="rounded-xl border border-danger/30 bg-danger-soft p-3 text-danger text-sm">
             {error}
           </div>
         )}
 
         {loading && tareas.length === 0 ? (
-          <div className="p-8 text-center text-[#787774] text-sm">Cargando TPs...</div>
+          <div className="p-8 text-center text-muted text-sm">Cargando TPs...</div>
         ) : tareas.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-center text-[#787774] text-sm">
+          <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center text-muted text-sm">
             No hay TPs para esta comision todavia. Crea el primero con{" "}
-            <span className="font-semibold text-[#111111]">+ Nuevo TP</span>.
+            <span className="font-semibold text-ink">+ Nuevo TP</span>.
           </div>
         ) : (
-          <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+          <div className="rounded-xl border border-border bg-white overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-[#FAFAFA] border-b border-[#EAEAEA] text-xs uppercase tracking-wider text-[#787774]">
+              <thead className="bg-canvas border-b border-border text-xs uppercase tracking-wider text-muted">
                 <tr>
                   <th className="text-left px-4 py-2.5 font-medium">Codigo</th>
                   <th className="text-left px-4 py-2.5 font-medium">Titulo</th>
@@ -465,8 +465,8 @@ function TareaRow({
   const estado = tarea.estado
 
   return (
-    <tr className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-[#111111]">
+    <tr className="border-b border-border last:border-0 hover:bg-canvas transition-colors">
+      <td className="px-4 py-3 font-mono text-xs text-ink">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span>{tarea.codigo}</span>
           {tarea.template_id && <TemplateBadge templateId={tarea.template_id} />}
@@ -474,26 +474,26 @@ function TareaRow({
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="font-medium truncate max-w-xs text-[#111111]" title={tarea.titulo}>
+        <div className="font-medium truncate max-w-xs text-ink" title={tarea.titulo}>
           {tarea.titulo}
         </div>
-        {tarea.parent_tarea_id && <div className="text-xs text-[#787774]">(derivado)</div>}
+        {tarea.parent_tarea_id && <div className="text-xs text-muted">(derivado)</div>}
       </td>
       <td className="px-4 py-3">
         <span className={`text-xs font-medium ${ESTADO_COLOR[estado]}`}>
           {ESTADO_LABEL[estado]}
         </span>
       </td>
-      <td className="px-4 py-3 text-right tabular-nums text-[#787774] text-xs">v{tarea.version}</td>
-      <td className="px-4 py-3 text-xs text-[#787774]">{formatShortDate(tarea.fecha_inicio)}</td>
-      <td className="px-4 py-3 text-xs text-[#787774]">{formatShortDate(tarea.fecha_fin)}</td>
-      <td className="px-4 py-3 text-right tabular-nums text-[#787774] text-xs">{tarea.peso}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-muted text-xs">v{tarea.version}</td>
+      <td className="px-4 py-3 text-xs text-muted">{formatShortDate(tarea.fecha_inicio)}</td>
+      <td className="px-4 py-3 text-xs text-muted">{formatShortDate(tarea.fecha_fin)}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-muted text-xs">{tarea.peso}</td>
       <td className="px-4 py-3 text-right">
         <div className="flex justify-end gap-1 flex-wrap">
           <button
             type="button"
             onClick={onShowVersions}
-            className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
+            className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
             title="Ver historial de versiones"
           >
             Historial
@@ -503,21 +503,21 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onEdit}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
               >
                 Editar
               </button>
               <button
                 type="button"
                 onClick={onPublish}
-                className="px-2 py-1 text-xs text-green-700 hover:bg-green-50 rounded font-medium transition-colors"
+                className="px-2 py-1 text-xs text-success hover:bg-success-soft rounded font-medium transition-colors"
               >
                 Publicar
               </button>
               <button
                 type="button"
                 onClick={onDelete}
-                className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                className="px-2 py-1 text-xs text-danger hover:bg-danger-soft rounded transition-colors"
               >
                 Eliminar
               </button>
@@ -528,21 +528,21 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onView}
-                className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
+                className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
               >
                 Ver
               </button>
               <button
                 type="button"
                 onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
               >
                 Nueva version
               </button>
               <button
                 type="button"
                 onClick={onArchive}
-                className="px-2 py-1 text-xs text-amber-700 hover:bg-amber-50 rounded transition-colors"
+                className="px-2 py-1 text-xs text-warning/85 hover:bg-warning-soft rounded transition-colors"
               >
                 Archivar
               </button>
@@ -553,14 +553,14 @@ function TareaRow({
               <button
                 type="button"
                 onClick={onView}
-                className="px-2 py-1 text-xs text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] rounded transition-colors"
+                className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
               >
                 Ver
               </button>
               <button
                 type="button"
                 onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-[#FAFAFA] rounded transition-colors"
+                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
               >
                 Nueva version
               </button>
@@ -749,7 +749,7 @@ function TareaFormModal({
     }
   }
 
-  const inputClass = "w-full px-2 py-1.5 text-sm border border-[#EAEAEA] rounded bg-white focus:outline-none focus:border-[#111111]"
+  const inputClass = "w-full px-2 py-1.5 text-sm border border-border rounded bg-white focus:outline-none focus:border-ink"
 
   const stepTitle = step === "basics"
     ? title
@@ -758,7 +758,7 @@ function TareaFormModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={stepTitle} size="lg">
       {showDriftBanner && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 mb-4">
+        <div className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm text-warning mb-4">
           <p className="font-medium">Este TP esta sincronizado con una plantilla de catedra.</p>
           <p className="text-xs mt-1">
             Editar lo desconectara de la plantilla y lo marcara como drift.
@@ -767,7 +767,7 @@ function TareaFormModal({
             <button
               type="button"
               onClick={() => setDriftAck(true)}
-              className="mt-2 px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded font-medium"
+              className="mt-2 px-3 py-1 text-xs bg-warning hover:bg-warning text-white rounded font-medium"
             >
               Entiendo, continuar
             </button>
@@ -778,11 +778,11 @@ function TareaFormModal({
       {/* Step indicator */}
       {!isEditing && (
         <div className="flex items-center gap-2 mb-4 text-xs">
-          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "basics" ? "bg-[#111111] text-white" : "bg-[#EAEAEA] text-[#787774]"}`}>
+          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "basics" ? "bg-ink text-white" : "bg-border text-muted"}`}>
             1. Datos del TP
           </span>
-          <span className="text-[#EAEAEA]">→</span>
-          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "ejercicios" ? "bg-[#111111] text-white" : "bg-[#EAEAEA] text-[#787774]"}`}>
+          <span className="text-border">→</span>
+          <span className={`px-2 py-0.5 rounded-full font-medium ${step === "ejercicios" ? "bg-ink text-white" : "bg-border text-muted"}`}>
             2. Ejercicios
           </span>
         </div>
@@ -793,38 +793,38 @@ function TareaFormModal({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="block text-xs font-medium text-[#111111] mb-1">Codigo</span>
+              <span className="block text-xs font-medium text-ink mb-1">Codigo</span>
               <input type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} required placeholder="TP1" className={inputClass} />
             </label>
             <label className="block">
-              <span className="block text-xs font-medium text-[#111111] mb-1">Peso (0 - 1)</span>
+              <span className="block text-xs font-medium text-ink mb-1">Peso (0 - 1)</span>
               <input type="number" min={0} max={1} step={0.05} value={peso} onChange={(e) => setPeso(e.target.value)} required className={`${inputClass} tabular-nums`} />
             </label>
           </div>
 
           <label className="block">
-            <span className="block text-xs font-medium text-[#111111] mb-1">Titulo del TP</span>
+            <span className="block text-xs font-medium text-ink mb-1">Titulo del TP</span>
             <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ej: Listas y funciones en Python" className={inputClass} />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="block text-xs font-medium text-[#111111] mb-1">Fecha de inicio (opcional)</span>
+              <span className="block text-xs font-medium text-ink mb-1">Fecha de inicio (opcional)</span>
               <input type="datetime-local" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className={inputClass} />
             </label>
             <label className="block">
-              <span className="block text-xs font-medium text-[#111111] mb-1">Fecha de fin (opcional)</span>
+              <span className="block text-xs font-medium text-ink mb-1">Fecha de fin (opcional)</span>
               <input type="datetime-local" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className={inputClass} />
             </label>
           </div>
 
-          {formError && <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{formError}</div>}
+          {formError && <div className="p-2 rounded bg-danger-soft text-danger text-xs">{formError}</div>}
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-[#EAEAEA]">
-            <button type="button" onClick={onClose} className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors text-[#787774]">
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <button type="button" onClick={onClose} className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors text-muted">
               Cancelar
             </button>
-            <button type="button" onClick={handleNextStep} className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md font-medium transition-colors">
+            <button type="button" onClick={handleNextStep} className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors">
               Siguiente: Ejercicios →
             </button>
           </div>
@@ -836,15 +836,15 @@ function TareaFormModal({
         <div className="space-y-4">
           {/* Summary strip of TP basics */}
           {!isEditing && (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#FAFAFA] border border-[#EAEAEA] text-xs text-[#787774]">
-              <span className="font-mono font-medium text-[#111111]">{codigo}</span>
-              <span className="text-[#EAEAEA]">·</span>
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-canvas border border-border text-xs text-muted">
+              <span className="font-mono font-medium text-ink">{codigo}</span>
+              <span className="text-border">·</span>
               <span>{titulo}</span>
-              <span className="text-[#EAEAEA]">·</span>
+              <span className="text-border">·</span>
               <span>peso {peso}</span>
               {fechaInicio && (
                 <>
-                  <span className="text-[#EAEAEA]">·</span>
+                  <span className="text-border">·</span>
                   <span>{formatShortDate(localInputToIso(fechaInicio))}</span>
                 </>
               )}
@@ -856,30 +856,30 @@ function TareaFormModal({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[#111111] uppercase tracking-wider">
+              <span className="text-xs font-medium text-ink uppercase tracking-wider">
                 Ejercicios ({ejercicios.length})
               </span>
-              <button type="button" onClick={addEjercicio} className="text-xs text-[#787774] hover:text-[#111111] transition-colors">
+              <button type="button" onClick={addEjercicio} className="text-xs text-muted hover:text-ink transition-colors">
                 + Agregar ejercicio
               </button>
             </div>
             <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1">
               {ejercicios.map((ej, i) => (
-                <div key={i} className="border border-[#EAEAEA] rounded-xl overflow-hidden">
+                <div key={i} className="border border-border rounded-xl overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setExpandedEj(expandedEj === i ? null : i)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-[#FAFAFA] hover:bg-[#f5f5f4] transition-colors text-left"
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-canvas hover:bg-surface-alt transition-colors text-left"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[#787774] bg-white border border-[#EAEAEA] rounded px-1.5 py-0.5">
+                      <span className="text-xs font-medium text-muted bg-white border border-border rounded px-1.5 py-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-sm font-medium text-[#111111] truncate max-w-xs">
+                      <span className="text-sm font-medium text-ink truncate max-w-xs">
                         {ej.titulo || `Ejercicio ${i + 1}`}
                       </span>
                       {ej.enunciado && (
-                        <span className="text-[10px] text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                        <span className="text-[10px] text-success bg-success-soft border border-green-200 rounded px-1.5 py-0.5">
                           con contenido
                         </span>
                       )}
@@ -891,22 +891,22 @@ function TareaFormModal({
                           tabIndex={0}
                           onClick={(ev) => { ev.stopPropagation(); removeEjercicio(i) }}
                           onKeyDown={(ev) => { if (ev.key === "Enter") { ev.stopPropagation(); removeEjercicio(i) } }}
-                          className="text-xs text-red-500 hover:text-red-700 px-1"
+                          className="text-xs text-danger hover:text-danger px-1"
                         >
                           Quitar
                         </span>
                       )}
-                      <span className="text-[#787774] text-xs">{expandedEj === i ? "▲" : "▼"}</span>
+                      <span className="text-muted text-xs">{expandedEj === i ? "▲" : "▼"}</span>
                     </div>
                   </button>
                   {expandedEj === i && (
                     <div className="p-4 space-y-3">
                       <label className="block">
-                        <span className="block text-xs font-medium text-[#111111] mb-1">Titulo</span>
+                        <span className="block text-xs font-medium text-ink mb-1">Titulo</span>
                         <input type="text" value={ej.titulo} onChange={(e) => updateEjercicio(i, { titulo: e.target.value })} className={inputClass} />
                       </label>
                       <label className="block">
-                        <span className="block text-xs font-medium text-[#111111] mb-1">Enunciado (markdown)</span>
+                        <span className="block text-xs font-medium text-ink mb-1">Enunciado (markdown)</span>
                         <textarea
                           value={ej.enunciado}
                           onChange={(e) => updateEjercicio(i, { enunciado: e.target.value })}
@@ -916,17 +916,17 @@ function TareaFormModal({
                         />
                       </label>
                       <label className="block">
-                        <span className="block text-xs font-medium text-[#111111] mb-1">Codigo inicial (opcional)</span>
+                        <span className="block text-xs font-medium text-ink mb-1">Codigo inicial (opcional)</span>
                         <textarea
                           value={ej.inicial_codigo}
                           onChange={(e) => updateEjercicio(i, { inicial_codigo: e.target.value })}
                           rows={5}
                           placeholder="# Codigo que el alumno ve al empezar..."
-                          className="w-full px-2 py-1.5 text-sm font-mono border border-[#EAEAEA] rounded bg-[#1e1e1e] text-slate-100 resize-y focus:outline-none focus:border-[#111111]"
+                          className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-sidebar-bg text-sidebar-text resize-y focus:outline-none focus:border-ink"
                         />
                       </label>
                       <label className="block">
-                        <span className="block text-xs font-medium text-[#111111] mb-1">Rubrica (JSON, opcional)</span>
+                        <span className="block text-xs font-medium text-ink mb-1">Rubrica (JSON, opcional)</span>
                         <textarea
                           value={ej.rubricaRaw}
                           onChange={(e) => updateEjercicio(i, { rubricaRaw: e.target.value })}
@@ -948,14 +948,14 @@ function TareaFormModal({
             </div>
           </div>
 
-          {formError && <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{formError}</div>}
+          {formError && <div className="p-2 rounded bg-danger-soft text-danger text-xs">{formError}</div>}
 
-          <div className="flex justify-between gap-2 pt-2 border-t border-[#EAEAEA]">
+          <div className="flex justify-between gap-2 pt-2 border-t border-border">
             <button
               type="button"
               onClick={() => isEditing ? onClose() : setStep("basics")}
               disabled={submitting}
-              className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors disabled:opacity-40 text-[#787774]"
+              className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors disabled:opacity-40 text-muted"
             >
               {isEditing ? "Cancelar" : "← Volver"}
             </button>
@@ -963,7 +963,7 @@ function TareaFormModal({
               type="button"
               onClick={handleSubmit}
               disabled={submitting || (showDriftBanner && !driftAck)}
-              className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] disabled:bg-[#EAEAEA] text-white rounded-md font-medium transition-colors"
+              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border text-white rounded-md font-medium transition-colors"
             >
               {submitting ? "Guardando..." : "Guardar TP"}
             </button>
@@ -993,7 +993,7 @@ function TareaViewModal({
             size="sm"
             title="Detalle del TP"
             content={
-              <div className="space-y-3 text-zinc-300">
+              <div className="space-y-3 text-sidebar-text-muted">
                 <p>Esta vista muestra el detalle completo del TP en modo solo lectura:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
@@ -1015,7 +1015,7 @@ function TareaViewModal({
               </div>
             }
           />
-          <span className="text-sm text-slate-500 dark:text-zinc-400">Ayuda sobre esta vista</span>
+          <span className="text-sm text-muted dark:text-sidebar-text-muted">Ayuda sobre esta vista</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1024,7 +1024,7 @@ function TareaViewModal({
           >
             {ESTADO_LABEL[tarea.estado]}
           </span>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-muted">
             v{tarea.version}
             {tarea.parent_tarea_id && " · derivado"}
           </span>
@@ -1032,53 +1032,53 @@ function TareaViewModal({
 
         <div className="grid grid-cols-3 gap-3 text-xs">
           <div>
-            <div className="text-slate-500">Inicio</div>
+            <div className="text-muted">Inicio</div>
             <div className="font-medium">
               {tarea.fecha_inicio ? formatDateTime(tarea.fecha_inicio) : "sin fecha"}
             </div>
           </div>
           <div>
-            <div className="text-slate-500">Fin</div>
+            <div className="text-muted">Fin</div>
             <div className="font-medium">
               {tarea.fecha_fin ? formatDateTime(tarea.fecha_fin) : "sin fecha"}
             </div>
           </div>
           <div>
-            <div className="text-slate-500">Peso</div>
+            <div className="text-muted">Peso</div>
             <div className="font-medium tabular-nums">{tarea.peso}</div>
           </div>
         </div>
 
         <div>
-          <div className="text-xs font-medium text-slate-600 mb-1">Enunciado</div>
-          <div className="p-3 rounded bg-slate-50 dark:bg-slate-800 max-h-96 overflow-y-auto">
+          <div className="text-xs font-medium text-muted mb-1">Enunciado</div>
+          <div className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge max-h-96 overflow-y-auto">
             <MarkdownRenderer content={tarea.enunciado} />
           </div>
         </div>
 
         {tarea.rubrica && (
           <div>
-            <div className="text-xs font-medium text-slate-600 mb-1">Rúbrica</div>
+            <div className="text-xs font-medium text-muted mb-1">Rúbrica</div>
             {/* Rúbrica se muestra como JSON crudo a propósito — el shape no está
                 versionado todavía, así que markdown sería engañoso. */}
-            <pre className="p-3 rounded bg-slate-50 dark:bg-slate-800 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <pre className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {JSON.stringify(tarea.rubrica, null, 2)}
             </pre>
           </div>
         )}
 
-        <div className="flex justify-between pt-2 border-t border-[#EAEAEA]">
+        <div className="flex justify-between pt-2 border-t border-border">
           <button
             type="button"
             onClick={onShowVersions}
-            className="px-4 py-1.5 text-sm border border-[#EAEAEA] rounded-md hover:bg-[#FAFAFA] transition-colors text-[#787774]"
+            className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors text-muted"
           >
             Ver historial de versiones
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md transition-colors"
+            className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md transition-colors"
           >
             Cerrar
           </button>
@@ -1133,7 +1133,7 @@ function VersionsModal({
             size="sm"
             title="Historial de versiones"
             content={
-              <div className="space-y-3 text-zinc-300">
+              <div className="space-y-3 text-sidebar-text-muted">
                 <p>Muestra la linea de tiempo de todas las versiones del TP:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
@@ -1156,32 +1156,32 @@ function VersionsModal({
               </div>
             }
           />
-          <span className="text-sm text-slate-500 dark:text-zinc-400">
+          <span className="text-sm text-muted dark:text-sidebar-text-muted">
             Ayuda sobre el historial
           </span>
         </div>
 
-        {err && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{err}</div>}
+        {err && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{err}</div>}
 
         {!sorted ? (
-          <div className="p-6 text-center text-slate-500 text-sm">Cargando versiones...</div>
+          <div className="p-6 text-center text-muted text-sm">Cargando versiones...</div>
         ) : sorted.length === 0 ? (
-          <div className="p-6 text-center text-slate-500 text-sm">Sin versiones registradas.</div>
+          <div className="p-6 text-center text-muted text-sm">Sin versiones registradas.</div>
         ) : (
-          <ol className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-4">
+          <ol className="relative border-l border-border-soft dark:border-sidebar-bg-edge ml-3 space-y-4">
             {sorted.map((v) => (
               <li key={v.id} className="ml-4">
                 <span
-                  className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 ${
-                    v.is_current ? "bg-blue-600" : "bg-slate-400"
+                  className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 border-white dark:border-sidebar-bg ${
+                    v.is_current ? "bg-accent-brand" : "bg-border-strong"
                   }`}
                   aria-hidden="true"
                 />
                 <div
                   className={`rounded border p-3 ${
                     v.is_current
-                      ? "border-blue-300 bg-blue-50 dark:bg-blue-950/30"
-                      : "border-slate-200 dark:border-slate-800"
+                      ? "border-accent-brand/40 bg-accent-brand-soft dark:bg-accent-brand-deep/30"
+                      : "border-border-soft dark:border-sidebar-bg-edge"
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1192,22 +1192,22 @@ function VersionsModal({
                       {ESTADO_LABEL[v.estado]}
                     </span>
                     {v.is_current && (
-                      <span className="text-xs text-blue-700 font-medium">(actual)</span>
+                      <span className="text-xs text-accent-brand-deep font-medium">(actual)</span>
                     )}
                   </div>
                   <div className="text-sm mt-1">{v.titulo}</div>
-                  <div className="text-xs text-slate-500 mt-1">{formatDateTime(v.created_at)}</div>
+                  <div className="text-xs text-muted mt-1">{formatDateTime(v.created_at)}</div>
                 </div>
               </li>
             ))}
           </ol>
         )}
 
-        <div className="flex justify-end pt-2 border-t border-[#EAEAEA]">
+        <div className="flex justify-end pt-2 border-t border-border">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-[#111111] hover:bg-[#333333] text-white rounded-md transition-colors"
+            className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md transition-colors"
           >
             Cerrar
           </button>

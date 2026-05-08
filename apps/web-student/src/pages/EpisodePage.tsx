@@ -14,6 +14,7 @@
  * limpiamos sessionStorage y llamamos onExit().
  */
 import { HelpButton, MarkdownRenderer } from "@platform/ui"
+import { Bot, BookOpen, Code2, LogOut, MessageSquare, Send, Sparkles, User } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CodeEditor } from "../components/CodeEditor"
 import { ReflectionModal } from "../components/ReflectionModal"
@@ -224,13 +225,19 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
 
   if (hydrating) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center">
-          <div
-            className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full motion-safe:animate-spin mb-3"
-            style={{ borderColor: "var(--color-accent-brand)", borderTopColor: "transparent" }}
-          />
-          <p className="text-sm text-slate-600 dark:text-slate-400">Cargando episodio...</p>
+      <div className="page-enter flex-1 p-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Header skeleton */}
+          <div className="skeleton h-10 rounded-lg" />
+          {/* 3-panel grid skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-200px)]">
+            <div className="skeleton rounded-xl" />
+            <div className="skeleton rounded-xl" />
+            <div className="skeleton rounded-xl" />
+          </div>
+          <p className="text-center text-sm text-muted animate-pulse-soft">
+            Hidratando tu episodio...
+          </p>
         </div>
       </div>
     )
@@ -264,7 +271,7 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="max-w-md text-center">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+          <p className="text-sm font-medium text-danger mb-2">
             {error ?? "No pudimos cargar el episodio."}
           </p>
           <button
@@ -282,41 +289,47 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
 
   return (
     <>
+      {/* ═══ HEADER CONTEXT — chip de episodio + tiempo + nivel + acciones ═══ */}
       <div
         data-testid="episode-context-header"
-        className="border-b border-slate-200 dark:border-slate-800 px-6 py-2 bg-white dark:bg-slate-900 flex items-center gap-4 text-xs"
+        className="animate-fade-in-down border-b border-border-soft px-6 py-2.5 bg-surface flex items-center gap-3 text-xs"
       >
-        <span className="font-mono text-slate-600 dark:text-slate-400">
-          episodio {episodeId.slice(0, 6)}...{episodeId.slice(-4)}
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface-alt border border-border-soft font-mono text-muted">
+          <span
+            aria-hidden="true"
+            className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse-soft"
+          />
+          {episodeId.slice(0, 6)}…{episodeId.slice(-4)}
         </span>
-        <span className="text-slate-400">·</span>
-        <span className="text-slate-600 dark:text-slate-400">
-          abierto hace {formatElapsed(elapsedSeconds)}
+        <span className="text-muted-soft">·</span>
+        <span className="text-muted font-mono tabular-nums">
+          {formatElapsed(elapsedSeconds)}
         </span>
-        <span className="text-slate-400">·</span>
-        <span className="flex items-center gap-1.5">
+        <span className="text-muted-soft">·</span>
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-level-n1/10 border border-level-n1/30 text-level-n1 font-medium">
           <span
             aria-hidden="true"
             className="inline-block w-1.5 h-1.5 rounded-full"
             style={{ backgroundColor: "var(--color-level-n1)" }}
           />
-          <span className="text-slate-700 dark:text-slate-300">N1 lectura activa</span>
+          N1 lectura activa
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1">
           <HelpButton title="Tutor Socratico" content={helpContent.episode} />
           <button
             type="button"
             onClick={handleClose}
             data-testid="close-episode-button"
-            className="px-2.5 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="press-shrink inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-border rounded-md text-body hover:bg-danger-soft hover:border-danger/30 hover:text-danger transition-colors"
           >
+            <LogOut className="h-3 w-3" />
             Cerrar episodio
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 px-6 py-2 text-sm flex items-center justify-between">
+        <div className="animate-fade-in-down bg-danger-soft border-b border-danger/30 text-danger px-6 py-2 text-sm flex items-center justify-between">
           <span>{error}</span>
           <button
             type="button"
@@ -324,18 +337,45 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
               window.sessionStorage.removeItem(ACTIVE_EPISODE_KEY)
               onExit()
             }}
-            className="ml-4 px-3 py-1 text-xs font-medium bg-red-700 text-white rounded hover:bg-red-800"
+            className="press-shrink ml-4 px-3 py-1 text-xs font-medium bg-danger text-white rounded hover:bg-danger/90"
           >
             Salir
           </button>
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-2 gap-4 p-4 min-h-0">
-        <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-          <SectionKicker level="N1" label="Enunciado" colorVar="var(--color-level-n1)" />
-          <EnunciadoPanel tarea={tarea} episodeId={episodeId} ejercicioOrden={ejercicioContext?.ejercicioOrden ?? null} />
-          <SectionKicker level="N3" label="Editor + tests" colorVar="var(--color-level-n3)" />
+      {/* ═══ 3 PANELES: Consigna · Editor · Tutor ═══════════════════════ */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 min-h-0">
+        {/* Panel 1 — Consigna (N1) */}
+        <section
+          className="animate-fade-in-up animate-delay-50 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          aria-label="Consigna del problema"
+        >
+          <PanelHeader
+            level="N1"
+            label="Consigna"
+            icon={<BookOpen className="h-3.5 w-3.5" />}
+            colorVar="var(--color-level-n1)"
+          />
+          <EnunciadoPanel
+            tarea={tarea}
+            episodeId={episodeId}
+            ejercicioOrden={ejercicioContext?.ejercicioOrden ?? null}
+          />
+        </section>
+
+        {/* Panel 2 — Editor (N3) */}
+        <section
+          className="animate-fade-in-up animate-delay-100 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          aria-label="Editor de código"
+        >
+          <PanelHeader
+            level="N3"
+            label="Editor de código"
+            icon={<Code2 className="h-3.5 w-3.5" />}
+            colorVar="var(--color-level-n3)"
+            badge="Python"
+          />
           <CodeEditor
             initialCode={code}
             onCodeExecuted={(result) => {
@@ -355,44 +395,104 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
           />
         </section>
 
-        <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-          <SectionKicker level="N4" label="Tutor socratico" colorVar="var(--color-level-n4)" />
+        {/* Panel 3 — Tutor (N4) */}
+        <section
+          className="animate-fade-in-up animate-delay-150 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          aria-label="Tutor socrático"
+        >
+          <PanelHeader
+            level="N4"
+            label="Tutor socrático"
+            icon={<MessageSquare className="h-3.5 w-3.5" />}
+            colorVar="var(--color-level-n4)"
+            badge={streaming ? "escribiendo…" : "Mistral"}
+            badgePulse={streaming}
+          />
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
             {messages.length === 0 && (
               <div
                 data-testid="chat-pedagogical-contract"
-                className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-prose"
+                className="animate-fade-in mx-auto max-w-prose"
               >
-                <p className="font-medium mb-2">El tutor no te da la respuesta.</p>
-                <p className="mb-3 text-slate-600 dark:text-slate-400">
-                  Te hace preguntas para que llegues vos.
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-500 border-l border-slate-300 dark:border-slate-700 pl-3">
-                  Empezas vos: contale en que estas pensando para resolver esta TP.
-                </p>
+                <div className="rounded-xl border border-level-n4/20 bg-level-n4/5 p-5 relative overflow-hidden">
+                  <div
+                    aria-hidden="true"
+                    className="absolute left-0 top-0 bottom-0 w-1"
+                    style={{ background: "var(--color-level-n4)" }}
+                  />
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles
+                      className="h-4 w-4"
+                      style={{ color: "var(--color-level-n4)" }}
+                    />
+                    <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted">
+                      Contrato pedagógico
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-ink mb-1.5 leading-snug">
+                    El tutor no te da la respuesta.
+                  </p>
+                  <p className="text-sm text-body leading-relaxed mb-3">
+                    Te hace preguntas para que llegues vos.
+                  </p>
+                  <p className="text-xs text-muted leading-relaxed">
+                    Empezás vos: contale en qué estás pensando para resolver este ejercicio.
+                  </p>
+                </div>
               </div>
             )}
             {messages.map((m, i) => {
               const isLastTutor =
                 m.role === "tutor" && messages.findLastIndex((mm) => mm.role === "tutor") === i
+              const isUser = m.role === "user"
               return (
                 <div
                   key={`${m.ts}-${i}`}
-                  className={`max-w-[85%] ${m.role === "user" ? "ml-auto" : ""}`}
+                  className={`animate-fade-in-up flex items-start gap-2.5 ${
+                    isUser ? "flex-row-reverse" : ""
+                  }`}
                 >
+                  {/* Avatar */}
                   <div
-                    data-testid={isLastTutor ? "tutor-message-last" : undefined}
-                    className={`rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
-                      m.role === "user" ? "text-white" : "bg-slate-100 dark:bg-slate-800"
+                    aria-hidden="true"
+                    className={`shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                      isUser
+                        ? "bg-accent-brand text-white"
+                        : "bg-level-n4/10 text-level-n4 border border-level-n4/30"
                     }`}
-                    style={
-                      m.role === "user"
-                        ? { backgroundColor: "var(--color-accent-brand)" }
-                        : undefined
-                    }
+                    style={!isUser ? { color: "var(--color-level-n4)" } : undefined}
                   >
-                    {m.content || (m.role === "tutor" && streaming ? "..." : "")}
+                    {isUser ? (
+                      <User className="h-3.5 w-3.5" />
+                    ) : (
+                      <Bot className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  {/* Burbuja */}
+                  <div className={`flex flex-col gap-1 max-w-[80%] ${isUser ? "items-end" : ""}`}>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                      {isUser ? "Vos" : "Tutor"}
+                    </span>
+                    <div
+                      data-testid={isLastTutor ? "tutor-message-last" : undefined}
+                      className={`rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
+                        isUser
+                          ? "bg-accent-brand text-white rounded-tr-sm"
+                          : "bg-surface-alt text-body border border-border-soft rounded-tl-sm"
+                      }`}
+                    >
+                      {m.content ||
+                        (m.role === "tutor" && streaming ? (
+                          <span className="inline-flex gap-1 items-center text-muted">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted animate-pulse-soft" />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted animate-pulse-soft animate-delay-150" />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted animate-pulse-soft animate-delay-300" />
+                          </span>
+                        ) : (
+                          ""
+                        ))}
+                    </div>
                   </div>
                 </div>
               )
@@ -400,34 +500,37 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t border-slate-200 dark:border-slate-800 p-3 flex gap-2">
-            <textarea
-              data-testid="tutor-input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              placeholder="Escribi tu mensaje (Enter para enviar)..."
-              rows={2}
-              disabled={streaming}
-              className="flex-1 px-3 py-2 text-sm rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 resize-none focus:outline-none focus:border-blue-500"
-            />
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={streaming || !input.trim()}
-              className="px-4 py-2 disabled:bg-slate-400 text-white rounded text-sm font-medium"
-              style={{
-                backgroundColor:
-                  streaming || !input.trim() ? undefined : "var(--color-accent-brand)",
-              }}
-            >
-              {streaming ? "..." : "Enviar"}
-            </button>
+          <div className="border-t border-border-soft p-3 bg-surface-alt/40">
+            <div className="flex gap-2 items-end">
+              <textarea
+                data-testid="tutor-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder="Escribí tu mensaje · Enter para enviar"
+                rows={2}
+                disabled={streaming}
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-surface text-ink resize-none focus:outline-none focus:border-accent-brand focus:ring-2 focus:ring-accent-brand/20 transition-all placeholder:text-muted-soft"
+              />
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={streaming || !input.trim()}
+                aria-label="Enviar mensaje"
+                className="press-shrink shrink-0 inline-flex items-center justify-center h-[42px] w-[42px] rounded-lg bg-accent-brand text-white hover:bg-accent-brand-deep disabled:bg-border-strong disabled:cursor-not-allowed transition-colors"
+              >
+                {streaming ? (
+                  <span className="inline-block w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full motion-safe:animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -441,31 +544,68 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
   )
 }
 
-function SectionKicker({
+function PanelHeader({
   level,
   label,
+  icon,
   colorVar,
+  badge,
+  badgePulse = false,
 }: {
   level: "N1" | "N2" | "N3" | "N4"
   label: string
+  icon: React.ReactNode
   colorVar: string
+  badge?: string
+  badgePulse?: boolean
 }) {
   return (
     <div
       data-testid={`section-kicker-${level.toLowerCase()}`}
-      className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2"
+      className="relative px-4 py-3 border-b border-border-soft bg-surface-alt/40 flex items-center gap-3"
     >
-      <span
+      {/* Banda vertical del color del nivel */}
+      <div
         aria-hidden="true"
-        className="inline-block w-2 h-2 rounded-full"
+        className="absolute left-0 top-0 bottom-0 w-0.5"
         style={{ backgroundColor: colorVar }}
       />
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-        {level} {label}
-      </h2>
+      <div
+        className="inline-flex h-6 w-6 items-center justify-center rounded-md"
+        style={{
+          backgroundColor: `color-mix(in oklch, ${colorVar} 12%, transparent)`,
+          color: colorVar,
+        }}
+      >
+        {icon}
+      </div>
+      <div className="flex flex-col gap-0 min-w-0 flex-1">
+        <span
+          className="text-[9px] uppercase tracking-[0.14em] font-semibold leading-none"
+          style={{ color: colorVar }}
+        >
+          {level}
+        </span>
+        <h2 className="text-sm font-semibold text-ink leading-tight tracking-tight">
+          {label}
+        </h2>
+      </div>
+      {badge && (
+        <span
+          className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface border border-border-soft text-[10px] font-medium text-muted ${
+            badgePulse ? "animate-pulse-soft" : ""
+          }`}
+        >
+          {badgePulse && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" />
+          )}
+          {badge}
+        </span>
+      )}
     </div>
   )
 }
+
 
 function useElapsedSeconds(episodeId: string | null): number {
   const [seconds, setSeconds] = useState(0)
@@ -570,8 +710,10 @@ function EnunciadoPanel({
   episodeId: string | null
   ejercicioOrden: number | null
 }) {
-  const [open, setOpen] = useState(true)
-  const enunciadoRef = useReadingTimeReporter(episodeId, open && episodeId !== null)
+  // Reading time reporter: siempre activo mientras el panel está visible.
+  // El toggle open/close del layout viejo de 2-cols ya no aplica — en el
+  // layout 3-cols cada panel ocupa su columna entera.
+  const enunciadoRef = useReadingTimeReporter(episodeId, episodeId !== null)
 
   let displayContent = tarea.enunciado
   let headerLabel = `${tarea.codigo} (v${tarea.version})`
@@ -585,24 +727,19 @@ function EnunciadoPanel({
   }
 
   return (
-    <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-1.5 flex items-center justify-between text-left text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+    <>
+      {/* Sub-header con metadata de la TP/ejercicio */}
+      <div className="px-4 py-2 border-b border-border-soft bg-surface-alt/40 text-[11px] text-muted font-mono flex items-center justify-between">
+        <span className="truncate">{headerLabel}</span>
+      </div>
+      {/* Contenido scroll fluido — ocupa toda la altura disponible del panel */}
+      <div
+        ref={enunciadoRef}
+        className="flex-1 overflow-y-auto px-5 py-4 text-sm text-body leading-relaxed"
       >
-        <span>{headerLabel}</span>
-        <span>{open ? "Ocultar" : "Mostrar"}</span>
-      </button>
-      {open && (
-        <div
-          ref={enunciadoRef}
-          className="px-4 py-3 max-h-48 overflow-y-auto text-sm text-slate-700 dark:text-slate-300"
-        >
-          <MarkdownRenderer content={displayContent} />
-        </div>
-      )}
-    </div>
+        <MarkdownRenderer content={displayContent} />
+      </div>
+    </>
   )
 }
 
@@ -622,17 +759,17 @@ function ClassificationPanel({
     apropiacion_reflexiva: {
       emoji: "🌟",
       label: "Apropiación reflexiva",
-      color: "bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200",
+      color: "bg-green-100 text-green-900",
     },
     apropiacion_superficial: {
       emoji: "🤔",
       label: "Apropiación superficial",
-      color: "bg-yellow-100 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-200",
+      color: "bg-warning-soft text-warning",
     },
     delegacion_pasiva: {
       emoji: "⚠️",
       label: "Delegación pasiva",
-      color: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200",
+      color: "bg-danger-soft text-danger",
     },
   }
   const meta = labels[classification.appropriation]
@@ -646,7 +783,7 @@ function ClassificationPanel({
       </div>
 
       <section className="mb-6">
-        <h3 className="text-sm font-semibold uppercase text-slate-600 dark:text-slate-400 mb-3">
+        <h3 className="text-sm font-semibold uppercase text-muted mb-3">
           Las tres coherencias (N4)
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -677,7 +814,7 @@ function ClassificationPanel({
         </div>
       </section>
 
-      <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 mb-6 text-xs text-slate-500 font-mono">
+      <div className="rounded-lg border border-border-soft p-4 mb-6 text-xs text-muted font-mono">
         Hash de configuración del clasificador: {classification.classifier_config_hash.slice(0, 16)}
         ...
       </div>
@@ -686,7 +823,7 @@ function ClassificationPanel({
         <button
           type="button"
           onClick={onReset}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+          className="px-4 py-2 bg-accent-brand hover:bg-accent-brand-deep text-white rounded text-sm"
         >
           {isMultiExercise ? "Siguiente ejercicio →" : "Volver a mis materias"}
         </button>
@@ -707,13 +844,13 @@ function CoherenceCard({
   secondary?: { label: string; value: number | null; invertScale?: boolean }
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-slate-900">
+    <div className="rounded-lg border border-border-soft p-4 bg-white">
       <h4 className="font-medium text-sm">{title}</h4>
-      <p className="text-xs text-slate-500 mt-1 mb-3">{description}</p>
+      <p className="text-xs text-muted mt-1 mb-3">{description}</p>
       <Meter value={value} />
       {secondary && (
-        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <p className="text-xs text-slate-500 mb-1">{secondary.label}</p>
+        <div className="mt-3 pt-3 border-t border-border-soft">
+          <p className="text-xs text-muted mb-1">{secondary.label}</p>
           {secondary.invertScale !== undefined ? (
             <Meter value={secondary.value} invertScale={secondary.invertScale} />
           ) : (
@@ -733,19 +870,19 @@ function Meter({
   invertScale?: boolean
 }) {
   if (value == null) {
-    return <div className="text-xs text-slate-400">sin datos</div>
+    return <div className="text-xs text-muted-soft">sin datos</div>
   }
   const pct = Math.round(value * 100)
   const goodHigh = !invertScale
   const isGood = goodHigh ? pct > 60 : pct < 40
-  const barColor = isGood ? "bg-green-500" : pct > 40 && pct < 70 ? "bg-yellow-500" : "bg-red-500"
+  const barColor = isGood ? "bg-success" : pct > 40 && pct < 70 ? "bg-warning" : "bg-danger"
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
         <span className="font-mono text-lg">{value.toFixed(2)}</span>
-        <span className="text-xs text-slate-400">{pct}%</span>
+        <span className="text-xs text-muted-soft">{pct}%</span>
       </div>
-      <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded overflow-hidden">
+      <div className="h-2 bg-surface-alt rounded overflow-hidden">
         <div className={`h-full ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
     </div>

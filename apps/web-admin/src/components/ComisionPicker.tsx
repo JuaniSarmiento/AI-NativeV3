@@ -75,7 +75,7 @@ export function ComisionPicker({
 
   if (loading) {
     return (
-      <span className={`text-sm text-slate-400 ${className}`} aria-busy="true">
+      <span className={`text-sm text-muted-soft ${className}`} aria-busy="true">
         Cargando comisiones…
       </span>
     )
@@ -89,7 +89,7 @@ export function ComisionPicker({
   }
   if (items.length === 0) {
     return (
-      <span className={`text-sm text-slate-400 ${className}`}>
+      <span className={`text-sm text-muted-soft ${className}`}>
         Sin comisiones (sembrar con `make seed-3-comisiones`)
       </span>
     )
@@ -99,7 +99,7 @@ export function ComisionPicker({
     <select
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)}
-      className={`rounded border border-slate-300 px-3 py-1 text-sm bg-white ${className}`}
+      className={`rounded border border-border px-3 py-1 text-sm bg-white ${className}`}
     >
       <option value="">{placeholder}</option>
       {options.map((o) => (

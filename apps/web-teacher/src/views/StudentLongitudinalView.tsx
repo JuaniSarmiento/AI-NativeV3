@@ -47,18 +47,18 @@ function slopeLabel(slope: number | null): {
   color: string
 } {
   if (slope === null) {
-    return { label: "datos insuficientes", arrow: "?", color: "text-slate-400" }
+    return { label: "datos insuficientes", arrow: "?", color: "text-muted-soft" }
   }
   if (slope > 0.1)
     return { label: "mejorando", arrow: "↑", color: "text-[var(--color-success)]" }
   if (slope < -0.1)
     return { label: "empeorando", arrow: "↓", color: "text-[var(--color-danger)]" }
-  return { label: "estable", arrow: "→", color: "text-slate-600" }
+  return { label: "estable", arrow: "→", color: "text-muted" }
 }
 
 function Sparkline({ scores, colors }: { scores: number[]; colors: [string, string, string] }) {
   if (scores.length === 0) {
-    return <div className="text-xs text-slate-400">sin datos</div>
+    return <div className="text-xs text-muted-soft">sin datos</div>
   }
   const W = 120
   const H = 36
@@ -128,9 +128,9 @@ function formatShortDate(iso: string | null): string {
 }
 
 const SEVERITY_BADGE_STYLES: Record<string, string> = {
-  low: "bg-slate-200 text-slate-800",
-  medium: "bg-amber-100 text-amber-900 border border-amber-300",
-  high: "bg-red-100 text-red-900 border border-red-400",
+  low: "bg-surface-alt text-body",
+  medium: "bg-warning-soft text-warning border border-warning/40",
+  high: "bg-danger-soft text-danger border border-danger/40",
 }
 
 const SEVERITY_DOCENTE_LABEL: Record<string, string> = {
@@ -208,14 +208,14 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
             <Link
               to="/progression"
               search={{ comisionId }}
-              className="text-[#787774] hover:text-[#111111] transition-colors"
+              className="text-muted hover:text-ink transition-colors"
             >
               ← {isDocente ? "Volver a mis alumnos" : "Volver a la cohorte"}
             </Link>
             {studentId && !isDocente && (
               <>
-                <span className="text-[#EAEAEA]">·</span>
-                <span className="font-mono text-[#787774]">
+                <span className="text-border">·</span>
+                <span className="font-mono text-muted">
                   {studentId.slice(0, 8)}...{studentId.slice(-4)}
                 </span>
               </>
@@ -224,8 +224,8 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
         )}
 
         {(!studentId || !comisionId) && !loading && (
-          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-sm text-[#787774] space-y-2">
-            <p className="font-semibold text-[#111111]">
+          <div className="rounded-xl border border-dashed border-border bg-white p-8 text-sm text-muted space-y-2">
+            <p className="font-semibold text-ink">
               {isDocente
                 ? "No hay ningun alumno seleccionado."
                 : "Llegaste aca sin estudiante seleccionado."}
@@ -243,13 +243,13 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
         )}
 
         {loading && (
-          <div className="rounded-xl border border-[#EAEAEA] bg-white p-4 text-sm text-[#787774]">
+          <div className="rounded-xl border border-border bg-white p-4 text-sm text-muted">
             {isDocente ? "Cargando informacion del alumno..." : "Cargando evolucion del estudiante..."}
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             <div className="font-semibold">Error consultando al estudiante</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
@@ -267,16 +267,16 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
             )}
 
             {alertsData && alertsData.alerts.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+              <div className="rounded-xl border border-warning/30 bg-warning-soft p-4 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-warning">
                     <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {isDocente
                       ? `${alertsData.n_alerts} punto${alertsData.n_alerts !== 1 ? "s" : ""} de atencion`
                       : `${alertsData.n_alerts} alerta${alertsData.n_alerts !== 1 ? "s" : ""}`}
                   </div>
                   {alertsData.quartile && (
-                    <span className="text-xs text-amber-800">
+                    <span className="text-xs text-warning/90">
                       {isDocente
                         ? (QUARTILE_DOCENTE[alertsData.quartile] ?? alertsData.quartile)
                         : (QUARTILE_LABELS[alertsData.quartile] ?? alertsData.quartile)}
@@ -285,7 +285,7 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
                 </div>
                 <ul className="space-y-1.5">
                   {alertsData.alerts.map((a) => (
-                    <li key={a.code} className="flex items-start gap-2 text-xs text-[#111111]">
+                    <li key={a.code} className="flex items-start gap-2 text-xs text-ink">
                       <span
                         className={`shrink-0 rounded px-2 py-0.5 text-[10px] uppercase font-semibold ${SEVERITY_BADGE_STYLES[a.severity] ?? ""}`}
                       >
@@ -327,8 +327,8 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
             {data.evolution_per_unidad.length > 0 ? (
               <>
                 {data.evolution_per_unidad.every((e) => e.insufficient_data) ? (
-                  <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774] space-y-1">
-                    <div className="font-semibold text-[#111111]">
+                  <div className="rounded-xl border border-dashed border-border bg-white p-6 text-sm text-muted space-y-1">
+                    <div className="font-semibold text-ink">
                       {isDocente
                         ? "Todavia no hay datos suficientes por unidad."
                         : "Datos insuficientes en todas las unidades."}
@@ -359,8 +359,8 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
                 )}
               </>
             ) : data.evolution_per_template.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-8 text-center text-sm text-[#787774]">
-                <div className="font-semibold text-[#111111]">
+              <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center text-sm text-muted">
+                <div className="font-semibold text-ink">
                   {isDocente
                     ? "Todavia no hay datos suficientes."
                     : "Sin templates ni unidades con clasificaciones."}
@@ -399,26 +399,26 @@ function DocenteSummary({
   docenteSlope: ReturnType<typeof slopeToDocente>
 }) {
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-5">
+    <div className="rounded-xl border border-border bg-white px-6 py-5">
       <div className="flex items-center gap-4 mb-3">
         <span className={`text-4xl leading-none ${docenteSlope.color}`} aria-hidden="true">
           {docenteSlope.emoji}
         </span>
         <div>
-          <div className="text-lg font-semibold text-[#111111]">{docenteSlope.label}</div>
+          <div className="text-lg font-semibold text-ink">{docenteSlope.label}</div>
           {docenteSlope.action && (
-            <div className="text-sm text-amber-700 mt-0.5">{docenteSlope.action}</div>
+            <div className="text-sm text-warning/85 mt-0.5">{docenteSlope.action}</div>
           )}
         </div>
       </div>
-      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-[#787774]">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted">
         <div>
-          <span className="font-semibold text-[#111111]">{data.n_episodes_total}</span> trabajo
+          <span className="font-semibold text-ink">{data.n_episodes_total}</span> trabajo
           {data.n_episodes_total !== 1 ? "s" : ""} completado
           {data.n_episodes_total !== 1 ? "s" : ""}
         </div>
         <div>
-          <span className="font-semibold text-[#111111]">{data.n_groups_evaluated}</span> tipo
+          <span className="font-semibold text-ink">{data.n_groups_evaluated}</span> tipo
           {data.n_groups_evaluated !== 1 ? "s" : ""} de trabajo
         </div>
       </div>
@@ -434,34 +434,34 @@ function InvestigadorSummary({
   meanLabel: ReturnType<typeof slopeLabel>
 }) {
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-5">
+    <div className="rounded-xl border border-border bg-white px-6 py-5">
       <div className="flex items-center gap-4 mb-4">
         <span className={`text-4xl leading-none ${meanLabel.color}`} aria-hidden="true">
           {meanLabel.arrow}
         </span>
         <div>
-          <div className="text-lg font-semibold text-[#111111] capitalize">{meanLabel.label}</div>
-          <div className="text-xs text-[#787774]">tendencia general del estudiante</div>
+          <div className="text-lg font-semibold text-ink capitalize">{meanLabel.label}</div>
+          <div className="text-xs text-muted">tendencia general del estudiante</div>
         </div>
       </div>
       <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
         <div>
-          <span className="font-semibold text-[#111111]">{data.n_episodes_total}</span>
-          <span className="text-[#787774] ml-1">episodios</span>
+          <span className="font-semibold text-ink">{data.n_episodes_total}</span>
+          <span className="text-muted ml-1">episodios</span>
         </div>
         <div>
-          <span className="font-semibold text-[#111111]">{data.n_groups_evaluated}</span>
-          <span className="text-[#787774] ml-1">templates</span>
+          <span className="font-semibold text-ink">{data.n_groups_evaluated}</span>
+          <span className="text-muted ml-1">templates</span>
         </div>
         <div>
-          <span className="font-mono font-semibold text-[#111111]">
+          <span className="font-mono font-semibold text-ink">
             {data.mean_slope === null
               ? "—"
               : `${data.mean_slope > 0 ? "+" : ""}${data.mean_slope.toFixed(3)}`}
           </span>
-          <span className="text-[#787774] ml-1">slope prom.</span>
+          <span className="text-muted ml-1">slope prom.</span>
         </div>
-        <div className="text-[#787774] text-xs self-end">labeler v{data.labeler_version}</div>
+        <div className="text-muted text-xs self-end">labeler v{data.labeler_version}</div>
       </div>
     </div>
   )
@@ -475,9 +475,9 @@ function DocenteTemplateTable({
   colors: [string, string, string]
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-white">
       <table className="w-full text-sm">
-        <thead className="bg-[#FAFAFA] text-left text-xs text-[#787774] border-b border-[#EAEAEA]">
+        <thead className="bg-canvas text-left text-xs text-muted border-b border-border">
           <tr>
             <th className="px-4 py-2.5 font-medium">Trabajo practico</th>
             <th className="px-4 py-2.5 font-medium">Intentos</th>
@@ -491,12 +491,12 @@ function DocenteTemplateTable({
             return (
               <tr
                 key={entry.template_id}
-                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+                className="border-b border-border last:border-0 hover:bg-canvas transition-colors"
               >
-                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                <td className="px-4 py-3 align-middle text-sm text-ink">
                   TP {entry.template_id.slice(0, 6)}
                 </td>
-                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                <td className="px-4 py-3 align-middle text-sm text-ink">
                   {entry.n_episodes}
                 </td>
                 <td className="px-4 py-3 align-middle">
@@ -513,7 +513,7 @@ function DocenteTemplateTable({
           })}
         </tbody>
       </table>
-      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 flex items-center gap-4 text-xs text-[#787774]">
+      <div className="border-t border-border bg-canvas px-4 py-2 flex items-center gap-4 text-xs text-muted">
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block w-2 h-2 rounded-full"
@@ -550,9 +550,9 @@ function InvestigadorTemplateTable({
   labelerVersion: string
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-white">
       <table className="w-full text-sm">
-        <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
+        <thead className="bg-canvas text-left text-xs uppercase tracking-wider text-muted border-b border-border">
           <tr>
             <th className="px-4 py-2.5 font-medium">Template</th>
             <th className="px-4 py-2.5 font-medium">N episodios</th>
@@ -567,14 +567,14 @@ function InvestigadorTemplateTable({
             return (
               <tr
                 key={entry.template_id}
-                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+                className="border-b border-border last:border-0 hover:bg-canvas transition-colors"
               >
                 <td className="px-4 py-3 align-middle">
-                  <div className="font-mono text-xs text-[#787774] break-all">
+                  <div className="font-mono text-xs text-muted break-all">
                     {entry.template_id.slice(0, 8)}...{entry.template_id.slice(-4)}
                   </div>
                 </td>
-                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                <td className="px-4 py-3 align-middle text-sm text-ink">
                   {entry.n_episodes}
                 </td>
                 <td className="px-4 py-3 align-middle">
@@ -588,9 +588,9 @@ function InvestigadorTemplateTable({
                 </td>
                 <td className="px-4 py-3 align-middle text-right">
                   {entry.slope === null ? (
-                    <span className="text-xs text-[#787774]">sin slope</span>
+                    <span className="text-xs text-muted">sin slope</span>
                   ) : (
-                    <span className="font-mono text-sm text-[#111111]">
+                    <span className="font-mono text-sm text-ink">
                       {entry.slope > 0 ? "+" : ""}
                       {entry.slope.toFixed(3)}
                     </span>
@@ -601,11 +601,26 @@ function InvestigadorTemplateTable({
           })}
         </tbody>
       </table>
-      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 text-xs text-[#787774]">
+      <div className="border-t border-border bg-canvas px-4 py-2 text-xs text-muted">
         Trayectoria: cada punto es la apropiacion de un episodio (
-        <Badge className="bg-red-500 text-white">delegacion=0</Badge>{" "}
-        <Badge className="bg-amber-500 text-white">superficial=1</Badge>{" "}
-        <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>) ordenada por
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-delegacion)" }}
+        >
+          delegacion=0
+        </Badge>{" "}
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-superficial)" }}
+        >
+          superficial=1
+        </Badge>{" "}
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-reflexiva)" }}
+        >
+          reflexiva=2
+        </Badge>) ordenada por
         classified_at. Labeler v{labelerVersion}.
       </div>
     </div>
@@ -622,14 +637,14 @@ function DocenteUnidadTable({
   colors: [string, string, string]
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
-      <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5">
-        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+    <div className="overflow-hidden rounded-xl border border-border bg-white">
+      <div className="border-b border-border bg-canvas px-4 py-2.5">
+        <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           Evolucion por unidad
         </span>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-[#FAFAFA] text-left text-xs text-[#787774] border-b border-[#EAEAEA]">
+        <thead className="bg-canvas text-left text-xs text-muted border-b border-border">
           <tr>
             <th className="px-4 py-2.5 font-medium">Unidad</th>
             <th className="px-4 py-2.5 font-medium">Intentos</th>
@@ -644,28 +659,28 @@ function DocenteUnidadTable({
             return (
               <tr
                 key={entry.unidad_id}
-                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+                className="border-b border-border last:border-0 hover:bg-canvas transition-colors"
               >
                 <td className="px-4 py-3 align-middle text-sm">
                   {isSinUnidad ? (
-                    <span className="text-[#787774] italic">{entry.unidad_nombre}</span>
+                    <span className="text-muted italic">{entry.unidad_nombre}</span>
                   ) : (
-                    <span className="text-[#111111] font-medium">{entry.unidad_nombre}</span>
+                    <span className="text-ink font-medium">{entry.unidad_nombre}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                <td className="px-4 py-3 align-middle text-sm text-ink">
                   {entry.n_episodes}
                 </td>
                 <td className="px-4 py-3 align-middle">
                   {entry.insufficient_data ? (
-                    <span className="text-xs text-[#787774]">min. 3 episodios</span>
+                    <span className="text-xs text-muted">min. 3 episodios</span>
                   ) : (
                     <Sparkline scores={entry.scores_ordinal} colors={colors} />
                   )}
                 </td>
                 <td className="px-4 py-3 align-middle">
                   {entry.insufficient_data ? (
-                    <span className="text-xs text-[#787774]">sin datos suf.</span>
+                    <span className="text-xs text-muted">sin datos suf.</span>
                   ) : (
                     <div className={`flex items-center gap-1.5 text-sm ${docente.color}`}>
                       <span className="text-xl leading-none">{docente.emoji}</span>
@@ -678,7 +693,7 @@ function DocenteUnidadTable({
           })}
         </tbody>
       </table>
-      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 flex items-center gap-4 text-xs text-[#787774]">
+      <div className="border-t border-border bg-canvas px-4 py-2 flex items-center gap-4 text-xs text-muted">
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block w-2 h-2 rounded-full"
@@ -715,14 +730,14 @@ function InvestigadorUnidadTable({
   labelerVersion: string
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
-      <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5">
-        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+    <div className="overflow-hidden rounded-xl border border-border bg-white">
+      <div className="border-b border-border bg-canvas px-4 py-2.5">
+        <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           Evolucion por unidad (primario)
         </span>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
+        <thead className="bg-canvas text-left text-xs uppercase tracking-wider text-muted border-b border-border">
           <tr>
             <th className="px-4 py-2.5 font-medium">Unidad</th>
             <th className="px-4 py-2.5 font-medium">N episodios</th>
@@ -740,21 +755,21 @@ function InvestigadorUnidadTable({
             return (
               <tr
                 key={entry.unidad_id}
-                className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors"
+                className="border-b border-border last:border-0 hover:bg-canvas transition-colors"
               >
                 <td className="px-4 py-3 align-middle">
                   {isSinUnidad ? (
-                    <span className="text-xs text-[#787774] italic">{entry.unidad_nombre}</span>
+                    <span className="text-xs text-muted italic">{entry.unidad_nombre}</span>
                   ) : (
-                    <span className="text-sm font-medium text-[#111111]">{entry.unidad_nombre}</span>
+                    <span className="text-sm font-medium text-ink">{entry.unidad_nombre}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 align-middle text-sm text-[#111111]">
+                <td className="px-4 py-3 align-middle text-sm text-ink">
                   {entry.n_episodes}
                 </td>
                 <td className="px-4 py-3 align-middle">
                   {entry.insufficient_data ? (
-                    <span className="text-xs text-[#787774]">insuficiente (min. 3)</span>
+                    <span className="text-xs text-muted">insuficiente (min. 3)</span>
                   ) : (
                     <Sparkline scores={entry.scores_ordinal} colors={colors} />
                   )}
@@ -767,9 +782,9 @@ function InvestigadorUnidadTable({
                 </td>
                 <td className="px-4 py-3 align-middle text-right">
                   {entry.insufficient_data || entry.slope === null ? (
-                    <span className="text-xs text-[#787774]">sin slope</span>
+                    <span className="text-xs text-muted">sin slope</span>
                   ) : (
-                    <span className="font-mono text-sm text-[#111111]">
+                    <span className="font-mono text-sm text-ink">
 
                       {entry.slope > 0 ? "+" : ""}
                       {entry.slope.toFixed(3)}
@@ -781,11 +796,26 @@ function InvestigadorUnidadTable({
           })}
         </tbody>
       </table>
-      <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2 text-xs text-[#787774]">
+      <div className="border-t border-border bg-canvas px-4 py-2 text-xs text-muted">
         Trayectoria por unidad tematica: cada punto es un episodio (
-        <Badge className="bg-red-500 text-white">delegacion=0</Badge>{" "}
-        <Badge className="bg-amber-500 text-white">superficial=1</Badge>{" "}
-        <Badge className="bg-emerald-500 text-white">reflexiva=2</Badge>). Labeler v{labelerVersion}.
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-delegacion)" }}
+        >
+          delegacion=0
+        </Badge>{" "}
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-superficial)" }}
+        >
+          superficial=1
+        </Badge>{" "}
+        <Badge
+          className="text-white border-0"
+          style={{ background: "var(--color-appropriation-reflexiva)" }}
+        >
+          reflexiva=2
+        </Badge>). Labeler v{labelerVersion}.
       </div>
     </div>
   )
@@ -802,16 +832,16 @@ function TemplateSecondarySection({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+    <div className="rounded-xl border border-border bg-white overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-canvas transition-colors"
       >
-        <span className="text-xs font-semibold text-[#787774] uppercase tracking-wider">
+        <span className="text-xs font-semibold text-muted uppercase tracking-wider">
           Agrupacion por template (secundario)
         </span>
-        <span className="text-xs text-[#787774]">{expanded ? "Ocultar" : "Mostrar"}</span>
+        <span className="text-xs text-muted">{expanded ? "Ocultar" : "Mostrar"}</span>
       </button>
       {expanded && (
         <InvestigadorTemplateTable
@@ -833,7 +863,7 @@ function EpisodesList({
 }) {
   if (episodes.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-center text-sm text-[#787774]">
+      <div className="rounded-xl border border-dashed border-border bg-white p-6 text-center text-sm text-muted">
         {isDocente
           ? "Este alumno no tiene trabajos completados todavia."
           : "El estudiante no tiene episodios registrados en esta comision todavia."}
@@ -844,12 +874,12 @@ function EpisodesList({
   const aprLabels = isDocente ? APPROPRIATION_DOCENTE : APPROPRIATION_INVESTIGADOR
 
   return (
-    <section className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
-      <header className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-4 py-2.5 flex items-center gap-2">
-        <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+    <section className="rounded-xl border border-border bg-white overflow-hidden">
+      <header className="border-b border-border bg-canvas px-4 py-2.5 flex items-center gap-2">
+        <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           {isDocente ? "Trabajos del alumno" : "Episodios del estudiante"}
         </span>
-        <span className="text-xs text-[#787774]">
+        <span className="text-xs text-muted">
           · {isDocente ? "click para ver detalle" : "click para ver distribucion N1-N4"}
         </span>
       </header>
@@ -863,7 +893,7 @@ function EpisodesList({
                 to="/episode-n-level"
                 search={{ episodeId: ep.episode_id }}
                 data-testid="student-episode-row"
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[#FAFAFA] transition-colors"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-canvas transition-colors"
               >
                 <span
                   aria-hidden="true"
@@ -871,31 +901,31 @@ function EpisodesList({
                   style={{ backgroundColor: appropriationDot(ep.appropriation) }}
                 />
                 {!isDocente && (
-                  <span className="font-mono text-xs text-[#787774] shrink-0">
+                  <span className="font-mono text-xs text-muted shrink-0">
                     {ep.episode_id.slice(0, 8)}...{ep.episode_id.slice(-4)}
                   </span>
                 )}
-                <span className="flex-1 min-w-0 truncate text-sm text-[#111111]">
+                <span className="flex-1 min-w-0 truncate text-sm text-ink">
                   {ep.tarea_codigo ? (
                     <>
                       <span className="font-medium">{ep.tarea_codigo}</span>
                       {ep.tarea_titulo && (
-                        <span className="text-[#787774]"> {ep.tarea_titulo}</span>
+                        <span className="text-muted"> {ep.tarea_titulo}</span>
                       )}
                     </>
                   ) : (
-                    <span className="text-[#787774] italic">
+                    <span className="text-muted italic">
                       {isDocente ? "Trabajo sin asignar" : "TP huerfana"}
                     </span>
                   )}
                 </span>
-                <span className="text-xs text-[#787774] shrink-0 hidden sm:inline">
+                <span className="text-xs text-muted shrink-0 hidden sm:inline">
                   {formatShortDate(ep.opened_at)}
                 </span>
-                <span className="text-xs font-mono text-[#787774] shrink-0 w-28 text-right">
+                <span className="text-xs font-mono text-muted shrink-0 w-28 text-right">
                   {aprText ?? (isDocente ? "sin evaluar" : "sin clasif.")}
                 </span>
-                <span aria-hidden="true" className="text-[#EAEAEA] shrink-0">
+                <span aria-hidden="true" className="text-border shrink-0">
                   ›
                 </span>
               </Link>

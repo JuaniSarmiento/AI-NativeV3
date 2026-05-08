@@ -47,13 +47,13 @@ function entregaEstadoLabel(estado: EntregaEstado): string {
 function entregaEstadoBadgeClass(estado: EntregaEstado): string {
   switch (estado) {
     case "draft":
-      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+      return "bg-surface-alt text-body"
     case "submitted":
-      return "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+      return "bg-accent-brand-soft text-accent-brand-deep"
     case "graded":
-      return "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300"
+      return "bg-green-100 text-success"
     case "returned":
-      return "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+      return "bg-warning-soft text-warning/85"
   }
 }
 
@@ -144,14 +144,14 @@ export function ExerciseListView({
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="max-w-md text-center">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+          <p className="text-sm font-medium text-danger mb-2">
             No pudimos cargar la entrega.
           </p>
-          <p className="text-xs font-mono text-slate-500 mb-4">{error}</p>
+          <p className="text-xs font-mono text-muted mb-4">{error}</p>
           <button
             type="button"
             onClick={onBack}
-            className="text-sm underline text-slate-700 dark:text-slate-300"
+            className="text-sm underline text-body"
           >
             Volver
           </button>
@@ -168,15 +168,15 @@ export function ExerciseListView({
           <button
             type="button"
             onClick={onBack}
-            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-3 inline-flex items-center gap-1"
+            className="text-xs text-muted hover:text-body mb-3 inline-flex items-center gap-1"
           >
             <span aria-hidden="true">←</span>
             Volver a TPs
           </button>
-          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">
+          <p className="text-xs font-mono text-muted mb-1">
             {tarea.codigo} (v{tarea.version})
           </p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50 mb-2">
+          <h2 className="text-xl font-semibold text-ink mb-2">
             {tarea.titulo}
           </h2>
           {entrega && (
@@ -193,14 +193,14 @@ export function ExerciseListView({
         {totalEjercicios > 0 && (
           <div className="mb-6" data-testid="entrega-progress">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-600 dark:text-slate-400">
+              <span className="text-xs text-muted">
                 Ejercicios completados
               </span>
-              <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+              <span className="text-xs font-mono text-body">
                 {completados}/{totalEjercicios}
               </span>
             </div>
-            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-surface-alt rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -217,16 +217,16 @@ export function ExerciseListView({
 
         {/* Estado submitted/graded/returned — info block */}
         {entrega && entrega.estado !== "draft" && (
-          <div className="mb-6 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4">
+          <div className="mb-6 rounded-lg border border-border-soft bg-surface-alt p-4">
             {entrega.estado === "submitted" && (
-              <p className="text-sm text-slate-700 dark:text-slate-300">
+              <p className="text-sm text-body">
                 <span className="font-medium">Pendiente de correccion.</span>{" "}
                 Tu docente revisara la entrega proximamente.
               </p>
             )}
             {(entrega.estado === "graded" || entrega.estado === "returned") && (
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-sm text-slate-700 dark:text-slate-300">
+                <p className="text-sm text-body">
                   {entrega.estado === "graded" ? (
                     <>
                       <span className="font-medium">Calificada.</span>{" "}
@@ -243,7 +243,7 @@ export function ExerciseListView({
                   type="button"
                   data-testid="ver-calificacion-btn"
                   onClick={() => onViewGrade(entrega)}
-                  className="shrink-0 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  className="shrink-0 px-3 py-1.5 rounded border border-border bg-white text-xs font-medium text-body hover:bg-surface-alt"
                 >
                   Ver calificacion →
                 </button>
@@ -266,10 +266,10 @@ export function ExerciseListView({
                 data-testid={`ejercicio-item-${ejercicio.orden}`}
                 className={`rounded-lg border p-4 transition-colors ${
                   completed
-                    ? "border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950"
+                    ? "border-green-300 bg-success-soft"
                     : locked
-                      ? "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 opacity-60"
-                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      ? "border-border-soft bg-surface-alt opacity-60"
+                      : "border-border bg-white"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -280,8 +280,8 @@ export function ExerciseListView({
                       completed
                         ? "bg-green-600 text-white"
                         : locked
-                          ? "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
-                          : "border-2 border-slate-400 dark:border-slate-500 text-slate-600 dark:text-slate-400"
+                          ? "bg-surface-alt text-muted"
+                          : "border-2 border-border-strong text-muted"
                     }`}
                   >
                     {completed ? "✓" : ejercicio.orden}
@@ -291,18 +291,18 @@ export function ExerciseListView({
                     <p
                       className={`text-sm font-medium truncate ${
                         locked
-                          ? "text-slate-500 dark:text-slate-500"
+                          ? "text-muted"
                           : completed
-                            ? "text-green-800 dark:text-green-200"
-                            : "text-slate-900 dark:text-slate-100"
+                            ? "text-green-800"
+                            : "text-ink"
                       }`}
                     >
                       Ejercicio {ejercicio.orden}: {ejercicio.titulo}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted mt-0.5">
                       Peso: {Math.round(ejercicio.peso * 100)}%
                       {locked && !isFirst && (
-                        <span className="ml-2 text-slate-400 dark:text-slate-500">
+                        <span className="ml-2 text-muted-soft">
                           · Completar ejercicio anterior primero
                         </span>
                       )}
@@ -327,7 +327,7 @@ export function ExerciseListView({
                     </button>
                   )}
                   {completed && (
-                    <span className="shrink-0 text-xs text-green-600 dark:text-green-400 font-medium">
+                    <span className="shrink-0 text-xs text-success font-medium">
                       Completado
                     </span>
                   )}
@@ -341,7 +341,7 @@ export function ExerciseListView({
         {canSubmit && (
           <div className="mt-6">
             {submitError && (
-              <div className="mb-3 rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 p-3 text-xs text-red-800 dark:text-red-200">
+              <div className="mb-3 rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
                 {submitError}
               </div>
             )}
@@ -362,7 +362,7 @@ export function ExerciseListView({
             >
               {submitting ? "Enviando..." : "Entregar TP"}
             </button>
-            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-2">
+            <p className="text-xs text-center text-muted mt-2">
               Al entregar, tu docente recibira notificacion para corregirla.
             </p>
           </div>
@@ -370,7 +370,7 @@ export function ExerciseListView({
 
         {/* Estado: ya entregada — no puede re-entregar */}
         {entrega && entrega.estado === "submitted" && (
-          <div className="mt-6 py-3 rounded-lg text-center text-sm text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+          <div className="mt-6 py-3 rounded-lg text-center text-sm text-muted border border-border-soft">
             TP entregada. Esperando correccion del docente.
           </div>
         )}

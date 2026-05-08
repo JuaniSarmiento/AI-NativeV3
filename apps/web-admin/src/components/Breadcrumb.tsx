@@ -25,7 +25,7 @@ export function Breadcrumb({ items }: BreadcrumbProps): ReactNode {
   return (
     <nav
       aria-label="Contexto académico"
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
     >
       {items.map((item, idx) => {
         const isLast = idx === items.length - 1
@@ -34,11 +34,11 @@ export function Breadcrumb({ items }: BreadcrumbProps): ReactNode {
             key={`${item.context ?? ""}-${item.label}-${idx}`}
             className="flex items-center gap-2"
           >
-            <span className={isLast ? "font-semibold text-slate-900" : ""}>
-              {item.context && <span className="text-slate-500">{item.context}: </span>}
+            <span className={isLast ? "font-semibold text-ink" : ""}>
+              {item.context && <span className="text-muted">{item.context}: </span>}
               {item.label}
             </span>
-            {!isLast && <span className="text-slate-400">/</span>}
+            {!isLast && <span className="text-muted-soft">/</span>}
           </span>
         )
       })}

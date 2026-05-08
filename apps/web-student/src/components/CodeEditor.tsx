@@ -237,13 +237,13 @@ export function CodeEditor({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-border-soft px-4 py-2">
         <h2 className="text-sm font-medium">Código ({language})</h2>
         <button
           type="button"
           onClick={runCode}
           disabled={loading || running}
-          className="px-3 py-1 text-xs rounded bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white font-medium"
+          className="px-3 py-1 text-xs rounded bg-green-600 hover:bg-green-700 disabled:bg-border-strong text-white font-medium"
         >
           {loading ? "Cargando Python..." : running ? "Ejecutando..." : "▶ Ejecutar"}
         </button>
@@ -251,11 +251,11 @@ export function CodeEditor({
 
       <div ref={editorContainerRef} className="flex-1 min-h-[200px]" />
 
-      <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-950 text-slate-100 font-mono text-xs p-3 min-h-[100px] max-h-[200px] overflow-y-auto">
+      <div className="border-t border-border-soft bg-ink text-surface font-mono text-xs p-3 min-h-[100px] max-h-[200px] overflow-y-auto">
         {output && <pre className="whitespace-pre-wrap">{output}</pre>}
-        {error && <pre className="whitespace-pre-wrap text-red-400">{error}</pre>}
+        {error && <pre className="whitespace-pre-wrap text-danger">{error}</pre>}
         {!output && !error && !running && (
-          <span className="text-slate-500">
+          <span className="text-muted">
             {loading
               ? "Cargando runtime Python en el navegador (primera vez ~6 MB)..."
               : "Presioná Ejecutar para correr el código."}

@@ -220,7 +220,7 @@ export function ComisionesPage(): ReactNode {
             type="button"
             onClick={() => setShowForm(!showForm)}
             disabled={!materiaId || !periodoId}
-            className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
           >
             {showForm ? "Cancelar" : "Nueva comisión"}
           </button>
@@ -228,7 +228,7 @@ export function ComisionesPage(): ReactNode {
 
         {breadcrumbItems.length > 0 && <Breadcrumb items={breadcrumbItems} />}
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4 grid grid-cols-2 gap-4">
+        <div className="rounded-lg border border-border-soft bg-white p-4 grid grid-cols-2 gap-4">
           <Field label="Universidad" required>
             <select
               value={universidadId}
@@ -336,7 +336,7 @@ export function ComisionesPage(): ReactNode {
         </div>
 
         {periodos.length === 0 && !periodosQuery.isLoading && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="rounded-md border border-warning/40 bg-warning-soft p-4 text-sm text-warning">
             No hay periodos creados. Creá uno desde la página de Periodos para poder gestionar
             comisiones.
           </div>
@@ -355,25 +355,25 @@ export function ComisionesPage(): ReactNode {
         )}
 
         {errorMsg && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
             {errorMsg}
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
           {!materiaId || !periodoId ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               Seleccioná universidad, carrera, plan, materia y periodo para ver sus comisiones.
             </div>
           ) : loading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
+            <div className="p-8 text-center text-muted text-sm">Cargando…</div>
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               No hay comisiones para esta materia en el periodo seleccionado.
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-left">
+              <thead className="bg-surface-alt border-b border-border-soft text-left">
                 <tr>
                   <th className="px-4 py-2 font-medium w-6" />
                   <th className="px-4 py-2 font-medium">Código</th>
@@ -388,12 +388,12 @@ export function ComisionesPage(): ReactNode {
                 {items.map((c) => (
                   <Fragment key={c.id}>
                     <tr
-                      className="border-b border-slate-100 cursor-pointer hover:bg-slate-50"
+                      className="border-b border-border-soft cursor-pointer hover:bg-surface-alt"
                       onClick={() =>
                         setExpandedComisionId((prev) => (prev === c.id ? null : c.id))
                       }
                     >
-                      <td className="px-2 py-2 text-slate-400">
+                      <td className="px-2 py-2 text-muted-soft">
                         {expandedComisionId === c.id ? (
                           <ChevronDown size={14} />
                         ) : (
@@ -401,10 +401,10 @@ export function ComisionesPage(): ReactNode {
                         )}
                       </td>
                       <td className="px-4 py-2 font-mono text-xs">{c.codigo}</td>
-                      <td className="px-4 py-2 text-slate-600 text-xs">
+                      <td className="px-4 py-2 text-muted text-xs">
                         {materiaMap.get(c.materia_id)?.nombre ?? c.materia_id}
                       </td>
-                      <td className="px-4 py-2 text-slate-600 text-xs">
+                      <td className="px-4 py-2 text-muted text-xs">
                         {periodoMap.get(c.periodo_id)?.codigo ?? c.periodo_id}
                       </td>
                       <td className="px-4 py-2">{c.cupo_maximo}</td>
@@ -422,7 +422,7 @@ export function ComisionesPage(): ReactNode {
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          className="text-xs text-red-700 hover:text-red-900 disabled:opacity-50"
+                          className="text-xs text-danger hover:text-danger disabled:opacity-50"
                         >
                           Eliminar
                         </button>
@@ -430,7 +430,7 @@ export function ComisionesPage(): ReactNode {
                     </tr>
                     {expandedComisionId === c.id && (
                       <tr>
-                        <td colSpan={7} className="bg-slate-50 border-b border-slate-200 p-0">
+                        <td colSpan={7} className="bg-surface-alt border-b border-border-soft p-0">
                           <ComisionDetail comisionId={c.id} />
                         </td>
                       </tr>
@@ -442,12 +442,12 @@ export function ComisionesPage(): ReactNode {
           )}
 
           {materiaId && periodoId && (cursor || cursorNext) && (
-            <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs">
+            <div className="flex items-center justify-end gap-2 border-t border-border-soft bg-surface-alt px-4 py-2 text-xs">
               <button
                 type="button"
                 onClick={() => setCursor(undefined)}
                 disabled={!cursor}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1 hover:bg-slate-100 disabled:opacity-50"
+                className="rounded-md border border-border bg-white px-3 py-1 hover:bg-surface-alt disabled:opacity-50"
               >
                 Inicio
               </button>
@@ -457,7 +457,7 @@ export function ComisionesPage(): ReactNode {
                   if (cursorNext) setCursor(cursorNext)
                 }}
                 disabled={!cursorNext}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1 hover:bg-slate-100 disabled:opacity-50"
+                className="rounded-md border border-border bg-white px-3 py-1 hover:bg-surface-alt disabled:opacity-50"
               >
                 Siguiente
               </button>
@@ -546,13 +546,13 @@ function ComisionForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
           title="Formulario de Comision"
           content={
-            <div className="space-y-3 text-zinc-300">
+            <div className="space-y-3 text-muted-soft">
               <p>
                 <strong>Completa los siguientes campos</strong> para crear una nueva comision:
               </p>
@@ -573,10 +573,10 @@ function ComisionForm({
             </div>
           }
         />
-        <span className="text-sm text-slate-500">Nueva comision</span>
+        <span className="text-sm text-muted">Nueva comision</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 rounded-md bg-slate-50 border border-slate-200 p-3">
+      <div className="grid grid-cols-3 gap-4 rounded-md bg-surface-alt border border-border-soft p-3">
         <ReadonlyField label="Universidad" value={context.universidad} />
         <ReadonlyField label="Carrera" value={context.carrera} />
         <ReadonlyField label="Plan" value={context.plan} />
@@ -638,7 +638,7 @@ function ComisionForm({
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+        <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
           {error}
         </div>
       )}
@@ -647,7 +647,7 @@ function ComisionForm({
         <button
           type="submit"
           disabled={createMutation.isPending}
-          className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
         >
           {createMutation.isPending ? "Creando..." : "Crear"}
         </button>
@@ -657,7 +657,7 @@ function ComisionForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
 
 function Field({
   label,
@@ -671,9 +671,9 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children es el control (input/select/textarea) wrappeado por el padre — patrón de form helper.
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-700">
+      <span className="text-xs font-medium text-body">
         {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
+        {required && <span className="text-danger ml-0.5">*</span>}
       </span>
       {children}
     </label>
@@ -714,7 +714,7 @@ function ComisionDetail({ comisionId }: { comisionId: string }): ReactNode {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="flex gap-2 border-b border-slate-200 pb-2">
+      <div className="flex gap-2 border-b border-border-soft pb-2">
         {(["docentes", "alumnos"] as ComisionTab[]).map((t) => (
           <button
             key={t}
@@ -722,8 +722,8 @@ function ComisionDetail({ comisionId }: { comisionId: string }): ReactNode {
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 text-xs font-medium rounded-t-md border-b-2 transition-colors ${
               tab === t
-                ? "border-blue-600 text-blue-700 bg-blue-50"
-                : "border-transparent text-slate-600 hover:text-slate-900"
+                ? "border-accent-brand text-accent-brand-deep bg-accent-brand-soft"
+                : "border-transparent text-muted hover:text-ink"
             }`}
           >
             {t === "docentes" ? "Docentes" : "Alumnos"}
@@ -801,12 +801,12 @@ function DocentesTab({
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <p className="text-xs text-slate-500">Cargando...</p>
+        <p className="text-xs text-muted">Cargando...</p>
       ) : docentes.length === 0 ? (
-        <p className="text-xs text-slate-500">No hay docentes asignados.</p>
+        <p className="text-xs text-muted">No hay docentes asignados.</p>
       ) : (
         <table className="w-full text-xs">
-          <thead className="text-left text-slate-500">
+          <thead className="text-left text-muted">
             <tr>
               <th className="py-1 pr-3">User ID</th>
               <th className="py-1 pr-3">Rol</th>
@@ -817,7 +817,7 @@ function DocentesTab({
           </thead>
           <tbody>
             {docentes.map((d) => (
-              <tr key={d.id} className="border-t border-slate-100">
+              <tr key={d.id} className="border-t border-border-soft">
                 <td className="py-1 pr-3 font-mono">{d.user_id.slice(0, 8)}…</td>
                 <td className="py-1 pr-3">{d.rol}</td>
                 <td className="py-1 pr-3">{d.fecha_desde}</td>
@@ -831,7 +831,7 @@ function DocentesTab({
                       }
                     }}
                     disabled={isRemoving}
-                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                    className="text-danger hover:text-danger disabled:opacity-50"
                   >
                     Quitar
                   </button>
@@ -886,7 +886,7 @@ function DocentesTab({
             />
           </Field>
           {formError && (
-            <div className="col-span-4 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+            <div className="col-span-4 text-xs text-danger bg-danger-soft border border-danger/30 rounded p-2">
               {formError}
             </div>
           )}
@@ -894,14 +894,14 @@ function DocentesTab({
             <button
               type="submit"
               disabled={addMutation.isPending}
-              className="rounded-md bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-md bg-accent-brand text-white px-3 py-1 text-xs font-medium hover:bg-accent-brand-deep disabled:opacity-50"
             >
               {addMutation.isPending ? "Agregando..." : "Agregar"}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-surface-alt"
             >
               Cancelar
             </button>
@@ -911,7 +911,7 @@ function DocentesTab({
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="text-xs text-blue-700 hover:text-blue-900 font-medium"
+          className="text-xs text-accent-brand-deep hover:text-accent-brand-deep font-medium"
         >
           + Agregar docente
         </button>
@@ -958,12 +958,12 @@ function AlumnosTab({
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <p className="text-xs text-slate-500">Cargando...</p>
+        <p className="text-xs text-muted">Cargando...</p>
       ) : inscripciones.length === 0 ? (
-        <p className="text-xs text-slate-500">No hay alumnos inscriptos.</p>
+        <p className="text-xs text-muted">No hay alumnos inscriptos.</p>
       ) : (
         <table className="w-full text-xs">
-          <thead className="text-left text-slate-500">
+          <thead className="text-left text-muted">
             <tr>
               <th className="py-1 pr-3">Student pseudonym</th>
               <th className="py-1 pr-3">Rol</th>
@@ -974,7 +974,7 @@ function AlumnosTab({
           </thead>
           <tbody>
             {inscripciones.map((i) => (
-              <tr key={i.id} className="border-t border-slate-100">
+              <tr key={i.id} className="border-t border-border-soft">
                 <td className="py-1 pr-3 font-mono">{i.student_pseudonym.slice(0, 8)}…</td>
                 <td className="py-1 pr-3">{i.rol}</td>
                 <td className="py-1 pr-3">{i.estado}</td>
@@ -988,7 +988,7 @@ function AlumnosTab({
                       }
                     }}
                     disabled={isRemoving}
-                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                    className="text-danger hover:text-danger disabled:opacity-50"
                   >
                     Quitar
                   </button>
@@ -1030,7 +1030,7 @@ function AlumnosTab({
             />
           </Field>
           {formError && (
-            <div className="col-span-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+            <div className="col-span-3 text-xs text-danger bg-danger-soft border border-danger/30 rounded p-2">
               {formError}
             </div>
           )}
@@ -1038,14 +1038,14 @@ function AlumnosTab({
             <button
               type="submit"
               disabled={addMutation.isPending}
-              className="rounded-md bg-blue-600 text-white px-3 py-1 text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-md bg-accent-brand text-white px-3 py-1 text-xs font-medium hover:bg-accent-brand-deep disabled:opacity-50"
             >
               {addMutation.isPending ? "Inscribiendo..." : "Inscribir"}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-surface-alt"
             >
               Cancelar
             </button>
@@ -1055,7 +1055,7 @@ function AlumnosTab({
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="text-xs text-blue-700 hover:text-blue-900 font-medium"
+          className="text-xs text-accent-brand-deep hover:text-accent-brand-deep font-medium"
         >
           + Inscribir alumno
         </button>

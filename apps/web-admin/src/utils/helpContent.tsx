@@ -5,7 +5,7 @@ type HelpContentMap = Record<string, ReactNode>
 
 export const helpContent: HelpContentMap = {
   home: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Panel de Administración</p>
       <p>
         Este panel centraliza la gestión de la estructura academica institucional: universidades,
@@ -39,8 +39,8 @@ export const helpContent: HelpContentMap = {
           <strong>Importacion masiva:</strong> Carga CSV de entidades con dry-run preview.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Consejo:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Consejo:</p>
         <p className="text-sm mt-1">
           El orden de creacion es: Universidad → Facultad → Carrera → Plan → Materia → Periodo →
           Comision.
@@ -50,7 +50,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   universidades: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Universidades</p>
       <p>
         Las universidades son los tenants raiz del sistema. Cada una tiene su propio realm de
@@ -74,14 +74,14 @@ export const helpContent: HelpContentMap = {
           asociadas.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           El codigo y el realm Keycloak son inmutables. Definirlos con cuidado antes de crear la
           universidad.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Eliminar una universidad con datos asociados fallara con error 422. Primero elimina todas
@@ -92,7 +92,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   facultades: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Facultades</p>
       <p>
         Las facultades son divisiones academicas dentro de una universidad. Cada carrera pertenece a
@@ -115,8 +115,8 @@ export const helpContent: HelpContentMap = {
           datos historicos se preservan.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Si no hay universidades creadas, el boton "Crear facultad" estara deshabilitado. Primero
           crea una universidad.
@@ -126,7 +126,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   carreras: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Carreras</p>
       <p>
         Las carreras son programas academicos del tenant actual. Cada carrera pertenece a una
@@ -152,8 +152,8 @@ export const helpContent: HelpContentMap = {
           asociadas.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           El boton "Nueva carrera" estara deshabilitado si no hay facultades creadas. Crea una
           facultad primero.
@@ -163,7 +163,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   planes: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Planes de Estudio</p>
       <p>
         Los planes de estudio son versiones del curriculum de una carrera. Pueden estar vigentes o
@@ -189,8 +189,8 @@ export const helpContent: HelpContentMap = {
           <strong>Eliminar:</strong> Soft-delete logico. Falla si el plan tiene materias activas.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Selecciona universidad y carrera en los desplegables para habilitar el boton "Crear plan".
         </p>
@@ -199,7 +199,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   materias: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Materias</p>
       <p>
         Las materias son asignaturas asociadas a un plan de estudios. Usa los selectores en cascada
@@ -224,8 +224,8 @@ export const helpContent: HelpContentMap = {
           <strong>Objetivos:</strong> Opcional. Descripcion de objetivos pedagogicos de la materia.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           El breadcrumb superior muestra el contexto completo (Universidad / Carrera / Plan) del
           plan seleccionado.
@@ -235,7 +235,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   comisiones: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Comisiones</p>
       <p>
         Las comisiones son secciones de cursado de una materia en un periodo determinado. Usa los
@@ -262,8 +262,8 @@ export const helpContent: HelpContentMap = {
           auditoria.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Si no hay periodos creados, aparece una alerta. Ve a la pagina de Periodos para crear uno
           antes de gestionar comisiones.
@@ -273,7 +273,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   clasificaciones: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Clasificaciones N4</p>
       <p>
         Vista de clasificaciones cognitivas N4 agregadas por comision. Muestra distribucion,
@@ -296,8 +296,8 @@ export const helpContent: HelpContentMap = {
           de apropiacion.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">
           Esta vista requiere que classifier-service este corriendo en el puerto 8008 y que haya
           clasificaciones persistidas para la comision demo.
@@ -307,7 +307,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   periodos: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Periodos Lectivos</p>
       <p>
         Gestión de periodos academicos (ej. 2026-S1). Cada comision se crea dentro de un periodo.
@@ -329,11 +329,11 @@ export const helpContent: HelpContentMap = {
           <strong>Eliminar:</strong> Falla si el periodo tiene comisiones asociadas.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Nota:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Nota:</p>
         <p className="text-sm mt-1">El codigo del periodo es inmutable una vez creado.</p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           Cerrar un periodo es irreversible. No se puede reabrir. Las comisiones del periodo quedan
@@ -344,7 +344,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   bulkImport: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Importacion Masiva</p>
       <p>
         Importa entidades academicas desde archivos CSV. El flujo tiene 4 pasos: seleccionar
@@ -371,22 +371,22 @@ export const helpContent: HelpContentMap = {
           <strong>Reiniciar:</strong> Limpia el formulario para empezar una nueva importacion.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Consejo:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Consejo:</p>
         <p className="text-sm mt-1">
           Siempre ejecuta el dry-run primero. Si hay errores, corrige el CSV y vuelve a validar
           antes de confirmar.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Advertencia:</p>
         <p className="text-sm mt-1">
           La importacion es irreversible. No hay rollback manual disponible una vez confirmada.
           Verifica bien el CSV antes de confirmar.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2 border border-zinc-700">
-        <p className="text-blue-400 font-medium">Inscripciones (estudiantes):</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2 border border-sidebar-bg-edge">
+        <p className="text-accent-brand font-medium">Inscripciones (estudiantes):</p>
         <p className="text-sm mt-1">
           ADR-029. El CSV requiere comision_id, student_pseudonym (UUID derivado por federacion
           LDAP) y fecha_inscripcion. Rol y estado tienen defaults (regular, activa). Cada
@@ -398,7 +398,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   auditoria: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Auditoria de integridad CTR</p>
       <p>
         Verifica que la cadena criptografica SHA-256 de un episodio cerrado del piloto NO fue
@@ -425,16 +425,16 @@ export const helpContent: HelpContentMap = {
           aunque la verificacion on-demand pase ahora.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Para que sirve:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Para que sirve:</p>
         <p className="text-sm mt-1">
           Util para: (a) demos al comite doctoral de la integridad CTR en vivo, (b) diagnostico ante
           sospecha de tampering, (c) reproduccion bit-a-bit en auditorias externas (combinable con
           el JSONL Ed25519 de attestations institucionales, RN-128).
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2 border border-zinc-700">
-        <p className="text-blue-400 font-medium">Append-only:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2 border border-sidebar-bg-edge">
+        <p className="text-accent-brand font-medium">Append-only:</p>
         <p className="text-sm mt-1">
           ADR-010. El CTR NO permite UPDATE ni DELETE de eventos. Esta auditoria es la prueba
           empirica del invariante — si la cadena no verifica, hay tampering en la base.
@@ -444,7 +444,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   byok: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">BYOK Keys</p>
       <p>
         Bring Your Own Key (BYOK) permite que cada universidad use su propia clave de proveedor LLM
@@ -473,14 +473,14 @@ export const helpContent: HelpContentMap = {
           <strong>Uso:</strong> Muestra tokens consumidos y costo estimado por periodo mensual.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4">
-        <p className="text-orange-400 font-medium">Resolver jerarquico:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-warning font-medium">Resolver jerarquico:</p>
         <p className="text-sm mt-1">
           El ai-gateway resuelve keys en orden: materia =&gt; tenant =&gt; env_fallback. Si se
           revocan todas las keys de un scope, el resolver degrada al nivel siguiente.
         </p>
       </div>
-      <div className="bg-red-900/50 p-4 rounded-lg mt-2 border border-red-700">
+      <div className="bg-danger/50 p-4 rounded-lg mt-2 border border-danger">
         <p className="text-[var(--danger-text)] font-medium">Seguridad:</p>
         <p className="text-sm mt-1">
           Las keys BYOK nunca se devuelven en claro por ningun endpoint. Solo se expone el
@@ -492,7 +492,7 @@ export const helpContent: HelpContentMap = {
   ),
 
   governanceEvents: (
-    <div className="space-y-4 text-zinc-300">
+    <div className="space-y-4 text-muted-soft">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Eventos de gobernanza</p>
       <p>
         Vista institucional cross-cohort de los <strong>intentos adversos detectados</strong> por el
@@ -519,15 +519,15 @@ export const helpContent: HelpContentMap = {
           Windows). Filename incluye timestamp ISO + filtros.
         </li>
       </ul>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-4 border border-zinc-700">
-        <p className="text-blue-400 font-medium">Solo lectura:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4 border border-sidebar-bg-edge">
+        <p className="text-accent-brand font-medium">Solo lectura:</p>
         <p className="text-sm mt-1">
           ADR-037. La pagina NO permite mutaciones ni workflow "marcar revisado" — eso queda
           diferido a piloto-2 con tabla governance_event_reviews. El CTR es append-only por diseno.
         </p>
       </div>
-      <div className="bg-zinc-800 p-4 rounded-lg mt-2 border border-zinc-700">
-        <p className="text-orange-400 font-medium">Que NO es:</p>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-2 border border-sidebar-bg-edge">
+        <p className="text-warning font-medium">Que NO es:</p>
         <p className="text-sm mt-1">
           NO es deteccion de plagio. NO es deteccion automatica de mala-conducta. Es un instrumento
           de visibilidad pedagogica: el docente/admin puede ver patrones agregados de presion sobre

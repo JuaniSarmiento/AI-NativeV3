@@ -21,7 +21,7 @@ type ModalState =
   | { type: "usage"; key: ByokKey }
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
 
 function Field({
   label,
@@ -35,9 +35,9 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children es el control wrappeado por el padre
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-700">
+      <span className="text-xs font-medium text-body">
         {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
+        {required && <span className="text-danger ml-0.5">*</span>}
       </span>
       {children}
     </label>
@@ -79,14 +79,14 @@ export function ByokPage(): ReactNode {
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <label htmlFor="scope-filter" className="text-sm font-medium text-slate-700">
+            <label htmlFor="scope-filter" className="text-sm font-medium text-body">
               Filtrar por scope:
             </label>
             <select
               id="scope-filter"
               value={scopeTypeFilter}
               onChange={(e) => setScopeTypeFilter(e.target.value)}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              className="rounded-md border border-border px-3 py-1.5 text-sm"
             >
               <option value="">Todos</option>
               <option value="tenant">Tenant</option>
@@ -97,7 +97,7 @@ export function ByokPage(): ReactNode {
           <button
             type="button"
             onClick={() => setModal({ type: "create" })}
-            className="flex items-center gap-1.5 rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
+            className="flex items-center gap-1.5 rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep"
           >
             <Key size={14} />
             Nueva key
@@ -105,26 +105,26 @@ export function ByokPage(): ReactNode {
         </div>
 
         {errorMsg && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
             {errorMsg}
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
           {keysQuery.isLoading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando...</div>
+            <div className="p-8 text-center text-muted text-sm">Cargando...</div>
           ) : keys.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               <div className="flex flex-col items-center gap-3">
-                <Key size={32} className="text-slate-300" />
+                <Key size={32} className="text-muted-soft" />
                 <p className="font-medium">No hay BYOK keys configuradas</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-soft">
                   Crea una key para que el ai-gateway use tu propia clave de proveedor LLM.
                 </p>
                 <button
                   type="button"
                   onClick={() => setModal({ type: "create" })}
-                  className="mt-1 rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+                  className="mt-1 rounded-md bg-accent-brand text-white px-4 py-1.5 text-sm hover:bg-accent-brand-deep"
                 >
                   Crear primera key
                 </button>
@@ -132,7 +132,7 @@ export function ByokPage(): ReactNode {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-left">
+              <thead className="bg-surface-alt border-b border-border-soft text-left">
                 <tr>
                   <th className="px-4 py-2 font-medium">Scope</th>
                   <th className="px-4 py-2 font-medium">Scope ID</th>
@@ -146,9 +146,9 @@ export function ByokPage(): ReactNode {
               </thead>
               <tbody>
                 {keys.map((k) => (
-                  <tr key={k.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr key={k.id} className="border-b border-border-soft hover:bg-surface-alt">
                     <td className="px-4 py-2 font-mono text-xs">{k.scope_type}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-slate-500">
+                    <td className="px-4 py-2 font-mono text-xs text-muted">
                       {k.scope_id ? `${k.scope_id.slice(0, 8)}…` : "—"}
                     </td>
                     <td className="px-4 py-2 font-medium">{k.provider}</td>
@@ -158,16 +158,16 @@ export function ByokPage(): ReactNode {
                     </td>
                     <td className="px-4 py-2">
                       {k.revoked_at ? (
-                        <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-xs">
+                        <span className="rounded-full bg-danger-soft text-danger px-2 py-0.5 text-xs">
                           Revocada
                         </span>
                       ) : (
-                        <span className="rounded-full bg-green-100 text-green-700 px-2 py-0.5 text-xs">
+                        <span className="rounded-full bg-green-100 text-success px-2 py-0.5 text-xs">
                           Activa
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-500">
+                    <td className="px-4 py-2 text-xs text-muted">
                       {new Date(k.created_at).toLocaleDateString("es-AR")}
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -175,7 +175,7 @@ export function ByokPage(): ReactNode {
                         <button
                           type="button"
                           onClick={() => setModal({ type: "usage", key: k })}
-                          className="text-xs text-blue-700 hover:text-blue-900"
+                          className="text-xs text-accent-brand-deep hover:text-accent-brand-deep"
                         >
                           Uso
                         </button>
@@ -184,14 +184,14 @@ export function ByokPage(): ReactNode {
                             <button
                               type="button"
                               onClick={() => setModal({ type: "rotate", key: k })}
-                              className="text-xs text-amber-700 hover:text-amber-900"
+                              className="text-xs text-warning/85 hover:text-warning"
                             >
                               Rotar
                             </button>
                             <button
                               type="button"
                               onClick={() => setModal({ type: "revoke", key: k })}
-                              className="text-xs text-red-700 hover:text-red-900"
+                              className="text-xs text-danger hover:text-danger"
                             >
                               Revocar
                             </button>
@@ -236,16 +236,16 @@ export function ByokPage(): ReactNode {
           size="sm"
         >
           <div className="space-y-4">
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-body">
               Esta accion es <strong>irreversible</strong>. La key con fingerprint{" "}
-              <code className="font-mono bg-slate-100 px-1 rounded">
+              <code className="font-mono bg-surface-alt px-1 rounded">
                 …{modal.key.fingerprint_last4}
               </code>{" "}
               ({modal.key.provider} / {modal.key.scope_type}) quedara revocada y el ai-gateway no
               podra usarla.
             </p>
             {revokeMutation.error && (
-              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+              <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
                 {revokeMutation.error instanceof HttpError
                   ? revokeMutation.error.detail || revokeMutation.error.title
                   : String(revokeMutation.error)}
@@ -255,7 +255,7 @@ export function ByokPage(): ReactNode {
               <button
                 type="button"
                 onClick={() => setModal({ type: "none" })}
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface-alt"
               >
                 Cancelar
               </button>
@@ -263,7 +263,7 @@ export function ByokPage(): ReactNode {
                 type="button"
                 onClick={() => revokeMutation.mutate(modal.key.id)}
                 disabled={revokeMutation.isPending}
-                className="rounded-md bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                className="rounded-md bg-danger text-white px-4 py-2 text-sm font-medium hover:bg-danger disabled:opacity-50"
               >
                 {revokeMutation.isPending ? "Revocando..." : "Revocar key"}
               </button>
@@ -331,7 +331,7 @@ function CreateKeyModal({
             size="sm"
             title="Crear BYOK key"
             content={
-              <div className="space-y-2 text-zinc-300 text-sm">
+              <div className="space-y-2 text-muted-soft text-sm">
                 <p>
                   <strong>Scope type:</strong> tenant aplica a toda la universidad; materia solo a
                   esa materia (resolver usa materia primero).
@@ -347,20 +347,18 @@ function CreateKeyModal({
               </div>
             }
           />
-          <span className="text-sm text-slate-500">Completa los campos de la nueva key</span>
+          <span className="text-sm text-muted">Completa los campos de la nueva key</span>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Scope type" required>
             <select
               value={form.scope_type}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  scope_type: e.target.value as ByokKeyCreate["scope_type"],
-                  scope_id: undefined,
-                })
-              }
+              onChange={(e) => {
+                const next = { ...form, scope_type: e.target.value as ByokKeyCreate["scope_type"] }
+                delete next.scope_id
+                setForm(next)
+              }}
               className={inputClass}
             >
               <option value="tenant">Tenant</option>
@@ -377,7 +375,15 @@ function CreateKeyModal({
             ) : (
               <select
                 value={form.scope_id ?? ""}
-                onChange={(e) => setForm({ ...form, scope_id: e.target.value || undefined })}
+                onChange={(e) => {
+                  const next = { ...form }
+                  if (e.target.value) {
+                    next.scope_id = e.target.value
+                  } else {
+                    delete next.scope_id
+                  }
+                  setForm(next)
+                }}
                 className={inputClass}
               >
                 <option value="">Seleccionar...</option>
@@ -414,12 +420,15 @@ function CreateKeyModal({
               step="0.01"
               min={0}
               value={form.monthly_budget_usd ?? ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  monthly_budget_usd: e.target.value ? Number(e.target.value) : undefined,
-                })
-              }
+              onChange={(e) => {
+                const next = { ...form }
+                if (e.target.value) {
+                  next.monthly_budget_usd = Number(e.target.value)
+                } else {
+                  delete next.monthly_budget_usd
+                }
+                setForm(next)
+              }}
               placeholder="Sin limite"
               className={inputClass}
             />
@@ -441,7 +450,7 @@ function CreateKeyModal({
         </div>
 
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
             {error}
           </div>
         )}
@@ -450,14 +459,14 @@ function CreateKeyModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface-alt"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
           >
             {createMutation.isPending ? "Creando..." : "Crear key"}
           </button>
@@ -498,13 +507,13 @@ function RotateKeyModal({
   return (
     <Modal isOpen onClose={onClose} title="Rotar BYOK key" size="md">
       <form onSubmit={submit} className="space-y-4">
-        <div className="rounded-md bg-slate-50 border border-slate-200 p-3 text-sm">
+        <div className="rounded-md bg-surface-alt border border-border-soft p-3 text-sm">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <span className="text-slate-500">Provider:</span>
+            <span className="text-muted">Provider:</span>
             <span className="font-medium">{byokKey.provider}</span>
-            <span className="text-slate-500">Fingerprint actual:</span>
+            <span className="text-muted">Fingerprint actual:</span>
             <code className="font-mono">…{byokKey.fingerprint_last4}</code>
-            <span className="text-slate-500">Scope:</span>
+            <span className="text-muted">Scope:</span>
             <span>{byokKey.scope_type}</span>
           </div>
         </div>
@@ -522,7 +531,7 @@ function RotateKeyModal({
         </Field>
 
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
             {error}
           </div>
         )}
@@ -531,14 +540,14 @@ function RotateKeyModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface-alt"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={rotateMutation.isPending || !plaintext}
-            className="rounded-md bg-amber-600 text-white px-4 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+            className="rounded-md bg-warning text-white px-4 py-2 text-sm font-medium hover:bg-warning disabled:opacity-50"
           >
             {rotateMutation.isPending ? "Rotando..." : "Rotar key"}
           </button>
@@ -571,14 +580,14 @@ function UsagePanel({
     >
       <div className="space-y-4">
         {usageQuery.isLoading ? (
-          <div className="text-center text-slate-500 text-sm py-4">Cargando...</div>
+          <div className="text-center text-muted text-sm py-4">Cargando...</div>
         ) : usage.length === 0 ? (
-          <div className="text-center text-slate-500 text-sm py-4">
+          <div className="text-center text-muted text-sm py-4">
             No hay registros de uso para esta key.
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-left">
+            <thead className="bg-surface-alt border-b border-border-soft text-left">
               <tr>
                 <th className="px-3 py-2 font-medium">Periodo</th>
                 <th className="px-3 py-2 font-medium text-right">Tokens entrada</th>
@@ -589,7 +598,7 @@ function UsagePanel({
             </thead>
             <tbody>
               {usage.map((u) => (
-                <tr key={u.yyyymm} className="border-b border-slate-100">
+                <tr key={u.yyyymm} className="border-b border-border-soft">
                   <td className="px-3 py-2 font-mono text-xs">{u.yyyymm}</td>
                   <td className="px-3 py-2 text-right text-xs">{u.tokens_input_total.toLocaleString()}</td>
                   <td className="px-3 py-2 text-right text-xs">{u.tokens_output_total.toLocaleString()}</td>
@@ -604,7 +613,7 @@ function UsagePanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface-alt"
           >
             Cerrar
           </button>

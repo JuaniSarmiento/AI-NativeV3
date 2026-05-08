@@ -6,13 +6,15 @@ import { useEffect, useState } from "react"
 /**
  * Sidebar colapsable + agrupado, compartido por los frontends admin/teacher.
  *
- * - Fijo a la izquierda, full-height, fondo gray-900.
- * - Estado expanded/collapsed persistido en localStorage bajo `storageKey`.
- * - `topSlot` opcional para contenido arriba de los grupos de nav (ej. ComisionSelector
- *   en web-teacher). Sólo se renderiza cuando el sidebar está expanded — en collapsed
- *   mode lo ocultamos para no inflar los 64px.
- * - Tooltips en collapsed via `title` attr nativo (sin libs).
- * - Item activo destacado con background + border-left azul.
+ * Paleta v2 — "Stack Blue institucional":
+ * - Fondo carbón puro `bg-sidebar-bg` (#1a1a1a). Sin mezcla gray/slate/zinc anterior.
+ * - Item activo: border-left acento brand (Stack Blue) + bg sidebar-bg-edge sutil.
+ * - Texto crema cálido (no blanco saturado). Muted texts preservan jerarquía.
+ *
+ * Estado expanded/collapsed persistido en localStorage bajo `storageKey`.
+ * `topSlot` opcional para contenido arriba de los grupos de nav (ej. ComisionSelector
+ * en web-teacher). Sólo se renderiza cuando el sidebar está expanded.
+ * Tooltips en collapsed via `title` attr nativo (sin libs).
  */
 
 export interface NavItem {
@@ -71,20 +73,20 @@ export function Sidebar({
 
   return (
     <aside
-      className={`${widthClass} shrink-0 bg-gray-900 text-gray-100 flex flex-col border-r border-gray-800 transition-[width] duration-150`}
+      className={`${widthClass} shrink-0 bg-sidebar-bg text-sidebar-text flex flex-col border-r border-border transition-[width] duration-150`}
       aria-label="Navegación principal"
     >
       <div
-        className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} px-3 h-14 border-b border-gray-800`}
+        className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} px-3 h-14 border-b border-border-soft`}
       >
-        {!collapsed && <span className="text-sm font-semibold tracking-tight">{headerLabel}</span>}
+        {!collapsed && <span className="text-sm font-semibold tracking-tight text-ink">{headerLabel}</span>}
         {collapsed && (
-          <span className="text-sm font-semibold tracking-tight">{collapsedHeaderLabel}</span>
+          <span className="text-sm font-semibold tracking-tight text-ink">{collapsedHeaderLabel}</span>
         )}
       </div>
 
       {!collapsed && topSlot && (
-        <div className="px-3 pt-3 pb-3 border-b border-slate-800/50 mb-3">{topSlot}</div>
+        <div className="px-3 pt-3 pb-3 border-b border-border-soft mb-3">{topSlot}</div>
       )}
 
       <nav className="flex-1 overflow-y-auto py-3">
@@ -99,11 +101,11 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="border-t border-gray-800 p-2">
+      <div className="border-t border-border-soft p-2">
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-gray-300 hover:bg-gray-800 hover:text-white"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-muted hover:bg-surface-alt hover:text-ink transition-colors"
           aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
           aria-expanded={!collapsed}
           title={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
@@ -138,13 +140,13 @@ function NavGroupBlock({
   return (
     <div className="mb-4 last:mb-0">
       {group.label && !collapsed && (
-        <div className="px-4 mb-1 text-xs uppercase tracking-wider text-gray-400">
+        <div className="px-4 mb-1 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted">
           {group.label}
         </div>
       )}
       {group.label && collapsed && (
         // En collapsed, separador visual sutil entre grupos (sin texto).
-        <div className="mx-3 mb-1 border-t border-gray-800" />
+        <div className="mx-3 mb-1 border-t border-border-soft" />
       )}
       <ul className="space-y-0.5 px-2">
         {group.items.map((item) => (
@@ -174,8 +176,8 @@ function NavLink({ item, active, onNavigate, collapsed }: NavLinkProps): ReactNo
   const baseClasses =
     "group relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors"
   const stateClasses = active
-    ? "bg-gray-800 text-white border-l-2 border-blue-500 pl-[10px]"
-    : "text-gray-300 hover:bg-gray-800 hover:text-white border-l-2 border-transparent pl-[10px]"
+    ? "bg-accent-brand-soft text-accent-brand-deep font-medium border-l-2 border-accent-brand pl-[10px]"
+    : "text-body hover:bg-surface-alt hover:text-ink border-l-2 border-transparent pl-[10px]"
   const justifyClass = collapsed ? "justify-center" : ""
 
   return (

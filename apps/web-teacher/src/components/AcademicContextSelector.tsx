@@ -175,16 +175,16 @@ export function AcademicContextSelector({ value, onChange, getToken }: Props) {
   )
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+    <div className="space-y-3 rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <h3 className="text-sm font-semibold text-body dark:text-sidebar-text">
           Contexto academico
         </h3>
         {isComplete && (
           <button
             type="button"
             onClick={handleReset}
-            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline"
+            className="text-xs text-muted hover:text-body dark:hover:text-sidebar-text underline"
           >
             Cambiar seleccion
           </button>
@@ -276,14 +276,14 @@ function CascadeSelect<T extends { id: string }>({
 
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+      <span className="block text-xs font-medium text-muted dark:text-muted-soft mb-1">
         {label}
       </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || isLoading || hasError || emptyWhenEnabled}
-        className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="">
           {isLoading

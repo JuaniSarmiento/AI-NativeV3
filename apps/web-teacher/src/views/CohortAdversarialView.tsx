@@ -73,7 +73,7 @@ function CategoryBars({
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1])
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[#EAEAEA] p-4 text-center text-sm text-[#787774]">
+      <div className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted">
         {isDocente
           ? "No se detectaron intentos de uso inapropiado."
           : "Sin eventos adversos detectados en la cohorte."}
@@ -88,10 +88,10 @@ function CategoryBars({
         const ratio = max > 0 ? count / max : 0
         return (
           <div key={cat} className="flex items-center gap-3">
-            <div className="w-56 shrink-0 text-sm text-[#111111] truncate">
+            <div className="w-56 shrink-0 text-sm text-ink truncate">
               {labels[cat] ?? cat}
             </div>
-            <div className="flex-1 h-5 rounded-full bg-[#EAEAEA] overflow-hidden">
+            <div className="flex-1 h-5 rounded-full bg-border overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -100,7 +100,7 @@ function CategoryBars({
                 }}
               />
             </div>
-            <div className="w-10 shrink-0 text-right text-sm font-semibold text-[#111111]">
+            <div className="w-10 shrink-0 text-right text-sm font-semibold text-ink">
               {count}
             </div>
           </div>
@@ -127,10 +127,10 @@ function SeverityBars({
         const ratio = count / max
         return (
           <div key={sev} className="flex flex-col items-center gap-1">
-            <div className="text-xs font-medium text-[#787774]">
+            <div className="text-xs font-medium text-muted">
               {isDocente ? (SEVERITY_DOCENTE[sev] ?? `Sev. ${sev}`) : `Sev. ${sev}`}
             </div>
-            <div className="h-20 w-full flex items-end rounded-lg bg-[#EAEAEA] overflow-hidden">
+            <div className="h-20 w-full flex items-end rounded-lg bg-border overflow-hidden">
               <div
                 className="w-full transition-all rounded-lg"
                 style={{
@@ -139,7 +139,7 @@ function SeverityBars({
                 }}
               />
             </div>
-            <div className="text-sm font-semibold text-[#111111]">{count}</div>
+            <div className="text-sm font-semibold text-ink">{count}</div>
           </div>
         )
       })}
@@ -224,7 +224,7 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             <Link
               to="/progression"
               search={{ comisionId }}
-              className="text-[#787774] hover:text-[#111111] transition-colors"
+              className="text-muted hover:text-ink transition-colors"
             >
               ← {isDocente ? "Volver a mis alumnos" : "Volver a la cohorte"}
             </Link>
@@ -232,7 +232,7 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
         )}
 
         {!comisionId && !loading && (
-          <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-white p-6 text-sm text-[#787774]">
+          <div className="rounded-xl border border-dashed border-border bg-white p-6 text-sm text-muted">
             {isDocente
               ? "Elegi una comision para ver si hubo intentos de uso inapropiado."
               : "Elegi una comision desde la barra lateral para ver los intentos adversos detectados."}
@@ -251,13 +251,13 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
 
         {data && !loading && (
           <>
-            <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
+            <div className="rounded-xl border border-border bg-white px-6 py-4">
               <div className="flex flex-wrap gap-x-8 gap-y-3 items-start">
                 <div>
-                  <div className="text-3xl font-semibold text-[#111111]">
+                  <div className="text-3xl font-semibold text-ink">
                     {data.n_events_total}
                   </div>
-                  <div className="text-xs text-[#787774] mt-0.5">
+                  <div className="text-xs text-muted mt-0.5">
                     {isDocente
                       ? `intento${data.n_events_total !== 1 ? "s" : ""} detectado${data.n_events_total !== 1 ? "s" : ""}`
                       : "eventos totales"}
@@ -269,14 +269,14 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
                     .map(([cat, count]) => (
                       <span
                         key={cat}
-                        className="inline-flex items-center gap-1.5 text-xs text-[#787774]"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted"
                       >
                         <span
                           aria-hidden="true"
                           className="inline-block w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: catColors[cat] ?? "#64748b" }}
                         />
-                        <span className="font-medium text-[#111111]">{count}</span>{" "}
+                        <span className="font-medium text-ink">{count}</span>{" "}
                         {isDocente
                           ? (ADVERSARIAL_DOCENTE[cat] ?? cat)
                           : (CATEGORY_LABELS[cat] ?? cat)}
@@ -289,15 +289,15 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             {isDocente && data.n_events_total > 0 && (() => {
               const insight = topStudentInsight(data)
               return insight ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900">
+                <div className="rounded-xl border border-warning/30 bg-warning-soft px-6 py-4 text-sm text-warning">
                   {insight}
                 </div>
               ) : null
             })()}
 
-            <div className="rounded-xl border border-[#EAEAEA] bg-white p-6 space-y-5">
+            <div className="rounded-xl border border-border bg-white p-6 space-y-5">
               <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-[#787774] mb-3">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted mb-3">
                   {isDocente ? "Tipo de intento" : "Por categoria"}
                 </div>
                 <CategoryBars
@@ -306,8 +306,8 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
                   isDocente={isDocente}
                 />
               </div>
-              <div className="border-t border-[#EAEAEA] pt-5">
-                <div className="text-xs font-medium uppercase tracking-wider text-[#787774] mb-3">
+              <div className="border-t border-border pt-5">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted mb-3">
                   {isDocente ? "Nivel de riesgo" : "Por severidad (1-5, ordinal)"}
                 </div>
                 <SeverityBars
@@ -319,9 +319,9 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             </div>
 
             {data.top_students_by_n_events.length > 0 && (
-              <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
-                <div className="border-b border-[#EAEAEA] px-6 py-3">
-                  <span className="text-xs font-semibold text-[#111111] uppercase tracking-wider">
+              <div className="rounded-xl border border-border bg-white overflow-hidden">
+                <div className="border-b border-border px-6 py-3">
+                  <span className="text-xs font-semibold text-ink uppercase tracking-wider">
                     {isDocente
                       ? "Alumnos con mas intentos"
                       : "Top estudiantes por numero de eventos"}
@@ -334,31 +334,31 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
                         <Link
                           to="/student-longitudinal"
                           search={{ comisionId, studentId: s.student_pseudonym }}
-                          className="flex items-center justify-between px-6 py-3 hover:bg-[#FAFAFA] transition-colors"
+                          className="flex items-center justify-between px-6 py-3 hover:bg-canvas transition-colors"
                           data-testid="adversarial-top-student-link"
                         >
-                          <span className="font-mono text-xs text-[#787774]">
+                          <span className="font-mono text-xs text-muted">
                             {isDocente
                               ? studentShortLabel(s.student_pseudonym)
                               : `${s.student_pseudonym.slice(0, 8)}...${s.student_pseudonym.slice(-4)}`}
                           </span>
                           <span className="flex items-center gap-2">
-                            <Badge className="bg-[#111111] text-white">
+                            <Badge className="bg-ink text-white">
                               {s.n_events} {isDocente ? `intento${s.n_events !== 1 ? "s" : ""}` : "ev."}
                             </Badge>
-                            <span aria-hidden="true" className="text-[#EAEAEA]">
+                            <span aria-hidden="true" className="text-border">
                               ›
                             </span>
                           </span>
                         </Link>
                       ) : (
                         <div className="flex items-center justify-between px-6 py-3">
-                          <span className="font-mono text-xs text-[#787774]">
+                          <span className="font-mono text-xs text-muted">
                             {isDocente
                               ? studentShortLabel(s.student_pseudonym)
                               : `${s.student_pseudonym.slice(0, 8)}...${s.student_pseudonym.slice(-4)}`}
                           </span>
-                          <Badge className="bg-[#111111] text-white">
+                          <Badge className="bg-ink text-white">
                             {s.n_events} {isDocente ? `intento${s.n_events !== 1 ? "s" : ""}` : "ev."}
                           </Badge>
                         </div>
@@ -370,13 +370,13 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             )}
 
             {!isDocente && data.recent_events.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
-                <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-6 py-3 text-xs font-semibold text-[#111111] uppercase tracking-wider">
+              <div className="overflow-hidden rounded-xl border border-border bg-white">
+                <div className="border-b border-border bg-canvas px-6 py-3 text-xs font-semibold text-ink uppercase tracking-wider">
                   Eventos recientes ({data.recent_events.length})
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-[#FAFAFA] text-left text-xs uppercase tracking-wider text-[#787774] border-b border-[#EAEAEA]">
+                    <thead className="bg-canvas text-left text-xs uppercase tracking-wider text-muted border-b border-border">
                       <tr>
                         <th className="px-4 py-2.5 font-medium">Timestamp</th>
                         <th className="px-4 py-2.5 font-medium">Categoria</th>
@@ -402,15 +402,15 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
             )}
 
             {isDocente && data.recent_events.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-[#EAEAEA] bg-white">
-                <div className="border-b border-[#EAEAEA] bg-[#FAFAFA] px-6 py-3 text-xs font-semibold text-[#111111] uppercase tracking-wider">
+              <div className="overflow-hidden rounded-xl border border-border bg-white">
+                <div className="border-b border-border bg-canvas px-6 py-3 text-xs font-semibold text-ink uppercase tracking-wider">
                   Ultimos intentos ({data.recent_events.length})
                 </div>
                 <ul className="divide-y divide-[#EAEAEA]">
                   {data.recent_events.map((ev, idx) => (
                     <li
                       key={`${ev.episode_id}-${idx}`}
-                      className="px-6 py-3 hover:bg-[#FAFAFA] transition-colors"
+                      className="px-6 py-3 hover:bg-canvas transition-colors"
                     >
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
@@ -420,17 +420,17 @@ export function CohortAdversarialView({ getToken, initialComisionId }: Props) {
                             style={{ backgroundColor: catColors[ev.category] ?? "#64748b" }}
                           />
                           <div className="min-w-0">
-                            <div className="text-sm text-[#111111]">
+                            <div className="text-sm text-ink">
                               {ADVERSARIAL_DOCENTE[ev.category] ?? ev.category}
                             </div>
-                            <div className="text-xs text-[#787774]">
+                            <div className="text-xs text-muted">
                               {studentShortLabel(ev.student_pseudonym)} ·{" "}
                               {ev.ts.slice(0, 10)}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-xs text-[#787774]">
+                          <span className="text-xs text-muted">
                             Riesgo: {SEVERITY_DOCENTE[String(ev.severity)] ?? ev.severity}
                           </span>
                           <Link
@@ -488,12 +488,12 @@ function RecentEventRow({
   sevColors: Record<string, string>
 }) {
   return (
-    <tr className="border-b border-[#EAEAEA] last:border-0 hover:bg-[#FAFAFA] transition-colors">
-      <td className="px-4 py-3 align-top text-xs text-[#787774] whitespace-nowrap">
+    <tr className="border-b border-border last:border-0 hover:bg-canvas transition-colors">
+      <td className="px-4 py-3 align-top text-xs text-muted whitespace-nowrap">
         {event.ts.slice(0, 19).replace("T", " ")}
       </td>
       <td className="px-4 py-3 align-top">
-        <span className="inline-flex items-center gap-1.5 text-xs text-[#111111]">
+        <span className="inline-flex items-center gap-1.5 text-xs text-ink">
           <span
             aria-hidden="true"
             className="inline-block w-2 h-2 rounded-full shrink-0"
@@ -510,11 +510,11 @@ function RecentEventRow({
           {event.severity}
         </span>
       </td>
-      <td className="px-4 py-3 align-top font-mono text-xs text-[#787774]">
+      <td className="px-4 py-3 align-top font-mono text-xs text-muted">
         {event.student_pseudonym.slice(0, 8)}...
       </td>
       <td className="px-4 py-3 align-top">
-        <code className="block text-xs text-[#111111] bg-[#FAFAFA] rounded px-2 py-1 break-all">
+        <code className="block text-xs text-ink bg-canvas rounded px-2 py-1 break-all">
           {event.matched_text}
         </code>
       </td>

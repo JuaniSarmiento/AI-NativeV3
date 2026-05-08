@@ -44,7 +44,7 @@ describe("Sidebar topSlot separator", () => {
     if (!wrapper) return
     expect(wrapper.className).toContain("pb-3")
     expect(wrapper.className).toContain("border-b")
-    expect(wrapper.className).toContain("border-slate-800/50")
+    expect(wrapper.className).toContain("border-border-soft")
     expect(wrapper.className).toContain("mb-3")
   })
 
@@ -62,10 +62,13 @@ describe("Sidebar topSlot separator", () => {
     expect(screen.queryByTestId("top-collapsed")).toBeNull()
   })
 
-  it("expanded sin topSlot → no hay wrapper con border-slate-800/50", () => {
+  it("expanded sin topSlot → solo separadores estructurales, no wrapper de topSlot", () => {
     render(<Sidebar {...baseProps} storageKey="test-sidebar-no-top-3" />)
     const aside = screen.getByRole("complementary")
-    const candidates = aside.querySelectorAll('[class*="border-slate-800"]')
+    // Sin topSlot, NO debe existir un div con la combo de clases del wrapper
+    // de topSlot ("pb-3 border-b border-sidebar-bg-edge mb-3"). Los borders
+    // estructurales del header/footer del sidebar SÍ existen pero NO con esa combo.
+    const candidates = aside.querySelectorAll('div[class*="pb-3"][class*="mb-3"]')
     expect(candidates.length).toBe(0)
   })
 })

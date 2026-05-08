@@ -1,6 +1,6 @@
-import { PageContainer, StateMessage } from "@platform/ui"
+import { HelpButton, StateMessage } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight, TriangleAlert, TrendingUp } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
 import { useViewMode } from "../hooks/useViewMode"
@@ -99,108 +99,186 @@ export function ProgressionView({ comisionId, getToken }: Props) {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <StateMessage variant="loading" title="Cargando progresion..." />
+      <div className="page-enter space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-3">
+          <div className="skeleton h-3 w-32 rounded" />
+          <div className="skeleton h-9 w-64 rounded" />
+          <div className="skeleton h-4 w-96 rounded" />
+        </div>
+        <div className="skeleton h-32 rounded-2xl" />
+        <div className="skeleton h-20 rounded-xl" />
+        <div className="skeleton h-96 rounded-xl" />
       </div>
     )
   }
   if (error) {
     return (
-      <div className="p-8">
+      <div className="page-enter max-w-7xl mx-auto p-8">
         <StateMessage variant="error" title="No se pudo cargar la progresion" description={error} />
       </div>
     )
   }
   if (!data) return null
 
+  const subtitle = isDocente
+    ? `${data.n_students} alumnos · ordenados por quienes necesitan más atención primero`
+    : `${data.n_students} estudiantes · ${data.n_students_with_enough_data} con datos suficientes (≥3 episodios)`
+
   return (
-    <PageContainer
-      title={isDocente ? "Como van mis alumnos" : "Progresion longitudinal"}
-      description={
-        isDocente
-          ? `Comision ${comisionLabelText} · ${data.n_students} alumnos`
-          : `Cohorte ${comisionLabelText} · ${data.n_students} estudiantes · ${data.n_students_with_enough_data} con datos suficientes (>=3 episodios)`
-      }
-      helpContent={helpContent.progression}
-    >
-      <div className="space-y-6">
-        <SummaryStrip data={data} isDocente={isDocente} />
-        <NetProgressionBar ratio={data.net_progression_ratio} isDocente={isDocente} />
-        {isDocente && data.empeorando > 0 && (
-          <ActionInsight count={data.empeorando} />
-        )}
-        <TrajectoriesSection
-          trajectories={data.trajectories}
-          comisionId={comisionId}
-          isDocente={isDocente}
-          entregaStats={entregaStats}
-          unidades={unidades}
-          getToken={getToken}
-        />
-      </div>
-    </PageContainer>
+    <div className="page-enter space-y-8 max-w-7xl mx-auto">
+      {/* ═══ HEADER ═════════════════════════════════════════════════════ */}
+      <header className="flex items-start justify-between gap-6 animate-fade-in-down">
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <nav className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted flex items-center gap-2 flex-wrap">
+            <Link to="/" className="hover:text-ink transition-colors">
+              Inicio
+            </Link>
+            <span aria-hidden="true" className="text-border-strong">/</span>
+            <span className="text-ink">{comisionLabelText}</span>
+          </nav>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink leading-none">
+            {isDocente ? "Cómo van mis alumnos" : "Progresión longitudinal"}
+          </h1>
+          <p className="text-sm text-muted leading-relaxed mt-1.5 max-w-2xl">{subtitle}</p>
+        </div>
+        <HelpButton title="Progresión" content={helpContent.progression} />
+      </header>
+
+      {/* ═══ HERO PANEL — 4 stats agregadas ═════════════════════════════ */}
+      <SummaryStrip data={data} isDocente={isDocente} />
+
+      {/* ═══ Net progression bar ═══ */}
+      <NetProgressionBar ratio={data.net_progression_ratio} isDocente={isDocente} />
+
+      {/* ═══ Action insight (alumnos en riesgo) ═══ */}
+      {isDocente && data.empeorando > 0 && <ActionInsight count={data.empeorando} />}
+
+      {/* ═══ Tabla de trayectorias por alumno ═══ */}
+      <TrajectoriesSection
+        trajectories={data.trajectories}
+        comisionId={comisionId}
+        isDocente={isDocente}
+        entregaStats={entregaStats}
+        unidades={unidades}
+        getToken={getToken}
+      />
+    </div>
   )
 }
 
 function ActionInsight({ count }: { count: number }) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-900">
-      <strong>{count} alumno{count !== 1 ? "s" : ""} en riesgo.</strong>{" "}
-      Considerá revisar sus ultimos trabajos y acercarte a conversar con ellos.
+    <div
+      role="alert"
+      className="animate-fade-in-up rounded-xl border border-warning/30 bg-gradient-to-r from-warning-soft to-warning-soft/40 px-5 py-4 flex items-start gap-3"
+    >
+      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+        <TriangleAlert className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-warning">
+          {count} alumno{count !== 1 ? "s" : ""} en riesgo
+        </div>
+        <p className="text-sm text-warning/85 leading-relaxed mt-0.5">
+          Considerá revisar sus últimos trabajos y acercarte a conversar con ellos.
+        </p>
+      </div>
     </div>
   )
 }
 
 function SummaryStrip({ data, isDocente }: { data: CohortProgression; isDocente: boolean }) {
-  const items: { label: string; value: number; dot: string }[] = [
+  type Item = {
+    label: string
+    value: number
+    dot: string
+    isHighlight?: boolean
+  }
+  const items: Item[] = [
     {
-      label: isDocente ? "Mejorando" : "Mejorando",
+      label: "Mejorando",
       value: data.mejorando,
       dot: "var(--color-success)",
     },
     {
-      label: isDocente ? "Estable" : "Estable",
+      label: "Estable",
       value: data.estable,
       dot: "var(--color-neutral)",
     },
     {
-      label: isDocente ? "En riesgo" : "En riesgo",
+      label: "En riesgo",
       value: data.empeorando,
       dot: "var(--color-danger)",
+      isHighlight: data.empeorando > 0,
     },
     {
-      label: isDocente ? "Sin datos" : "Sin datos",
+      label: "Sin datos",
       value: data.insuficiente,
-      dot: "#EAEAEA",
+      dot: "var(--color-border-strong)",
     },
   ]
   const total = data.n_students || 1
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
-      <ul
-        className="flex flex-wrap divide-x divide-[#EAEAEA]"
-        data-testid="progression-summary-strip"
-      >
-        {items.map((it) => (
-          <li key={it.label} className="flex items-center gap-3 px-6 first:pl-0 last:pr-0 py-1">
-            <span
-              aria-hidden="true"
-              className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: it.dot }}
-            />
-            <div>
-              <div className="text-xl font-semibold text-[#111111]">{it.value}</div>
-              <div className="text-xs text-[#787774]">
-                {it.label}
-                {total > 0 && (
-                  <span className="ml-1">({((it.value / total) * 100).toFixed(0)}%)</span>
-                )}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section
+      data-testid="progression-summary-strip"
+      className="relative overflow-hidden rounded-2xl bg-surface border border-border p-6 sm:p-8 animate-fade-in-up animate-delay-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)]"
+      aria-label="Resumen de progresión de la cohorte"
+    >
+      {/* Banda vertical Stack Blue */}
+      <div
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-brand via-accent-brand to-accent-brand/40"
+      />
+      {/* Glow muy sutil */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -right-32 w-72 h-72 rounded-full bg-accent-brand/5 blur-3xl"
+      />
+
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-5">
+          <TrendingUp className="h-4 w-4 text-accent-brand" />
+          <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted">
+            {isDocente ? "Distribución de la cohorte" : "Distribución de trayectorias"}
+          </span>
+        </div>
+        <ul className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+          {items.map((it) => {
+            const pct = total > 0 ? (it.value / total) * 100 : 0
+            return (
+              <li key={it.label} className="flex flex-col gap-2 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block w-2 h-2 rounded-full shrink-0 ${it.isHighlight ? "animate-pulse-soft" : ""}`}
+                    style={{ backgroundColor: it.dot }}
+                  />
+                  <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted">
+                    {it.label}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-4xl font-semibold tracking-tight leading-none text-ink">
+                    {it.value}
+                  </span>
+                  <span className="text-xs font-mono text-muted">{pct.toFixed(0)}%</span>
+                </div>
+                {/* Mini bar */}
+                <div className="h-1 rounded-full bg-border-soft overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-[width] duration-700 ease-out"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: it.dot,
+                    }}
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </section>
   )
 }
 
@@ -208,39 +286,52 @@ function NetProgressionBar({ ratio, isDocente }: { ratio: number; isDocente: boo
   const pct = Math.abs(ratio) * 100
   const isPositive = ratio > 0.1
   const isNegative = ratio < -0.1
-  const barColor = isPositive ? "#16a34a" : isNegative ? "#dc2626" : "#EAEAEA"
+  const tone = isPositive ? "success" : isNegative ? "danger" : "neutral"
+  const barColor =
+    tone === "success"
+      ? "var(--color-success)"
+      : tone === "danger"
+        ? "var(--color-danger)"
+        : "var(--color-border-strong)"
+  const labelColor =
+    tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-muted"
 
   const plainLabel = isPositive
-    ? "La mayoria de los alumnos esta mejorando"
+    ? "La mayoría de tus alumnos está mejorando"
     : isNegative
-      ? "La mayoria de los alumnos esta empeorando"
+      ? "La mayoría de tus alumnos está empeorando"
       : "La cohorte se mantiene estable"
 
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white px-6 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-[#111111]">
-          {isDocente ? "Balance general" : "Net progression"}
-        </span>
-        {isDocente ? (
-          <span
-            className={`text-sm font-medium ${isPositive ? "text-green-600" : isNegative ? "text-red-600" : "text-[#787774]"}`}
-          >
-            {plainLabel}
+    <section
+      className="rounded-xl border border-border bg-surface px-6 py-5 animate-fade-in-up animate-delay-150"
+      aria-label={isDocente ? "Balance general de la cohorte" : "Net progression"}
+    >
+      <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-muted">
+            {isDocente ? "Balance general" : "Net progression"}
           </span>
-        ) : (
+          <span className={`text-sm font-medium ${labelColor}`}>{plainLabel}</span>
+        </div>
+        {!isDocente && (
           <span
-            className={`text-2xl font-semibold ${isPositive ? "text-green-600" : isNegative ? "text-red-600" : "text-[#787774]"}`}
+            className={`font-mono text-3xl font-semibold tracking-tight leading-none ${labelColor}`}
           >
             {ratio > 0 ? "+" : ""}
             {ratio.toFixed(3)}
           </span>
         )}
       </div>
-      <div className="relative h-1.5 bg-[#EAEAEA] rounded-full overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-full w-px bg-[#787774]" />
+
+      {/* Barra centrada con divider en 0 */}
+      <div className="relative h-2 bg-surface-alt rounded-full overflow-hidden">
         <div
-          className="absolute top-0 h-full rounded-full"
+          aria-hidden="true"
+          className="absolute left-1/2 top-0 h-full w-px bg-border-strong z-10"
+        />
+        <div
+          className="absolute top-0 h-full rounded-full transition-[left,width] duration-700 ease-out"
           style={{
             left: ratio >= 0 ? "50%" : `${50 - pct / 2}%`,
             width: `${pct / 2}%`,
@@ -248,12 +339,14 @@ function NetProgressionBar({ ratio, isDocente }: { ratio: number; isDocente: boo
           }}
         />
       </div>
+
       {!isDocente && (
-        <p className="text-xs text-[#787774] mt-2">
-          (mejorando - empeorando) / estudiantes con datos. Rango [-1, +1].
+        <p className="text-xs text-muted mt-3 leading-relaxed">
+          <span className="font-mono">(mejorando − empeorando) / estudiantes con datos</span> ·
+          Rango [−1, +1]
         </p>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -274,7 +367,7 @@ function TrajectoriesSection({
 }) {
   if (trajectories.length === 0) {
     return (
-      <div className="rounded-xl border border-[#EAEAEA] bg-white p-8 text-center text-[#787774]">
+      <div className="rounded-xl border border-border bg-white p-8 text-center text-muted">
         {isDocente
           ? "Todavia no hay datos de tus alumnos. Aparecerán cuando completen trabajos practicos."
           : "No hay trayectorias registradas en esta cohorte aun."}
@@ -293,19 +386,19 @@ function TrajectoriesSection({
   })
 
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
-      <div className="border-b border-[#EAEAEA] px-6 py-3">
-        <h2 className="text-sm font-semibold text-[#111111]">
+    <div className="rounded-xl border border-border bg-white overflow-hidden">
+      <div className="border-b border-border px-6 py-3">
+        <h2 className="text-sm font-semibold text-ink">
           {isDocente ? "Detalle por alumno" : "Trayectorias individuales"}
         </h2>
-        <p className="text-xs text-[#787774]">
+        <p className="text-xs text-muted">
           {isDocente
             ? "ordenados por quienes necesitan mas atencion primero"
             : "ordenadas por riesgo (en riesgo primero)"}
         </p>
       </div>
       {isDocente && (
-        <div className="px-6 py-2 border-b border-[#EAEAEA] bg-[#FAFAFA] flex items-center gap-4 text-xs text-[#787774]">
+        <div className="px-6 py-2 border-b border-border bg-canvas flex items-center gap-4 text-xs text-muted">
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block w-2 h-2 rounded-full"
@@ -330,7 +423,7 @@ function TrajectoriesSection({
         </div>
       )}
       {isDocente && Object.keys(entregaStats).length > 0 && (
-        <div className="px-6 py-2 border-b border-[#EAEAEA] bg-[#FAFAFA] text-xs text-[#787774] flex items-center gap-4">
+        <div className="px-6 py-2 border-b border-border bg-canvas text-xs text-muted flex items-center gap-4">
           <span className="font-mono">Pendientes = entregas esperando correccion</span>
         </div>
       )}
@@ -393,11 +486,11 @@ function TrajectoryRow({
 
   const progressionBg: Record<string, string> = {
     mejorando: "bg-green-50 text-green-800",
-    estable: "bg-[#FAFAFA] text-[#787774]",
-    empeorando: "bg-red-50 text-red-800",
-    insuficiente: "bg-[#FAFAFA] text-[#787774]",
+    estable: "bg-canvas text-muted",
+    empeorando: "bg-danger-soft text-danger",
+    insuficiente: "bg-canvas text-muted",
   }
-  const badgeClass = progressionBg[trajectory.progression_label] ?? "bg-[#FAFAFA] text-[#787774]"
+  const badgeClass = progressionBg[trajectory.progression_label] ?? "bg-canvas text-muted"
   const label = isDocente
     ? (PROGRESSION_DOCENTE[trajectory.progression_label] ?? trajectory.progression_label)
     : trajectory.progression_label
@@ -411,19 +504,19 @@ function TrajectoryRow({
         data-testid="student-row"
         to="/student-longitudinal"
         search={{ comisionId, studentId: trajectory.student_pseudonym }}
-        className="flex items-center gap-4 px-6 py-3 hover:bg-[#FAFAFA] transition-colors"
+        className="flex items-center gap-4 px-6 py-3 hover:bg-canvas transition-colors"
       >
         <div className="w-40 shrink-0">
-          <div className="font-mono text-xs font-medium text-[#111111]">
+          <div className="font-mono text-xs font-medium text-ink">
             {isDocente
               ? studentShortLabel(trajectory.student_pseudonym)
               : trajectory.student_pseudonym.slice(0, 12)}
           </div>
           {!isDocente && (
-            <div className="text-xs text-[#787774]">{trajectory.n_episodes} ep.</div>
+            <div className="text-xs text-muted">{trajectory.n_episodes} ep.</div>
           )}
           {isDocente && (
-            <div className="text-xs text-[#787774]">
+            <div className="text-xs text-muted">
               {trajectory.n_episodes} trabajo{trajectory.n_episodes !== 1 ? "s" : ""}
             </div>
           )}
@@ -437,7 +530,7 @@ function TrajectoryRow({
             {entregaStat.pendientes > 0 && (
               <span
                 data-testid="entrega-pendiente-badge"
-                className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700"
+                className="px-1.5 py-0.5 rounded bg-accent-brand-soft text-accent-brand-deep"
                 title="Entregas pendientes de correccion"
               >
                 {entregaStat.pendientes}p
@@ -461,7 +554,7 @@ function TrajectoryRow({
           <button
             type="button"
             onClick={handleToggleUnidad}
-            className="shrink-0 p-1 rounded text-[#787774] hover:text-[#111111] hover:bg-[#EAEAEA] transition-colors"
+            className="shrink-0 p-1 rounded text-muted hover:text-ink hover:bg-border transition-colors"
             title={unidadExpanded ? "Ocultar desglose por unidad" : "Ver desglose por unidad"}
             aria-label={unidadExpanded ? "Ocultar desglose por unidad" : "Ver desglose por unidad"}
           >
@@ -473,7 +566,7 @@ function TrajectoryRow({
           </button>
         )}
         {!hasUnidades && (
-          <span aria-hidden="true" className="text-[#EAEAEA] shrink-0">
+          <span aria-hidden="true" className="text-border shrink-0">
             ›
           </span>
         )}
@@ -481,12 +574,12 @@ function TrajectoryRow({
 
       {/* Desglose por unidad — expandible */}
       {hasUnidades && unidadExpanded && (
-        <div className="border-t border-[#EAEAEA] px-6 py-3 bg-[#FAFAFA]">
+        <div className="border-t border-border px-6 py-3 bg-canvas">
           {unidadLoading && (
-            <span className="text-xs text-[#787774]">Cargando evolucion por unidad...</span>
+            <span className="text-xs text-muted">Cargando evolucion por unidad...</span>
           )}
           {!unidadLoading && unidadData !== null && unidadData.length === 0 && (
-            <span className="text-xs text-[#787774]">
+            <span className="text-xs text-muted">
               {isDocente
                 ? "El alumno no tiene episodios en unidades todavia."
                 : "Sin episodios clasificados en unidades para este estudiante."}
@@ -512,9 +605,9 @@ const SLOPE_ARROW: Record<string, string> = {
 }
 const SLOPE_COLOR: Record<string, string> = {
   mejorando: "text-[var(--color-success)]",
-  estable: "text-[#787774]",
+  estable: "text-muted",
   empeorando: "text-[var(--color-danger)]",
-  insuficiente: "text-[#EAEAEA]",
+  insuficiente: "text-border",
 }
 
 function slopeToTrend(slope: number | null): "mejorando" | "estable" | "empeorando" | "insuficiente" {
@@ -533,26 +626,26 @@ function UnidadBreakdown({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold text-[#787774] uppercase tracking-wide mb-2">
+      <div className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
         {isDocente ? "Por tema" : "Evolucion por unidad"}
       </div>
       <div className="flex flex-wrap gap-2">
         {entries.map((entry) => {
           const trend = slopeToTrend(entry.insufficient_data ? null : entry.slope)
           const arrow = SLOPE_ARROW[trend] ?? "?"
-          const color = SLOPE_COLOR[trend] ?? "text-[#787774]"
+          const color = SLOPE_COLOR[trend] ?? "text-muted"
           const isSinUnidad = entry.unidad_id === "sin_unidad"
           return (
             <div
               key={entry.unidad_id}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#EAEAEA] bg-white px-2.5 py-1.5 text-xs"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs"
               title={entry.insufficient_data ? "Datos insuficientes (min. 3 episodios)" : undefined}
             >
               <span className={`font-semibold shrink-0 ${color}`}>{arrow}</span>
-              <span className={isSinUnidad ? "text-[#787774] italic" : "text-[#111111]"}>
+              <span className={isSinUnidad ? "text-muted italic" : "text-ink"}>
                 {entry.unidad_nombre}
               </span>
-              <span className="text-[#787774]">
+              <span className="text-muted">
                 {entry.n_episodes}ep
               </span>
             </div>
@@ -571,7 +664,7 @@ function TrajectoryDots({
   isDocente: boolean
 }) {
   if (points.length === 0) {
-    return <span className="text-xs text-[#787774]">Sin clasificaciones</span>
+    return <span className="text-xs text-muted">Sin clasificaciones</span>
   }
 
   return (

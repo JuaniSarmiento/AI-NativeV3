@@ -92,7 +92,7 @@ export function ClasificacionesPage(): ReactNode {
           <select
             value={periodDays}
             onChange={(e) => setPeriodDays(Number(e.target.value))}
-            className="rounded border border-slate-300 px-3 py-1 text-sm"
+            className="rounded border border-border px-3 py-1 text-sm"
             disabled={!comisionId}
           >
             <option value={7}>últimos 7 días</option>
@@ -102,29 +102,29 @@ export function ClasificacionesPage(): ReactNode {
         </div>
 
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 text-red-900 p-4">
+          <div className="rounded-lg bg-danger-soft border border-danger/30 text-danger p-4">
             <p className="font-medium">No se pudo cargar</p>
             <p className="text-sm mt-1">{error}</p>
-            <p className="text-xs mt-2 text-red-700">
+            <p className="text-xs mt-2 text-danger">
               Asegurate de que classifier-service esté corriendo en el puerto 8008 y que haya
               clasificaciones persistidas para la comisión seleccionada.
             </p>
           </div>
         )}
 
-        {loading && <p className="text-sm text-slate-500">Cargando clasificaciones...</p>}
+        {loading && <p className="text-sm text-muted">Cargando clasificaciones...</p>}
 
         {!loading && !comisionId && !error && (
-          <div className="rounded-lg bg-slate-50 border border-slate-200 p-8 text-center">
-            <p className="text-slate-500">
+          <div className="rounded-lg bg-surface-alt border border-border-soft p-8 text-center">
+            <p className="text-muted">
               Elegí una comisión arriba para ver la distribución y promedios.
             </p>
           </div>
         )}
 
         {comisionId && stats && stats.total_episodes === 0 && (
-          <div className="rounded-lg bg-slate-50 border border-slate-200 p-8 text-center">
-            <p className="text-slate-500">Aún no hay clasificaciones en el período seleccionado.</p>
+          <div className="rounded-lg bg-surface-alt border border-border-soft p-8 text-center">
+            <p className="text-muted">Aún no hay clasificaciones en el período seleccionado.</p>
           </div>
         )}
 
@@ -156,8 +156,8 @@ export function ClasificacionesPage(): ReactNode {
             </section>
 
             {/* Promedios de las 3 coherencias */}
-            <section className="rounded-lg border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-semibold uppercase text-slate-500 mb-3">
+            <section className="rounded-lg border border-border-soft bg-white p-4">
+              <h2 className="text-sm font-semibold uppercase text-muted mb-3">
                 Promedios de las tres coherencias
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -169,8 +169,8 @@ export function ClasificacionesPage(): ReactNode {
 
             {/* Timeseries */}
             {stats.timeseries.length > 0 && (
-              <section className="rounded-lg border border-slate-200 bg-white p-4">
-                <h2 className="text-sm font-semibold uppercase text-slate-500 mb-4">
+              <section className="rounded-lg border border-border-soft bg-white p-4">
+                <h2 className="text-sm font-semibold uppercase text-muted mb-4">
                   Evolución temporal
                 </h2>
                 <Timeseries data={stats.timeseries} />
@@ -198,13 +198,13 @@ function DistributionCard({
 }): ReactNode {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   const bg = {
-    red: "bg-red-50 border-red-200",
-    yellow: "bg-yellow-50 border-yellow-200",
-    green: "bg-green-50 border-green-200",
+    red: "bg-danger-soft border-danger/30",
+    yellow: "bg-warning-soft border-warning/30",
+    green: "bg-success-soft border-green-200",
   }[color]
   const textColor = {
-    red: "text-red-900",
-    yellow: "text-yellow-900",
+    red: "text-danger",
+    yellow: "text-warning",
     green: "text-green-900",
   }[color]
 
@@ -226,21 +226,21 @@ function AverageMetric({ title, value }: { title: string; value: number | null }
   if (value == null) {
     return (
       <div>
-        <p className="text-xs text-slate-500">{title}</p>
-        <p className="text-sm text-slate-400 mt-1">sin datos</p>
+        <p className="text-xs text-muted">{title}</p>
+        <p className="text-sm text-muted-soft mt-1">sin datos</p>
       </div>
     )
   }
   const pct = Math.round(value * 100)
-  const color = pct > 60 ? "bg-green-500" : pct > 40 ? "bg-yellow-500" : "bg-red-500"
+  const color = pct > 60 ? "bg-success" : pct > 40 ? "bg-warning" : "bg-danger"
   return (
     <div>
-      <p className="text-xs text-slate-500">{title}</p>
+      <p className="text-xs text-muted">{title}</p>
       <div className="flex items-baseline gap-2 mt-1">
         <span className="font-mono text-xl">{value.toFixed(2)}</span>
-        <span className="text-xs text-slate-400">{pct}%</span>
+        <span className="text-xs text-muted-soft">{pct}%</span>
       </div>
-      <div className="mt-2 h-2 bg-slate-200 rounded overflow-hidden">
+      <div className="mt-2 h-2 bg-surface-alt rounded overflow-hidden">
         <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -282,21 +282,21 @@ function Timeseries({
                 style={{ height: `${totalPct}%`, minHeight: "4px" }}
                 title={`${d.date}: ${total} episodios`}
               >
-                <div className="bg-red-400" style={{ height: `${rPct}%` }} />
-                <div className="bg-yellow-400" style={{ height: `${yPct}%` }} />
-                <div className="bg-green-500" style={{ height: `${gPct}%` }} />
+                <div className="bg-danger" style={{ height: `${rPct}%` }} />
+                <div className="bg-warning" style={{ height: `${yPct}%` }} />
+                <div className="bg-success" style={{ height: `${gPct}%` }} />
               </div>
-              <span className="text-xs text-slate-400 rotate-45 origin-top-left whitespace-nowrap mt-2">
+              <span className="text-xs text-muted-soft rotate-45 origin-top-left whitespace-nowrap mt-2">
                 {d.date.slice(5)}
               </span>
             </div>
           )
         })}
       </div>
-      <div className="flex gap-4 mt-6 text-xs text-slate-600">
-        <LegendDot color="bg-green-500" label="Reflexiva" />
-        <LegendDot color="bg-yellow-400" label="Superficial" />
-        <LegendDot color="bg-red-400" label="Delegación" />
+      <div className="flex gap-4 mt-6 text-xs text-muted">
+        <LegendDot color="bg-success" label="Reflexiva" />
+        <LegendDot color="bg-warning" label="Superficial" />
+        <LegendDot color="bg-danger" label="Delegación" />
       </div>
     </div>
   )

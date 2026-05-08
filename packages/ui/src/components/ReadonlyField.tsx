@@ -10,8 +10,10 @@ import type { ReactNode } from "react"
 export function ReadonlyField({ label, value }: { label: string; value: string }): ReactNode {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
-      <span className="text-sm text-slate-900 font-medium truncate" title={value}>
+      <span className="text-[10px] font-semibold text-muted uppercase tracking-[0.08em]">
+        {label}
+      </span>
+      <span className="text-sm text-ink font-medium truncate" title={value}>
         {value}
       </span>
     </div>

@@ -158,14 +158,14 @@ export function UnidadesView({ comisionId, getToken }: Props) {
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             <div className="font-semibold">Error al cargar datos</div>
             <div className="mt-1 font-mono text-xs">{error}</div>
           </div>
         )}
 
         {loading && (
-          <div className="rounded-xl border border-[#EAEAEA] bg-white p-6 text-sm text-[#787774]">
+          <div className="rounded-xl border border-border bg-white p-6 text-sm text-muted">
             Cargando unidades...
           </div>
         )}
@@ -173,7 +173,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
         {!loading && (
           <>
             <div className="flex items-center justify-between gap-4">
-              <div className="text-sm text-[#787774]">
+              <div className="text-sm text-muted">
                 {unidades.length === 0
                   ? "Sin unidades creadas todavia."
                   : `${unidades.length} unidad${unidades.length !== 1 ? "es" : ""} · ${tps.length} TP${tps.length !== 1 ? "s" : ""}`}
@@ -181,7 +181,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
               <button
                 type="button"
                 onClick={() => setModal({ kind: "create" })}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#111111] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#333333] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-sidebar-bg-edge transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 Nueva unidad
@@ -249,7 +249,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
           variant="light"
         >
           <div className="space-y-4">
-            <p className="text-sm text-[#111111]">
+            <p className="text-sm text-ink">
               ¿Eliminar la unidad{" "}
               <strong>&quot;{modal.unidad.nombre}&quot;</strong>?
               Los TPs asignados quedan sin unidad (no se borran).
@@ -258,7 +258,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
               <button
                 type="button"
                 onClick={() => setModal({ kind: "closed" })}
-                className="rounded-lg border border-[#EAEAEA] px-4 py-1.5 text-sm text-[#787774] hover:text-[#111111] transition-colors"
+                className="rounded-lg border border-border px-4 py-1.5 text-sm text-muted hover:text-ink transition-colors"
               >
                 Cancelar
               </button>
@@ -266,7 +266,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
                 type="button"
                 disabled={saving}
                 onClick={() => handleDelete(modal.unidad)}
-                className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+                className="rounded-lg bg-danger px-4 py-1.5 text-sm font-medium text-white hover:bg-danger disabled:opacity-60 transition-colors"
               >
                 {saving ? "Eliminando..." : "Eliminar"}
               </button>
@@ -302,7 +302,7 @@ function UnidadCard({
   savingTpId: string | null
 }) {
   return (
-    <div className="rounded-xl border border-[#EAEAEA] bg-white overflow-hidden">
+    <div className="rounded-xl border border-border bg-white overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <button
           type="button"
@@ -311,16 +311,16 @@ function UnidadCard({
           aria-expanded={expanded}
         >
           {expanded ? (
-            <ChevronDown className="h-4 w-4 text-[#787774] shrink-0" aria-hidden="true" />
+            <ChevronDown className="h-4 w-4 text-muted shrink-0" aria-hidden="true" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-[#787774] shrink-0" aria-hidden="true" />
+            <ChevronRight className="h-4 w-4 text-muted shrink-0" aria-hidden="true" />
           )}
-          <span className="text-sm font-semibold text-[#111111] truncate">{unidad.nombre}</span>
-          <span className="text-xs text-[#787774] shrink-0">
+          <span className="text-sm font-semibold text-ink truncate">{unidad.nombre}</span>
+          <span className="text-xs text-muted shrink-0">
             {tps.length} TP{tps.length !== 1 ? "s" : ""}
           </span>
           {unidad.descripcion && (
-            <span className="text-xs text-[#787774] truncate hidden sm:inline">
+            <span className="text-xs text-muted truncate hidden sm:inline">
               · {unidad.descripcion}
             </span>
           )}
@@ -329,7 +329,7 @@ function UnidadCard({
           <button
             type="button"
             onClick={onEdit}
-            className="p-1.5 rounded-lg text-[#787774] hover:text-[#111111] hover:bg-[#FAFAFA] transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-canvas transition-colors"
             title="Editar unidad"
             aria-label={`Editar unidad ${unidad.nombre}`}
           >
@@ -338,7 +338,7 @@ function UnidadCard({
           <button
             type="button"
             onClick={onDelete}
-            className="p-1.5 rounded-lg text-[#787774] hover:text-red-600 hover:bg-red-50 transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger-soft transition-colors"
             title="Eliminar unidad"
             aria-label={`Eliminar unidad ${unidad.nombre}`}
           >
@@ -348,9 +348,9 @@ function UnidadCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-[#EAEAEA] divide-y divide-[#EAEAEA]">
+        <div className="border-t border-border divide-y divide-[#EAEAEA]">
           {tps.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-[#787774] italic">
+            <div className="px-4 py-3 text-sm text-muted italic">
               Sin TPs asignados a esta unidad.
             </div>
           ) : (
@@ -388,7 +388,7 @@ function SinUnidadCard({
   savingTpId: string | null
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-[#EAEAEA] bg-[#FAFAFA] overflow-hidden">
+    <div className="rounded-xl border border-dashed border-border bg-canvas overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -396,20 +396,20 @@ function SinUnidadCard({
         aria-expanded={expanded}
       >
         {expanded ? (
-          <ChevronDown className="h-4 w-4 text-[#787774] shrink-0" aria-hidden="true" />
+          <ChevronDown className="h-4 w-4 text-muted shrink-0" aria-hidden="true" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-[#787774] shrink-0" aria-hidden="true" />
+          <ChevronRight className="h-4 w-4 text-muted shrink-0" aria-hidden="true" />
         )}
-        <span className="text-sm font-medium text-[#787774]">Sin unidad</span>
-        <span className="text-xs text-[#787774] shrink-0">
+        <span className="text-sm font-medium text-muted">Sin unidad</span>
+        <span className="text-xs text-muted shrink-0">
           {tps.length} TP{tps.length !== 1 ? "s" : ""}
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-[#EAEAEA] divide-y divide-[#EAEAEA]">
+        <div className="border-t border-border divide-y divide-[#EAEAEA]">
           {tps.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-[#787774] italic">
+            <div className="px-4 py-3 text-sm text-muted italic">
               Todos los TPs tienen unidad asignada.
             </div>
           ) : (
@@ -445,15 +445,15 @@ function TPRow({
   return (
     <div className="flex items-center gap-3 px-4 py-2.5">
       <div className="flex-1 min-w-0">
-        <span className="text-xs font-mono text-[#787774] mr-2">{tp.codigo}</span>
-        <span className="text-sm text-[#111111] truncate">{tp.titulo}</span>
+        <span className="text-xs font-mono text-muted mr-2">{tp.codigo}</span>
+        <span className="text-sm text-ink truncate">{tp.titulo}</span>
       </div>
       <div className="shrink-0">
         <select
           value={tp.unidad_id ?? ""}
           disabled={saving}
           onChange={(e) => onAssign(tp.id, e.target.value || null)}
-          className="text-xs rounded-lg border border-[#EAEAEA] bg-white px-2 py-1 text-[#111111] disabled:opacity-60 hover:border-[#111111] transition-colors"
+          className="text-xs rounded-lg border border-border bg-white px-2 py-1 text-ink disabled:opacity-60 hover:border-ink transition-colors"
           aria-label={`Asignar unidad a ${tp.codigo}`}
         >
           <option value="">Sin unidad</option>
@@ -497,7 +497,7 @@ function UnidadFormModal({
     <Modal isOpen onClose={onClose} title={title} size="sm" variant="light">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-[#111111] mb-1" htmlFor="unidad-nombre">
+          <label className="block text-xs font-medium text-ink mb-1" htmlFor="unidad-nombre">
             Nombre *
           </label>
           <input
@@ -508,11 +508,11 @@ function UnidadFormModal({
             placeholder="Ej: Condicionales"
             maxLength={120}
             required
-            className="w-full rounded-lg border border-[#EAEAEA] bg-white px-3 py-2 text-sm text-[#111111] placeholder-[#787774] focus:border-[#111111] focus:outline-none transition-colors"
+            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder-[#787774] focus:border-ink focus:outline-none transition-colors"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-[#111111] mb-1" htmlFor="unidad-desc">
+          <label className="block text-xs font-medium text-ink mb-1" htmlFor="unidad-desc">
             Descripcion (opcional)
           </label>
           <textarea
@@ -522,21 +522,21 @@ function UnidadFormModal({
             placeholder="Breve descripcion del tema de la unidad"
             rows={2}
             maxLength={500}
-            className="w-full rounded-lg border border-[#EAEAEA] bg-white px-3 py-2 text-sm text-[#111111] placeholder-[#787774] focus:border-[#111111] focus:outline-none transition-colors resize-none"
+            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder-[#787774] focus:border-ink focus:outline-none transition-colors resize-none"
           />
         </div>
         <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-[#EAEAEA] px-4 py-1.5 text-sm text-[#787774] hover:text-[#111111] transition-colors"
+            className="rounded-lg border border-border px-4 py-1.5 text-sm text-muted hover:text-ink transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={!isValid || saving}
-            className="rounded-lg bg-[#111111] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#333333] disabled:opacity-60 transition-colors"
+            className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-white hover:bg-sidebar-bg-edge disabled:opacity-60 transition-colors"
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>

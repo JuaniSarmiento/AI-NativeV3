@@ -150,7 +150,7 @@ export function AuditFooter({ episodeId, classifierHash, extraLabel }: AuditFoot
     <footer
       data-testid="audit-footer"
       aria-label="Trazabilidad y auditabilidad del piloto"
-      className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-6 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1"
+      className="border-t border-border bg-surface-alt px-6 py-2 font-mono text-xs text-muted flex flex-wrap items-center gap-x-3 gap-y-1"
     >
       <span>prompt: {PROMPT_VERSION}</span>
       <span aria-hidden="true">{"·"}</span>

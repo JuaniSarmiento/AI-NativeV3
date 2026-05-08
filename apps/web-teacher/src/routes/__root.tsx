@@ -104,10 +104,10 @@ function RootLayout() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#111111]">
+    <div className="min-h-screen flex flex-col bg-canvas text-ink">
       <header
         data-testid="teacher-global-header"
-        className="border-b border-[#EAEAEA] bg-white px-6 h-12 flex items-center justify-between gap-4 shrink-0"
+        className="border-b border-border bg-white px-6 h-12 flex items-center justify-between gap-4 shrink-0"
       >
         <div className="flex items-center gap-3 min-w-0">
           <span
@@ -115,13 +115,13 @@ function RootLayout() {
             className="inline-block w-1.5 h-4 rounded-sm"
             style={{ backgroundColor: "var(--color-accent-brand)" }}
           />
-          <h1 className="text-sm font-semibold tracking-tight text-[#111111]">
-            Plataforma N4 <span className="text-[#787774] mx-1">·</span> UNSL
+          <h1 className="text-sm font-semibold tracking-tight text-ink">
+            Plataforma N4 <span className="text-muted mx-1">·</span> UNSL
           </h1>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <ViewModeToggle />
-          <span className="w-px h-5 bg-[#EAEAEA]" aria-hidden="true" />
+          <span className="w-px h-5 bg-border" aria-hidden="true" />
           <ComisionSelectorRouted />
         </div>
       </header>
@@ -135,7 +135,7 @@ function RootLayout() {
           activeItemId={window.location.pathname}
           onNavigate={handleNavigate}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#FAFAFA]">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-canvas">
           <Outlet />
         </main>
       </div>
@@ -150,10 +150,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: () => (
     <div className="flex-1 flex items-center justify-center p-8 min-h-screen">
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-semibold text-[#111111]">
+        <h1 className="text-2xl font-semibold text-ink">
           Vista no encontrada
         </h1>
-        <p className="mt-2 text-sm text-[#787774]">
+        <p className="mt-2 text-sm text-muted">
           La URL que intentaste abrir no corresponde a ninguna vista del web-teacher.
         </p>
       </div>

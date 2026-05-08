@@ -109,7 +109,7 @@ export function Router(): ReactNode {
   const navigate = (to: Route) => setCurrent(to)
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-surface-alt">
       <Sidebar
         navGroups={NAV_GROUPS}
         headerLabel="AI-Native N4"

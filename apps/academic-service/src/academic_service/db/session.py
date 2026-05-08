@@ -8,8 +8,10 @@ dependency `TenantContext` que extrae el tenant del JWT.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import text
@@ -26,6 +28,25 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _json_default(obj: object) -> object:
+    """Custom JSON encoder para columnas JSONB.
+
+    Los criterios de rúbrica usan `Decimal` para `peso` (precision exacta vs
+    float). El default `json.dumps` no serializa Decimal — convertimos a float
+    cuando viaja a Postgres JSONB. Idem UUID por consistencia (algunos JSONB
+    pueden contener IDs anidados).
+    """
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, UUID):
+        return str(obj)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _json_serializer(value: object) -> str:
+    return json.dumps(value, default=_json_default)
+
+
 def get_engine() -> AsyncEngine:
     """Engine async singleton."""
     global _engine
@@ -36,6 +57,7 @@ def get_engine() -> AsyncEngine:
             max_overflow=5,
             pool_pre_ping=True,
             echo=settings.db_echo,
+            json_serializer=_json_serializer,
         )
     return _engine
 

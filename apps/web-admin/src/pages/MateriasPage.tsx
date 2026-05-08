@@ -199,7 +199,7 @@ export function MateriasPage(): ReactNode {
             type="button"
             onClick={() => setShowForm(!showForm)}
             disabled={!universidadId || !carreraId || !planId}
-            className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
           >
             {showForm ? "Cancelar" : "Nueva materia"}
           </button>
@@ -207,12 +207,12 @@ export function MateriasPage(): ReactNode {
 
         {breadcrumbItems.length > 0 && <Breadcrumb items={breadcrumbItems} />}
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4 grid grid-cols-3 gap-4">
+        <div className="rounded-lg border border-border-soft bg-white p-4 grid grid-cols-3 gap-4">
           <Field label="Universidad" required>
             {loadingUniversidades ? (
-              <span className="text-sm text-slate-500">Cargando universidades…</span>
+              <span className="text-sm text-muted">Cargando universidades…</span>
             ) : universidades.length === 0 ? (
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-muted">
                 No hay universidades creadas. Primero creá una universidad.
               </span>
             ) : (
@@ -236,13 +236,13 @@ export function MateriasPage(): ReactNode {
           </Field>
           <Field label="Carrera" required>
             {loadingCarreras ? (
-              <span className="text-sm text-slate-500">Cargando carreras…</span>
+              <span className="text-sm text-muted">Cargando carreras…</span>
             ) : !universidadId ? (
               <select value="" disabled className={inputClass}>
                 <option value="">— Primero seleccioná una universidad —</option>
               </select>
             ) : carreras.length === 0 ? (
-              <span className="text-sm text-slate-500">No hay carreras en esta universidad.</span>
+              <span className="text-sm text-muted">No hay carreras en esta universidad.</span>
             ) : (
               <select
                 value={carreraId}
@@ -263,13 +263,13 @@ export function MateriasPage(): ReactNode {
           </Field>
           <Field label="Plan de estudios" required>
             {loadingPlanes ? (
-              <span className="text-sm text-slate-500">Cargando planes…</span>
+              <span className="text-sm text-muted">Cargando planes…</span>
             ) : !carreraId ? (
               <select value="" disabled className={inputClass}>
                 <option value="">— Primero seleccioná una carrera —</option>
               </select>
             ) : planes.length === 0 ? (
-              <span className="text-sm text-slate-500">No hay planes en esta carrera.</span>
+              <span className="text-sm text-muted">No hay planes en esta carrera.</span>
             ) : (
               <select
                 value={planId}
@@ -299,34 +299,34 @@ export function MateriasPage(): ReactNode {
         )}
 
         {error && (
-          <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
             {error}
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-slate-500 text-sm">Cargando…</div>
+            <div className="p-8 text-center text-muted text-sm">Cargando…</div>
           ) : !universidadId ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               Seleccioná universidad, carrera y plan para ver sus materias.
             </div>
           ) : !carreraId ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               Seleccioná una carrera y un plan para ver sus materias.
             </div>
           ) : !planId ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted text-sm">
               Seleccioná un plan para ver sus materias.
             </div>
           ) : items.length === 0 ? (
             <div className="p-8 text-center space-y-3">
-              <p className="text-slate-500 text-sm">No hay materias en este plan todavia.</p>
+              <p className="text-muted text-sm">No hay materias en este plan todavia.</p>
               {planId && (
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="rounded-md bg-blue-600 text-white px-4 py-1.5 text-sm hover:bg-blue-700"
+                  className="rounded-md bg-accent-brand text-white px-4 py-1.5 text-sm hover:bg-accent-brand-deep"
                 >
                   Crear primera materia
                 </button>
@@ -334,7 +334,7 @@ export function MateriasPage(): ReactNode {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-left">
+              <thead className="bg-surface-alt border-b border-border-soft text-left">
                 <tr>
                   <th className="px-4 py-2 font-medium">Código</th>
                   <th className="px-4 py-2 font-medium">Nombre</th>
@@ -345,15 +345,15 @@ export function MateriasPage(): ReactNode {
               </thead>
               <tbody>
                 {items.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100">
+                  <tr key={m.id} className="border-b border-border-soft">
                     <td className="px-4 py-2 font-mono text-xs">{m.codigo}</td>
                     <td className="px-4 py-2">{m.nombre}</td>
-                    <td className="px-4 py-2 text-slate-600 text-xs">
+                    <td className="px-4 py-2 text-muted text-xs">
                       {planMap.get(m.plan_id)?.version ?? m.plan_id}
                     </td>
                     <td className="px-4 py-2">{m.horas_totales} h</td>
                     <td className="px-4 py-2">
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs">
+                      <span className="inline-flex items-center rounded-full bg-surface-alt px-2 py-0.5 text-xs">
                         {m.cuatrimestre_sugerido}
                       </span>
                     </td>
@@ -402,13 +402,13 @@ function MateriaForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
           title="Formulario de Materia"
           content={
-            <div className="space-y-3 text-zinc-300">
+            <div className="space-y-3 text-muted-soft">
               <p>
                 <strong>Completa los siguientes campos</strong> para crear una nueva materia:
               </p>
@@ -437,10 +437,10 @@ function MateriaForm({
             </div>
           }
         />
-        <span className="text-sm text-slate-500">Nueva materia</span>
+        <span className="text-sm text-muted">Nueva materia</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 rounded-md bg-slate-50 border border-slate-200 p-3">
+      <div className="grid grid-cols-3 gap-4 rounded-md bg-surface-alt border border-border-soft p-3">
         <ReadonlyField label="Universidad" value={context.universidad ?? "—"} />
         <ReadonlyField label="Carrera" value={context.carrera ?? "—"} />
         <ReadonlyField label="Plan" value={context.plan ?? "—"} />
@@ -519,7 +519,7 @@ function MateriaForm({
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+        <div className="rounded-md border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
           {error}
         </div>
       )}
@@ -528,7 +528,7 @@ function MateriaForm({
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
         >
           {submitting ? "Creando..." : "Crear"}
         </button>
@@ -538,7 +538,7 @@ function MateriaForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
 
 function Field({
   label,
@@ -552,9 +552,9 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children es el control (input/select/textarea) wrappeado por el padre — patrón de form helper.
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-700">
+      <span className="text-xs font-medium text-body">
         {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
+        {required && <span className="text-danger ml-0.5">*</span>}
       </span>
       {children}
     </label>

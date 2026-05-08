@@ -107,7 +107,7 @@ describe("Modal", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true")
   })
 
-  it("por default usa variant=light (panel bg-white)", () => {
+  it("por default usa variant=light (panel surface)", () => {
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="T">
         <p>x</p>
@@ -115,10 +115,10 @@ describe("Modal", () => {
     )
     const dialog = screen.getByRole("dialog")
     expect(dialog).toHaveAttribute("data-variant", "light")
-    expect(dialog.className).toContain("bg-white")
+    expect(dialog.className).toContain("bg-surface")
   })
 
-  it("variant=dark aplica panel bg-zinc-900", () => {
+  it("variant=dark aplica panel sidebar-bg (cohesión carbón)", () => {
     render(
       <Modal isOpen={true} onClose={vi.fn()} title="T" variant="dark">
         <p>x</p>
@@ -126,7 +126,7 @@ describe("Modal", () => {
     )
     const dialog = screen.getByRole("dialog")
     expect(dialog).toHaveAttribute("data-variant", "dark")
-    expect(dialog.className).toContain("bg-zinc-900")
+    expect(dialog.className).toContain("bg-sidebar-bg")
   })
 })
 

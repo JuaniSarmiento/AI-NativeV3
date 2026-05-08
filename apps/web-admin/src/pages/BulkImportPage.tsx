@@ -164,16 +164,16 @@ export function BulkImportPage(): ReactNode {
           <button
             type="button"
             onClick={reset}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt"
           >
             Reiniciar
           </button>
         </div>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
           <h3 className="font-medium">1. Entidad</h3>
           <label className="flex flex-col gap-1 max-w-md">
-            <span className="text-xs font-medium text-slate-700">Tipo de entidad a importar</span>
+            <span className="text-xs font-medium text-body">Tipo de entidad a importar</span>
             <select
               value={entity}
               onChange={onEntityChange}
@@ -188,61 +188,61 @@ export function BulkImportPage(): ReactNode {
             </select>
           </label>
 
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
-            <p className="font-medium text-slate-700 mb-2">Formato esperado</p>
-            <p className="text-xs text-slate-600 mb-2">
+          <div className="rounded-md border border-border-soft bg-surface-alt p-4 text-sm">
+            <p className="font-medium text-body mb-2">Formato esperado</p>
+            <p className="text-xs text-muted mb-2">
               Columnas para <span className="font-mono">{entity}</span>:
             </p>
             <ul className="text-xs space-y-1">
               {cols.required.map((c) => (
                 <li key={c} className="font-mono">
-                  <span className="text-slate-900">{c}</span>{" "}
-                  <span className="text-red-600">(requerida)</span>
+                  <span className="text-ink">{c}</span>{" "}
+                  <span className="text-danger">(requerida)</span>
                 </li>
               ))}
               {cols.optional.map((c) => (
                 <li key={c} className="font-mono">
-                  <span className="text-slate-700">{c}</span>{" "}
-                  <span className="text-slate-500">(opcional)</span>
+                  <span className="text-body">{c}</span>{" "}
+                  <span className="text-muted">(opcional)</span>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
           <h3 className="font-medium">2. Archivo CSV</h3>
           <input
             type="file"
             accept=".csv,text/csv"
             onChange={onFileChange}
             disabled={commit.status === "ok"}
-            className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+            className="block w-full text-sm text-body file:mr-4 file:rounded-md file:border-0 file:bg-accent-brand-soft file:px-4 file:py-2 file:text-sm file:font-medium file:text-accent-brand-deep hover:file:bg-accent-brand-soft"
           />
           {file && (
-            <p className="text-xs text-slate-600">
-              Seleccionado: <span className="font-mono text-slate-900">{file.name}</span>{" "}
-              <span className="text-slate-500">({(file.size / 1024).toFixed(1)} KB)</span>
+            <p className="text-xs text-muted">
+              Seleccionado: <span className="font-mono text-ink">{file.name}</span>{" "}
+              <span className="text-muted">({(file.size / 1024).toFixed(1)} KB)</span>
             </p>
           )}
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
           <h3 className="font-medium">3. Validar (dry-run)</h3>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Sube el archivo y muestra errores sin escribir nada en la base.
           </p>
           <button
             type="button"
             onClick={handleDryRun}
             disabled={!canValidate}
-            className="rounded-md bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep disabled:opacity-50"
           >
             {dryRun.status === "loading" ? "Validando…" : "Validar"}
           </button>
 
           {dryRun.status === "error" && (
-            <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+            <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
               {dryRun.message}
             </div>
           )}
@@ -250,21 +250,21 @@ export function BulkImportPage(): ReactNode {
           {dryRun.status === "ok" && <ReportView report={dryRun.report} />}
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
           <h3 className="font-medium">4. Confirmar importación</h3>
-          <p className="text-sm text-slate-600">Sólo habilitado si el dry-run no mostró errores.</p>
+          <p className="text-sm text-muted">Sólo habilitado si el dry-run no mostró errores.</p>
           <button
             type="button"
             onClick={handleCommit}
             disabled={!canCommit}
-            className="rounded-md bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+            className="rounded-md bg-success text-white px-4 py-2 text-sm font-medium hover:bg-success disabled:opacity-50"
           >
             {commit.status === "loading" ? "Importando…" : "Confirmar"}
           </button>
 
           {commit.status === "error" && (
             <div className="space-y-2">
-              <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
                 {commit.message}
               </div>
               {commit.report && <ReportView report={commit.report} />}
@@ -272,11 +272,11 @@ export function BulkImportPage(): ReactNode {
           )}
 
           {commit.status === "ok" && (
-            <div className="rounded-md border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 space-y-2">
+            <div className="rounded-md border border-success/40 bg-success-soft p-4 text-sm text-success space-y-2">
               <p className="font-medium">Importadas {commit.result.created_count} filas</p>
               {commit.result.created_ids.length > 0 && (
                 <details className="text-xs">
-                  <summary className="cursor-pointer text-emerald-800 hover:text-emerald-900">
+                  <summary className="cursor-pointer text-success hover:text-success">
                     Ver IDs creados
                     {commit.result.created_ids.length > 10
                       ? ` (mostrando primeros 10 de ${commit.result.created_ids.length})`
@@ -309,36 +309,36 @@ function ReportView({ report }: { report: BulkImportReport }): ReactNode {
       </div>
 
       {allValid && (
-        <div className="rounded-md border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <div className="rounded-md border border-success/40 bg-success-soft p-4 text-sm text-success">
           Todas las filas son válidas — listas para importar.
         </div>
       )}
 
       {report.total_rows === 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-md border border-warning/40 bg-warning-soft p-4 text-sm text-warning">
           El archivo no contiene filas.
         </div>
       )}
 
       {report.invalid_rows > 0 && (
-        <div className="rounded-md border border-red-200 overflow-hidden">
+        <div className="rounded-md border border-danger/30 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-red-50 border-b border-red-200 text-left">
+            <thead className="bg-danger-soft border-b border-danger/30 text-left">
               <tr>
-                <th className="px-4 py-2 font-medium text-red-900">Fila</th>
-                <th className="px-4 py-2 font-medium text-red-900">Columna</th>
-                <th className="px-4 py-2 font-medium text-red-900">Mensaje</th>
+                <th className="px-4 py-2 font-medium text-danger">Fila</th>
+                <th className="px-4 py-2 font-medium text-danger">Columna</th>
+                <th className="px-4 py-2 font-medium text-danger">Mensaje</th>
               </tr>
             </thead>
             <tbody>
               {report.errors.map((err, i) => (
                 <tr
                   key={`${err.row_number}-${err.column ?? "_"}-${i}`}
-                  className="border-b border-red-100 last:border-b-0"
+                  className="border-b border-danger/20 last:border-b-0"
                 >
                   <td className="px-4 py-2 font-mono text-xs">{err.row_number}</td>
                   <td className="px-4 py-2 font-mono text-xs">{err.column ?? "—"}</td>
-                  <td className="px-4 py-2 text-red-900">{err.message}</td>
+                  <td className="px-4 py-2 text-danger">{err.message}</td>
                 </tr>
               ))}
             </tbody>
@@ -359,9 +359,9 @@ function Stat({
   tone: "slate" | "emerald" | "red"
 }): ReactNode {
   const toneClasses = {
-    slate: "border-slate-200 bg-slate-50 text-slate-900",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    red: "border-red-200 bg-red-50 text-red-900",
+    slate: "border-border-soft bg-surface-alt text-ink",
+    emerald: "border-success/30 bg-success-soft text-success",
+    red: "border-danger/30 bg-danger-soft text-danger",
   }[tone]
   return (
     <div className={`rounded-md border p-4 ${toneClasses}`}>
@@ -372,4 +372,4 @@ function Stat({
 }
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"

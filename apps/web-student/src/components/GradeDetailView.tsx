@@ -57,13 +57,13 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
         <button
           type="button"
           onClick={onBack}
-          className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-6 inline-flex items-center gap-1"
+          className="text-xs text-muted hover:text-body mb-6 inline-flex items-center gap-1"
         >
           <span aria-hidden="true">←</span>
           Volver a la TP
         </button>
 
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50 mb-6">
+        <h2 className="text-xl font-semibold text-ink mb-6">
           Resultado de tu entrega
         </h2>
 
@@ -71,12 +71,12 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
         {(entrega.estado === "submitted") && (
           <div
             data-testid="pending-correction-state"
-            className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-6 text-center"
+            className="rounded-lg border border-accent-brand/30 bg-accent-brand-soft p-6 text-center"
           >
-            <p className="text-base font-medium text-blue-800 dark:text-blue-200 mb-2">
+            <p className="text-base font-medium text-accent-brand-deep mb-2">
               Pendiente de correccion
             </p>
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+            <p className="text-sm text-accent-brand-deep">
               Tu docente revisara la entrega proximamente. Te notificaremos cuando este lista.
             </p>
           </div>
@@ -94,8 +94,8 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
 
         {/* Error cargando calificacion */}
         {error && (
-          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 p-4">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          <div className="rounded-lg border border-danger/30 bg-danger-soft p-4">
+            <p className="text-sm text-danger">{error}</p>
           </div>
         )}
 
@@ -103,9 +103,9 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
         {!loading && calificacion && (
           <div className="space-y-6" data-testid="calificacion-detail">
             {/* Nota final */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex items-center gap-6">
+            <div className="rounded-lg border border-border-soft bg-white p-6 flex items-center gap-6">
               <div className="text-center">
-                <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">
+                <p className="text-xs font-mono text-muted mb-1">
                   NOTA FINAL
                 </p>
                 <p
@@ -122,14 +122,14 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
                 >
                   {calificacion.nota_final}
                 </p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">/ 10</p>
+                <p className="text-xs text-muted-soft mt-0.5">/ 10</p>
               </div>
               {entrega.estado === "returned" && (
-                <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 px-4 py-3">
-                  <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-1">
+                <div className="flex-1 rounded-lg bg-warning-soft border border-warning/30 px-4 py-3">
+                  <p className="text-xs font-medium text-warning/90 mb-1">
                     Tu docente devolvio la entrega
                   </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                  <p className="text-xs text-warning/85">
                     Revisa el feedback para entender los puntos a mejorar.
                   </p>
                 </div>
@@ -140,12 +140,12 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
             {calificacion.feedback_general && (
               <div
                 data-testid="feedback-general"
-                className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5"
+                className="rounded-lg border border-border-soft bg-white p-5"
               >
-                <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted mb-3">
                   Feedback del docente
                 </p>
-                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                <p className="text-sm text-body whitespace-pre-wrap leading-relaxed">
                   {calificacion.feedback_general}
                 </p>
               </div>
@@ -153,8 +153,8 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
 
             {/* Detalle por criterio */}
             {calificacion.detalle_criterios && calificacion.detalle_criterios.length > 0 && (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+              <div className="rounded-lg border border-border-soft bg-white p-5">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
                   Criterios de evaluacion
                 </p>
                 <ul className="space-y-3" data-testid="criterios-list">
@@ -162,18 +162,18 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
                     <li
                       key={`${criterio.nombre}-${idx}`}
                       data-testid="criterio-item"
-                      className="border-b border-slate-100 dark:border-slate-800 pb-3 last:border-0 last:pb-0"
+                      className="border-b border-border-soft pb-3 last:border-0 last:pb-0"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                        <span className="text-sm font-medium text-body">
                           {criterio.nombre}
                         </span>
-                        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
+                        <span className="text-xs font-mono text-muted">
                           {criterio.puntaje} / {Math.round(criterio.peso * 10)}
                         </span>
                       </div>
                       {criterio.comentario && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        <p className="text-xs text-muted leading-relaxed">
                           {criterio.comentario}
                         </p>
                       )}

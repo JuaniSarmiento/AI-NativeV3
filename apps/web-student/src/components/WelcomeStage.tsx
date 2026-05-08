@@ -58,24 +58,24 @@ export function WelcomeStage({ onPickComision, comisionesVacias = false }: Welco
   return (
     <div className="flex-1 overflow-y-auto px-6 py-12">
       <div className="max-w-3xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
           Programacion 2 (2026, 1er cuatrimestre)
         </p>
 
-        <h1 className="text-2xl font-semibold leading-tight text-slate-900 dark:text-slate-50 mb-4">
+        <h1 className="text-2xl font-semibold leading-tight text-ink mb-4">
           Tutor socratico con trazabilidad cognitiva.
         </h1>
 
-        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-10 max-w-2xl">
+        <p className="text-sm text-body leading-relaxed mb-10 max-w-2xl">
           No te da la respuesta. Te acompana a construirla. Cada interaccion queda registrada en
           una cadena verificable.
         </p>
 
         <section
           aria-label="Como trabajas con el tutor"
-          className="border-t border-slate-200 dark:border-slate-800 pt-6 mb-10"
+          className="border-t border-border-soft pt-6 mb-10"
         >
-          <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-5">
+          <p className="text-xs font-mono uppercase tracking-wider text-muted mb-5">
             Como trabajas
           </p>
           <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-6">
@@ -88,11 +88,11 @@ export function WelcomeStage({ onPickComision, comisionesVacias = false }: Welco
                     className="inline-block w-2 h-2 rounded-full"
                     style={{ backgroundColor: lvl.colorVar }}
                   />
-                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="text-sm font-semibold text-ink">
                     {lvl.level} {lvl.label}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-muted leading-relaxed">
                   {lvl.description}
                 </p>
               </li>
@@ -124,9 +124,9 @@ export function WelcomeStage({ onPickComision, comisionesVacias = false }: Welco
             <div
               role="status"
               data-testid="welcome-gap-b2"
-              className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl border-l border-slate-300 dark:border-slate-700 pl-3"
+              className="text-xs text-muted leading-relaxed max-w-xl border-l border-border pl-3"
             >
-              <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <p className="font-medium text-body mb-1">
                 No estas viendo tus comisiones?
               </p>
               <p>

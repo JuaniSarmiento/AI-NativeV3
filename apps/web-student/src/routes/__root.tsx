@@ -28,16 +28,16 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootLayout() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 flex flex-col">
-      <header className="border-b border-slate-200 dark:border-slate-800 px-6 py-3 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-surface-alt text-ink flex flex-col">
+      <header className="border-b border-border-soft px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <span
             aria-hidden="true"
             className="inline-block w-1.5 h-4 rounded-sm"
             style={{ backgroundColor: "var(--color-accent-brand)" }}
           />
-          <h1 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Plataforma N4 <span className="text-slate-400 mx-1">·</span> UNSL
+          <h1 className="text-sm font-semibold tracking-tight text-ink">
+            Plataforma N4 <span className="text-muted-soft mx-1">·</span> UNSL
           </h1>
         </div>
         <div className="flex items-center gap-3">

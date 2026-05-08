@@ -1243,128 +1243,10 @@ export async function getStudentAlerts(
   return r.json()
 }
 
-// ── Unidades de Trazabilidad ──────────────────────────────────────────
-
-export interface Unidad {
-  id: string
-  tenant_id: string
-  comision_id: string
-  nombre: string
-  orden: number
-  descripcion: string | null
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-export interface UnidadCreate {
-  comision_id: string
-  nombre: string
-  orden: number
-  descripcion?: string | null
-}
-
-export interface UnidadUpdate {
-  nombre?: string
-  descripcion?: string | null
-  orden?: number
-}
-
-export interface UnidadReorderItem {
-  id: string
-  orden: number
-}
-
-interface UnidadListResponse {
-  data: Unidad[]
-  meta: { cursor_next: string | null }
-}
-
-export async function listUnidades(
-  comisionId: string,
-  getToken?: TokenGetter,
-): Promise<Unidad[]> {
-  const r = await fetch(`/api/v1/unidades?comision_id=${comisionId}`, {
-    headers: await authHeaders(getToken),
-  })
-  await throwIfNotOk(r)
-  const body = (await r.json()) as UnidadListResponse
-  return body.data
-}
-
-export async function createUnidad(
-  body: UnidadCreate,
-  getToken?: TokenGetter,
-): Promise<Unidad> {
-  const r = await fetch("/api/v1/unidades", {
-    method: "POST",
-    headers: await authHeaders(getToken),
-    body: JSON.stringify(body),
-  })
-  await throwIfNotOk(r)
-  return r.json()
-}
-
-export async function updateUnidad(
-  id: string,
-  patch: UnidadUpdate,
-  getToken?: TokenGetter,
-): Promise<Unidad> {
-  const r = await fetch(`/api/v1/unidades/${id}`, {
-    method: "PATCH",
-    headers: await authHeaders(getToken),
-    body: JSON.stringify(patch),
-  })
-  await throwIfNotOk(r)
-  return r.json()
-}
-
-export async function deleteUnidad(id: string, getToken?: TokenGetter): Promise<void> {
-  const r = await fetch(`/api/v1/unidades/${id}`, {
-    method: "DELETE",
-    headers: await authHeaders(getToken),
-  })
-  await throwIfNotOk(r)
-}
-
-export async function reorderUnidades(
-  comisionId: string,
-  order: UnidadReorderItem[],
-  getToken?: TokenGetter,
-): Promise<Unidad[]> {
-  const r = await fetch("/api/v1/unidades/reorder", {
-    method: "POST",
-    headers: await authHeaders(getToken),
-    body: JSON.stringify({ comision_id: comisionId, items: order }),
-  })
-  await throwIfNotOk(r)
-  return r.json()
-}
-
-export async function assignTPToUnidad(
-  tpId: string,
-  unidadId: string | null,
-  getToken?: TokenGetter,
-): Promise<TareaPractica> {
-  const r = await fetch(`/api/v1/tareas-practicas/${tpId}`, {
-    method: "PATCH",
-    headers: await authHeaders(getToken),
-    body: JSON.stringify({ unidad_id: unidadId }),
-  })
-  await throwIfNotOk(r)
-  return r.json()
-}
-
-export const unidadesApi = {
-  list: listUnidades,
-  create: createUnidad,
-  update: updateUnidad,
-  delete: deleteUnidad,
-  reorder: reorderUnidades,
-  assignTP: assignTPToUnidad,
-}
-
 // ── Audit / CTR episodes (read-only para docentes) ──────────────────
+// Bloque "Unidades de Trazabilidad" duplicado eliminado (vivía aquí y en línea 922).
+// Las definiciones canónicas viven en el primer bloque; ambas eran idénticas
+// salvo `UnidadListResponse` (export vs sin export — el primer bloque exporta).
 
 export interface CTREvent {
   event_type: string
@@ -1468,8 +1350,13 @@ export async function listEntregas(
     headers: await authHeaders(getToken),
   })
   await throwIfNotOk(r)
-  const items: EntregaDocente[] = await r.json()
-  return { data: items, meta: { cursor_next: null } }
+  // Backend devuelve envelope `{data, meta}` (commit c8a4685, fix bug R1 v1.0).
+  // Antes este parser asumía bare array → bug "data.map is not a function".
+  const body = (await r.json()) as {
+    data: EntregaDocente[]
+    meta: { cursor_next: string | null; total?: number | null; limit?: number | null }
+  }
+  return { data: body.data, meta: body.meta }
 }
 
 export async function getEntrega(id: string, getToken?: TokenGetter): Promise<EntregaDocente> {
@@ -1526,56 +1413,10 @@ export const entregasDocenteApi = {
   getCalificacion,
 }
 
-// ── TP Generation con IA (ADR-036) ───────────────────────────────────────────
-
-export type DificultadIA = "basica" | "intermedia" | "avanzada"
-
-export interface TestCaseGenerado {
-  name: string
-  type: string
-  code: string
-  expected: string | null
-  is_public: boolean
-  weight: number
-}
-
-export interface EjercicioGenerado {
-  titulo: string
-  enunciado: string
-  inicial_codigo: string
-  rubrica: Record<string, unknown>
-  test_cases: TestCaseGenerado[]
-}
-
-export interface GenerateTPResponse {
-  ejercicios: EjercicioGenerado[]
-  prompt_version: string
-  tokens_used: number | null
-  tokens_input: number | null
-  tokens_output: number | null
-  provider: string | null
-  model_used: string | null
-  rag_chunks_used: number
-}
-
-export interface GenerateTPRequest {
-  materia_id: string | null
-  descripcion_nl: string
-  num_ejercicios: number
-  dificultad?: DificultadIA
-  contexto?: string
-  comision_id: string
-}
-
-export async function generateTPWithAI(
-  body: GenerateTPRequest,
-  getToken?: TokenGetter,
-): Promise<GenerateTPResponse> {
-  const r = await fetch("/api/v1/tareas-practicas/generate", {
-    method: "POST",
-    headers: await authHeaders(getToken),
-    body: JSON.stringify(body),
-  })
-  await throwIfNotOk(r)
-  return r.json()
-}
+// ── TP Generation con IA: ver bloque ADR-036 al inicio del archivo (línea 477) ──
+// El bloque que vivía aquí era duplicado con drift de tipos (test_cases:
+// TestCaseGenerado vs TestCaseIA, materia_id nullable vs not-null,
+// GenerateTPResponse con tokens_used vs sin él). Eliminado en el rediseño v2;
+// el contrato canónico (que matchea con el response real verificado en QA pass)
+// es el de la línea 481 — `materia_id: string`, `test_cases: TestCaseIA[]`,
+// `GenerateTPResponse` con `model_used`, `provider_used`, `rag_chunks_hash`.

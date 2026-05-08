@@ -1,23 +1,17 @@
 /**
- * Home del web-student (post-craft Fase 2): "Mis materias".
+ * Home del web-student (rediseño v2 2026): "Mis materias".
  *
- * El alumno ve UNA card por inscripción activa. Diseño deliberado:
- *   - N=0: empty state honesto (mensaje literal del gap B.2 + strip N1-N4
- *     del WelcomeStage para que el comité vea el modelo desde el primer pixel).
- *   - N=1: la card prominente (caso piloto típico).
- *   - N=2..5: lista de cards con el mismo formato que N=1.
- *   - N>5: list items densos sin box (regla "no card grids uniformes").
+ * Layout claro 2026: page-enter + header con eyebrow + cards con hover-lift +
+ * stagger animations + skeleton loading. Mantiene la decisión bicapa: cards
+ * para N≤5, lista densa para N>5. Strip N1-N4 visible desde el primer pixel
+ * en empty state (PRODUCT.md design principle #1: el modelo N4 es el producto).
  *
- * TanStack Query con `staleTime` de 5min para el single-flight per page.
- * Sin re-fetch en cada render. Cuando el alumno vuelve desde /materia/:id
- * la cache evita el spinner.
- *
- * Bootstrap recovery: si hay `active-episode-id` en sessionStorage,
- * redirigimos a /episodio/:id antes de pintar la home — preserva la UX
- * de "recuperar sesion" del flujo viejo.
+ * Bootstrap recovery: si hay `active-episode-id` en sessionStorage, redirigimos
+ * a /episodio/:id antes de pintar la home — preserva la UX de "recuperar sesión".
  */
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Sparkles } from "lucide-react"
 import { useEffect } from "react"
 import { MateriaCard } from "../components/MateriaCard"
 import { type MateriaInscripta, listMisMaterias } from "../lib/api"
@@ -31,9 +25,6 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const navigate = useNavigate()
 
-  // Recovery: si hay un episode_id en sessionStorage saltamos a esa ruta
-  // ANTES de pintar la home. La ruta /episodio/:id se encarga de hidratar
-  // el estado real (o limpiar el sessionStorage si el episodio ya cerró).
   useEffect(() => {
     if (typeof window === "undefined") return
     const storedId = window.sessionStorage.getItem(ACTIVE_EPISODE_KEY)
@@ -60,11 +51,6 @@ function HomePage() {
   )
 }
 
-/**
- * Vista presentacional pura de la home — sin TanStack Query / Router.
- * Permite testear los 3 estados (loading, error, lista) sin envolver en
- * un RouterProvider de testbed.
- */
 export interface HomeContentProps {
   isLoading: boolean
   error: string | null
@@ -75,23 +61,33 @@ export interface HomeContentProps {
 export function HomeContent({ isLoading, error, materias, onEnter }: HomeContentProps) {
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8" data-testid="home-loading">
-        <div
-          className="inline-block w-6 h-6 border-2 border-t-transparent rounded-full motion-safe:animate-spin"
-          style={{ borderColor: "var(--color-accent-brand)", borderTopColor: "transparent" }}
-        />
+      <div
+        className="page-enter flex-1 px-6 py-12"
+        data-testid="home-loading"
+        aria-label="Cargando tus materias"
+      >
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="space-y-3">
+            <div className="skeleton h-3 w-32 rounded" />
+            <div className="skeleton h-9 w-56 rounded" />
+          </div>
+          <div className="space-y-4">
+            <div className="skeleton h-32 rounded-xl" />
+            <div className="skeleton h-32 rounded-xl" />
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="max-w-md text-center">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+      <div className="page-enter flex-1 flex items-center justify-center p-8">
+        <div className="max-w-md text-center rounded-xl border border-danger/30 bg-danger-soft p-6">
+          <p className="text-sm font-semibold text-danger mb-2">
             No pudimos cargar tus materias.
           </p>
-          <p className="text-xs font-mono text-slate-500">{error}</p>
+          <p className="text-xs font-mono text-danger/80 break-all">{error}</p>
         </div>
       </div>
     )
@@ -101,31 +97,37 @@ export function HomeContent({ isLoading, error, materias, onEnter }: HomeContent
     return <EmptyState />
   }
 
-  // N>5 → lista densa; N≤5 → cards. Decisión bicapa:
-  //   cards cumplen "una pieza desigual" cuando N≤5;
-  //   list items densos cumplen "no card grid uniforme" cuando N>5.
   const usaListaDensa = materias.length > 5
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-12">
+    <div className="page-enter flex-1 overflow-y-auto px-6 py-12">
       <div className="max-w-3xl mx-auto">
-        <p
-          className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3"
-          data-testid="home-kicker-periodo"
-        >
-          {firstPeriodoCodigo(materias) ?? "Cuatrimestre actual"}
-        </p>
-
-        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50 mb-8">
-          Mis materias
-        </h2>
+        <header className="animate-fade-in-down mb-8">
+          <p
+            className="text-[11px] font-mono uppercase tracking-[0.12em] text-muted mb-2"
+            data-testid="home-kicker-periodo"
+          >
+            {firstPeriodoCodigo(materias) ?? "Cuatrimestre actual"}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink leading-none">
+            Mis materias
+          </h1>
+          <p className="text-sm text-muted leading-relaxed mt-2 max-w-xl">
+            Cada materia te lleva a sus unidades temáticas y tareas prácticas. El tutor te
+            acompaña en cada ejercicio.
+          </p>
+        </header>
 
         {usaListaDensa ? (
           <DensaList materias={materias} onEnter={onEnter} />
         ) : (
           <ul className="space-y-4">
-            {materias.map((m) => (
-              <li key={m.inscripcion_id}>
+            {materias.map((m, idx) => (
+              <li
+                key={m.inscripcion_id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${100 + idx * 60}ms` }}
+              >
                 <MateriaCard materia={m} onEnter={onEnter} />
               </li>
             ))}
@@ -143,7 +145,7 @@ function firstPeriodoCodigo(materias: MateriaInscripta[]): string | null {
   return m.periodo_codigo
 }
 
-// ─── Empty state honesto (gap B.2) + strip N1-N4 ────────────────────────
+// ─── Empty state honesto + strip N1-N4 ─────────────────────────────────
 
 interface LevelBlurb {
   level: "N1" | "N2" | "N3" | "N4"
@@ -156,70 +158,79 @@ const LEVELS: LevelBlurb[] = [
   {
     level: "N1",
     label: "Lectura",
-    description: "Lees el enunciado y planeas tu abordaje.",
+    description: "Leés el enunciado y planeás tu abordaje.",
     colorVar: "var(--color-level-n1)",
   },
   {
     level: "N2",
-    label: "Anotacion",
-    description: "Anotas tu plan, dudas, ideas.",
+    label: "Anotación",
+    description: "Anotás tu plan, dudas, ideas.",
     colorVar: "var(--color-level-n2)",
   },
   {
     level: "N3",
-    label: "Validacion",
-    description: "Corres tests y debugeas.",
+    label: "Validación",
+    description: "Corrés tests y debugeás.",
     colorVar: "var(--color-level-n3)",
   },
   {
     level: "N4",
     label: "Tutor",
-    description: "Preguntas cuando te trabas.",
+    description: "Preguntás cuando te trabás.",
     colorVar: "var(--color-level-n4)",
   },
 ]
 
 function EmptyState() {
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-12">
+    <div className="page-enter flex-1 overflow-y-auto px-6 py-12">
       <div className="max-w-3xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
-          UNSL · Plataforma del piloto
-        </p>
-
-        <h1 className="text-2xl font-semibold leading-tight text-slate-900 dark:text-slate-50 mb-4">
-          Tutor socratico con trazabilidad cognitiva.
-        </h1>
-
-        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-10 max-w-2xl">
-          No te da la respuesta. Te acompana a construirla. Cada interaccion queda registrada en
-          una cadena verificable.
-        </p>
+        <header className="animate-fade-in-down mb-10">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-accent-brand-soft border border-accent-brand/20">
+            <Sparkles className="h-3.5 w-3.5 text-accent-brand" />
+            <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-accent-brand-deep font-semibold">
+              UNSL · Plataforma del piloto
+            </span>
+          </div>
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-ink mb-4">
+            Tutor socrático con trazabilidad cognitiva
+          </h1>
+          <p className="text-base text-body leading-relaxed max-w-2xl">
+            No te da la respuesta — te acompaña a construirla. Cada interacción queda registrada
+            en una cadena criptográfica verificable.
+          </p>
+        </header>
 
         <section
-          aria-label="Como trabajas con el tutor"
-          className="border-t border-slate-200 dark:border-slate-800 pt-6 mb-10"
+          aria-label="Cómo trabajás con el tutor"
+          className="rounded-2xl border border-border bg-surface p-6 sm:p-8 mb-8 animate-fade-in-up animate-delay-100 relative overflow-hidden"
         >
-          <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-5">
-            Como trabajas
+          <div
+            aria-hidden="true"
+            className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent-brand via-accent-brand to-accent-brand/40"
+          />
+          <p className="text-[10px] font-mono uppercase tracking-[0.12em] font-semibold text-muted mb-5">
+            Cómo trabajás
           </p>
           <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-6">
-            {LEVELS.map((lvl) => (
-              <li key={lvl.level} className="flex flex-col">
+            {LEVELS.map((lvl, idx) => (
+              <li
+                key={lvl.level}
+                className="flex flex-col animate-fade-in-up"
+                style={{ animationDelay: `${200 + idx * 80}ms` }}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <span
                     aria-hidden="true"
                     data-testid={`level-dot-${lvl.level.toLowerCase()}`}
-                    className="inline-block w-2 h-2 rounded-full"
+                    className="inline-block w-2.5 h-2.5 rounded-full"
                     style={{ backgroundColor: lvl.colorVar }}
                   />
-                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <span className="text-sm font-semibold text-ink">
                     {lvl.level} {lvl.label}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {lvl.description}
-                </p>
+                <p className="text-xs text-muted leading-relaxed">{lvl.description}</p>
               </li>
             ))}
           </ol>
@@ -228,13 +239,13 @@ function EmptyState() {
         <div
           role="status"
           data-testid="home-empty-gap-b2"
-          className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl border-l border-slate-300 dark:border-slate-700 pl-3"
+          className="rounded-xl border-l-4 border-warning bg-warning-soft px-5 py-4 max-w-xl animate-fade-in-up animate-delay-300"
         >
-          <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">
-            No estas viendo tus materias?
+          <p className="font-medium text-warning mb-1 text-sm">
+            ¿No estás viendo tus materias?
           </p>
-          <p>
-            Tu Direccion de Informatica todavia no activo tu inscripcion. Ver gap-B.2 / ADR-029
+          <p className="text-xs text-warning/85 leading-relaxed">
+            Tu Dirección de Informática todavía no activó tu inscripción. Ver gap-B.2 / ADR-029
             para el detalle.
           </p>
         </div>
@@ -252,36 +263,31 @@ function DensaList({
 }) {
   return (
     <ul
-      className="divide-y divide-slate-100 dark:divide-slate-800"
+      className="rounded-xl border border-border bg-surface divide-y divide-border-soft overflow-hidden"
       data-testid="home-densa-list"
     >
-      {materias.map((m) => {
-        const comisionLabel = m.comision_nombre ?? `Comision ${m.comision_codigo}`
+      {materias.map((m, idx) => {
+        const comisionLabel = m.comision_nombre ?? `Comisión ${m.comision_codigo}`
         return (
           <li
             key={m.inscripcion_id}
             data-testid="materia-list-item"
             data-materia-codigo={m.codigo}
-            className="py-4 flex items-start gap-4"
+            className="px-5 py-4 flex items-start gap-4 hover:bg-surface-alt transition-colors animate-fade-in-up"
+            style={{ animationDelay: `${50 + idx * 30}ms` }}
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                  {m.codigo}
-                </span>
-                <span className="text-slate-400">·</span>
-                <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                  {comisionLabel}
-                </span>
+                <span className="text-xs font-mono text-muted">{m.codigo}</span>
+                <span className="text-muted-soft">·</span>
+                <span className="text-xs font-mono text-muted">{comisionLabel}</span>
               </div>
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                {m.nombre}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-sm font-medium text-ink">{m.nombre}</p>
+              <p className="text-xs text-muted mt-0.5">
                 {m.periodo_codigo}
                 {m.horario_resumen && (
                   <>
-                    <span className="text-slate-400 mx-1.5">·</span>
+                    <span className="text-muted-soft mx-1.5">·</span>
                     {m.horario_resumen}
                   </>
                 )}
@@ -290,7 +296,7 @@ function DensaList({
             <button
               type="button"
               onClick={() => onEnter(m)}
-              className="shrink-0 px-3 py-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="press-shrink shrink-0 px-3 py-1.5 rounded-md border border-border bg-surface text-xs font-medium text-body hover:bg-accent-brand-soft hover:text-accent-brand-deep hover:border-accent-brand/40 transition-colors"
             >
               Entrar
             </button>

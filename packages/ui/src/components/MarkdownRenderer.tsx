@@ -36,28 +36,30 @@ const proseClasses = [
   "[&_ol]:list-decimal",
   "[&_ol]:pl-5",
   "[&_li]:my-1",
-  "[&_a]:text-blue-600",
+  "[&_a]:text-accent-brand",
   "[&_a]:underline",
+  "[&_a:hover]:text-accent-brand-deep",
   "[&_strong]:font-semibold",
   "[&_em]:italic",
   "[&_blockquote]:border-l-4",
-  "[&_blockquote]:border-slate-300",
+  "[&_blockquote]:border-border-strong",
   "[&_blockquote]:pl-3",
   "[&_blockquote]:italic",
-  "[&_blockquote]:text-slate-600",
+  "[&_blockquote]:text-muted",
   "[&_table]:w-full",
   "[&_table]:border-collapse",
   "[&_th]:border",
-  "[&_th]:border-slate-300",
+  "[&_th]:border-border",
   "[&_th]:px-2",
   "[&_th]:py-1",
-  "[&_th]:bg-slate-100",
+  "[&_th]:bg-surface-alt",
+  "[&_th]:text-ink",
   "[&_td]:border",
-  "[&_td]:border-slate-300",
+  "[&_td]:border-border",
   "[&_td]:px-2",
   "[&_td]:py-1",
   "[&_hr]:my-3",
-  "[&_hr]:border-slate-200",
+  "[&_hr]:border-border-soft",
 ].join(" ")
 
 export function MarkdownRenderer({ content, className }: Props) {
@@ -70,12 +72,12 @@ export function MarkdownRenderer({ content, className }: Props) {
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className ?? "")
             return match ? (
-              <pre className="bg-slate-900 text-slate-100 p-3 rounded text-xs overflow-x-auto">
+              <pre className="bg-sidebar-bg text-sidebar-text p-3 rounded-md text-xs overflow-x-auto font-mono">
                 <code {...props}>{children}</code>
               </pre>
             ) : (
               <code
-                className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-xs font-mono"
+                className="bg-surface-alt text-ink px-1.5 py-0.5 rounded text-[0.8em] font-mono border border-border-soft"
                 {...props}
               >
                 {children}

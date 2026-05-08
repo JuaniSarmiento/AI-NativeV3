@@ -141,13 +141,13 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
     >
       <div className="max-w-2xl space-y-6">
         {!job && (
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+          <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-6 space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <HelpButton
                 size="sm"
                 title="Formulario de exportacion"
                 content={
-                  <div className="space-y-3 text-zinc-300">
+                  <div className="space-y-3 text-sidebar-text-muted">
                     <p>
                       <strong>Completa los siguientes campos</strong> para generar el dataset:
                     </p>
@@ -175,7 +175,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                   </div>
                 }
               />
-              <span className="text-sm text-slate-500 dark:text-zinc-400">
+              <span className="text-sm text-muted dark:text-sidebar-text-muted">
                 Ayuda sobre el formulario
               </span>
             </div>
@@ -186,7 +186,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                 value={comisionId}
                 onChange={(e) => setComisionId(e.target.value)}
                 placeholder="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded font-mono text-sm bg-transparent"
+                className="w-full px-3 py-2 border border-border dark:border-sidebar-bg-edge rounded font-mono text-sm bg-transparent"
               />
             </label>
 
@@ -194,7 +194,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
               <label className="block">
                 <span className="block text-sm font-medium mb-1">
                   Salt de anonimización{" "}
-                  <span className="text-xs text-slate-500">(mínimo 16 caracteres)</span>
+                  <span className="text-xs text-muted">(mínimo 16 caracteres)</span>
                 </span>
                 <input
                   type="text"
@@ -203,17 +203,17 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                   placeholder="mi-investigacion-unsl-2026-xxxxx"
                   className={`w-full px-3 py-2 border rounded font-mono text-sm bg-transparent ${
                     salt.length > 0 && !saltValid
-                      ? "border-red-400"
-                      : "border-slate-300 dark:border-slate-700"
+                      ? "border-danger/40"
+                      : "border-border dark:border-sidebar-bg-edge"
                   }`}
                 />
               </label>
               {salt.length > 0 && !saltValid && (
-                <p className="text-xs text-red-600 mt-1">
+                <p className="text-xs text-danger mt-1">
                   Salt muy corto ({salt.length} chars, mínimo 16).
                 </p>
               )}
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted mt-1">
                 Guardalo en un lugar seguro: sin el salt no podés correlacionar datasets
                 posteriores con éste.
               </p>
@@ -228,7 +228,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                   max={365}
                   value={periodDays}
                   onChange={(e) => setPeriodDays(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded text-sm bg-transparent"
+                  className="w-full px-3 py-2 border border-border dark:border-sidebar-bg-edge rounded text-sm bg-transparent"
                 />
               </label>
               <label className="block">
@@ -238,7 +238,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                   value={cohortAlias}
                   onChange={(e) => setCohortAlias(e.target.value)}
                   placeholder="UNSL_2026_P2"
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded text-sm bg-transparent"
+                  className="w-full px-3 py-2 border border-border dark:border-sidebar-bg-edge rounded text-sm bg-transparent"
                 />
               </label>
             </div>
@@ -251,7 +251,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
                 className="h-4 w-4"
               />
               <span>Incluir texto de prompts</span>
-              <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+              <span className="text-xs text-warning/85 bg-warning-soft px-2 py-0.5 rounded">
                 riesgo re-identificación
               </span>
             </label>
@@ -260,7 +260,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
+              className="w-full px-4 py-2 bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded font-medium"
             >
               {requesting ? "Encolando..." : "Generar dataset"}
             </button>
@@ -269,7 +269,7 @@ export function ExportView({ getToken, comisionIdDefault = "" }: Props) {
 
         {job && <JobProgressPanel job={job} onDownload={handleDownload} onReset={handleReset} />}
 
-        {error && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{error}</div>}
+        {error && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{error}</div>}
       </div>
     </PageContainer>
   )
@@ -284,23 +284,23 @@ function JobProgressPanel({
   onDownload: () => void
   onReset: () => void
 }) {
-  const PENDING_CFG = { color: "bg-slate-400", label: "En cola", progress: 15 }
+  const PENDING_CFG = { color: "bg-border-strong", label: "En cola", progress: 15 }
   const statusConfig: Record<string, { color: string; label: string; progress: number }> = {
     pending: PENDING_CFG,
-    running: { color: "bg-blue-500", label: "Procesando", progress: 60 },
+    running: { color: "bg-accent-brand", label: "Procesando", progress: 60 },
     succeeded: { color: "bg-green-600", label: "Completado", progress: 100 },
-    failed: { color: "bg-red-600", label: "Error", progress: 100 },
+    failed: { color: "bg-danger", label: "Error", progress: 100 },
   }
   const cfg = statusConfig[job.status] ?? PENDING_CFG
 
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+    <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-6 space-y-4">
       <div className="flex items-baseline justify-between">
         <h3 className="font-medium">Job {job.job_id.slice(0, 12)}...</h3>
         <span className={`px-2 py-0.5 rounded text-xs text-white ${cfg.color}`}>{cfg.label}</span>
       </div>
 
-      <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
+      <div className="relative h-2 bg-surface-alt dark:bg-sidebar-bg-edge rounded overflow-hidden">
         <div
           className={`absolute left-0 top-0 h-full transition-all ${cfg.color} ${
             job.status === "running" ? "animate-pulse" : ""
@@ -309,7 +309,7 @@ function JobProgressPanel({
         />
       </div>
 
-      <dl className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400">
+      <dl className="grid grid-cols-2 gap-2 text-xs text-muted dark:text-muted-soft">
         <div>
           <dt className="font-medium">Cohorte</dt>
           <dd className="font-mono">{job.cohort_alias}</dd>
@@ -331,7 +331,7 @@ function JobProgressPanel({
       </dl>
 
       {job.status === "failed" && job.error && (
-        <div className="p-3 rounded bg-red-50 text-red-900 text-sm font-mono">{job.error}</div>
+        <div className="p-3 rounded bg-danger-soft text-danger text-sm font-mono">{job.error}</div>
       )}
 
       <div className="flex gap-2 pt-2">
@@ -347,7 +347,7 @@ function JobProgressPanel({
         <button
           type="button"
           onClick={onReset}
-          className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm"
+          className="px-4 py-2 border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge text-sm"
         >
           Nuevo export
         </button>

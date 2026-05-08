@@ -126,12 +126,12 @@ export function OpeningStage({
   return (
     <div className="flex-1 overflow-y-auto px-6 py-12">
       <div className="max-w-2xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted mb-3">
           Abriendo episodio
         </p>
 
-        <h2 className="text-2xl font-semibold leading-tight text-slate-900 dark:text-slate-50 mb-8">
-          <span className="font-mono text-base text-slate-600 dark:text-slate-400 mr-2">
+        <h2 className="text-2xl font-semibold leading-tight text-ink mb-8">
+          <span className="font-mono text-base text-muted mr-2">
             {tareaCodigo}
           </span>
           {tareaTitulo}
@@ -150,15 +150,15 @@ export function OpeningStage({
         {showRetry && !episodeReady && !errorMessage && (
           <p
             data-testid="opening-retry-line"
-            className="mt-4 text-xs text-slate-500 font-mono"
+            className="mt-4 text-xs text-muted font-mono"
           >
             ▱ retrying chain commit (red lenta detectada)
           </p>
         )}
 
         {episodeId && (
-          <p className="mt-6 text-xs font-mono text-slate-500 dark:text-slate-400">
-            episodio: <span className="text-slate-700 dark:text-slate-300">{episodeId.slice(0, 6)}...{episodeId.slice(-4)}</span>
+          <p className="mt-6 text-xs font-mono text-muted">
+            episodio: <span className="text-body">{episodeId.slice(0, 6)}...{episodeId.slice(-4)}</span>
           </p>
         )}
       </div>
@@ -179,22 +179,22 @@ function StepRow({ step, onShowError }: { step: Step; onShowError?: () => void }
         <p
           className={
             status === "error"
-              ? "text-red-700 dark:text-red-400 font-medium"
+              ? "text-danger font-medium"
               : status === "done"
-                ? "text-slate-900 dark:text-slate-100"
+                ? "text-ink"
                 : status === "inflight"
-                  ? "text-slate-800 dark:text-slate-200"
-                  : "text-slate-500 dark:text-slate-500"
+                  ? "text-body"
+                  : "text-muted"
           }
         >
           {label}
         </p>
-        <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">{detail}</p>
+        <p className="text-xs font-mono text-muted mt-0.5">{detail}</p>
         {status === "error" && onShowError && (
           <button
             type="button"
             onClick={onShowError}
-            className="mt-1 text-xs underline text-red-700 dark:text-red-400 hover:text-red-900"
+            className="mt-1 text-xs underline text-danger hover:text-danger"
           >
             ver detalles
           </button>
@@ -228,7 +228,7 @@ function StatusGlyph({ status }: { status: StepStatus }) {
     return (
       <span
         aria-hidden="true"
-        className="inline-flex w-5 h-5 items-center justify-center rounded-full text-xs font-bold text-red-600"
+        className="inline-flex w-5 h-5 items-center justify-center rounded-full text-xs font-bold text-danger"
         data-testid="step-glyph-error"
       >
         ✗
@@ -250,7 +250,7 @@ function StatusGlyph({ status }: { status: StepStatus }) {
     <span
       aria-hidden="true"
       data-testid="step-glyph-pending"
-      className="inline-flex w-5 h-5 items-center justify-center text-slate-400"
+      className="inline-flex w-5 h-5 items-center justify-center text-muted-soft"
     >
       ▱
     </span>

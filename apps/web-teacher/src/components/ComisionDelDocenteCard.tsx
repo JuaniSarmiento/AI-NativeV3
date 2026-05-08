@@ -1,40 +1,28 @@
 /**
- * Card densa por comision del docente, usada en la home (HomeView).
+ * Card por comisión del docente — rediseño v2 (layout 2026).
  *
- * Patron equivalente al MateriaCard del web-student: una sola card
- * prominente con kicker mono + headline + 4 KPIs densos en strip
- * inline + CTA a la cohorte. NO 4-card grid uniforme (cumple
- * DESIGN.md don't #3 hero-metric ban).
+ * Patrón: card con hover-lift + jerarquía visual fuerte (kicker · headline ·
+ * KPIs grid 2x2 con valores en mono · CTAs en footer). Acento vertical Stack
+ * Blue en el borde izquierdo para identificar comisiones rápido al escanear.
  *
- * Honestidad tecnica: cuando el cohort tiene N=0 episodios o N<3
- * estudiantes con datos, los KPIs muestran "datos insuf." en color
- * muted en vez de un 0 ambiguo (PRODUCT.md auditabilidad).
+ * Honestidad técnica: cuando el cohort tiene N=0 episodios o N<3 estudiantes
+ * con datos, los KPIs muestran "—" en color muted (PRODUCT.md auditabilidad).
  */
 import { Link } from "@tanstack/react-router"
+import { ArrowRight, ShieldAlert, Users } from "lucide-react"
 import type { Comision } from "../lib/api"
 
 export interface ComisionKpis {
-  /** Total de inscriptos en la comision (campo n_students del progression). */
   alumnos: number | null
-  /** Episodios cerrados en los ultimos 7 dias. null = no hay datos. */
   episodiosSemana: number | null
-  /** Alertas abiertas para la cohorte. null = endpoint no disponible. */
   alertas: number | null
-  /** Eventos adversos en los ultimos 7 dias. */
   adversosSemana: number | null
 }
 
 export interface ComisionDelDocenteCardProps {
   comision: Comision
-  /** Nombre legible (suele venir como `nombre` del seed). */
   displayName: string
-  /** KPIs ya computados por el padre (la home hace los fetches en paralelo). */
   kpis: ComisionKpis
-}
-
-function kpiValue(v: number | null): string {
-  if (v === null) return "—"
-  return String(v)
 }
 
 export function ComisionDelDocenteCard({
@@ -48,86 +36,142 @@ export function ComisionDelDocenteCard({
     return null
   })()
 
+  const hasAdversos = kpis.adversosSemana !== null && kpis.adversosSemana > 0
+  const hasActividad = kpis.episodiosSemana !== null && kpis.episodiosSemana > 0
+
   return (
     <article
       data-testid="comision-card"
       data-comision-id={comision.id}
-      className="rounded-xl border border-[#EAEAEA] bg-white p-6 transition-shadow duration-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+      className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full"
     >
-      <p
-        className="text-xs uppercase tracking-wider text-[#787774] mb-1"
-        data-testid="comision-card-kicker"
-      >
-        {comision.codigo}
-        {horarioStr && (
-          <>
-            <span className="text-[#EAEAEA] mx-1.5">·</span>
-            {horarioStr}
-          </>
-        )}
-      </p>
+      {/* Acento vertical brand a la izquierda */}
+      <div
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0 w-1 bg-accent-brand/0 group-hover:bg-accent-brand transition-colors duration-200"
+      />
 
-      <h3 className="text-lg font-semibold text-[#111111] mb-4">
-        {displayName}
-      </h3>
+      <div className="p-5 flex-1">
+        {/* ═══ Kicker ═══ */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className="font-mono text-[11px] uppercase tracking-wider text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft"
+              data-testid="comision-card-kicker"
+            >
+              {comision.codigo}
+            </span>
+            {horarioStr && (
+              <span className="text-[11px] text-muted truncate">{horarioStr}</span>
+            )}
+          </div>
+          {/* Indicador de estado (puntito) */}
+          <span
+            className={`inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide ${hasActividad ? "text-success" : "text-muted-soft"}`}
+            title={hasActividad ? "Actividad esta semana" : "Sin actividad reciente"}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${hasActividad ? "bg-success animate-pulse-soft" : "bg-muted-soft"}`} />
+            {hasActividad ? "activa" : "sin act."}
+          </span>
+        </div>
 
-      <dl
-        className="flex flex-wrap items-start gap-x-8 gap-y-3 mb-5"
-        data-testid="comision-card-kpis"
-      >
-        <div>
-          <dd className={`text-xl font-semibold ${kpis.alumnos === null ? "text-[#787774]" : "text-[#111111]"}`}>
-            {kpiValue(kpis.alumnos)}
-          </dd>
-          <dt className="text-xs text-[#787774] mt-0.5">alumnos</dt>
-        </div>
-        <div>
-          <dd className={`text-xl font-semibold ${kpis.episodiosSemana === null ? "text-[#787774]" : "text-[#111111]"}`}>
-            {kpiValue(kpis.episodiosSemana)}
-          </dd>
-          <dt className="text-xs text-[#787774] mt-0.5">episodios sem.</dt>
-        </div>
-        <div>
-          <dd className={`text-xl font-semibold ${kpis.alertas === null ? "text-[#787774]" : "text-[#111111]"}`}>
-            {kpiValue(kpis.alertas)}
-          </dd>
-          <dt className="text-xs text-[#787774] mt-0.5">alertas</dt>
-        </div>
-        <div>
-          <dd className={`text-xl font-semibold ${kpis.adversosSemana === null ? "text-[#787774]" : "text-[#111111]"}`}>
-            {kpiValue(kpis.adversosSemana)}
-          </dd>
-          <dt className="text-xs text-[#787774] mt-0.5">adversos sem.</dt>
-        </div>
-      </dl>
+        {/* ═══ Headline ═══ */}
+        <h3 className="text-[17px] font-semibold text-ink leading-tight tracking-tight mb-4">
+          {displayName}
+        </h3>
 
-      <div className="h-1 rounded-full mb-4 overflow-hidden bg-[#EAEAEA]">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: kpis.alumnos && kpis.alumnos > 0 ? "100%" : "0%",
-            backgroundColor: "var(--color-appropriation-reflexiva)",
-          }}
-        />
+        {/* ═══ KPIs grid 2x2 ═══ */}
+        <dl
+          className="grid grid-cols-4 gap-3 mb-1"
+          data-testid="comision-card-kpis"
+        >
+          <KpiCell
+            value={kpis.alumnos}
+            label="alumnos"
+            tone="default"
+          />
+          <KpiCell
+            value={kpis.episodiosSemana}
+            label="episodios"
+            sublabel="sem."
+            tone="default"
+          />
+          <KpiCell
+            value={kpis.alertas}
+            label="alertas"
+            tone={kpis.alertas !== null && kpis.alertas > 0 ? "warning" : "default"}
+          />
+          <KpiCell
+            value={kpis.adversosSemana}
+            label="adversos"
+            sublabel="sem."
+            tone={hasAdversos ? "danger" : "default"}
+          />
+        </dl>
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* ═══ Footer con CTAs ═══ */}
+      <footer className="flex items-stretch border-t border-border-soft">
         <Link
           to="/progression"
           search={{ comisionId: comision.id }}
           data-testid="comision-card-cohort-link"
-          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-[#111111] text-white hover:bg-[#333333] transition-colors"
+          className="press-shrink flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-ink hover:bg-accent-brand-soft hover:text-accent-brand-deep transition-colors"
         >
+          <Users className="h-4 w-4" />
           Ver cohorte
+          <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
         </Link>
         <Link
           to="/cohort-adversarial"
           search={{ comisionId: comision.id }}
-          className="text-sm text-[#787774] hover:text-[#111111] transition-colors"
+          className={`press-shrink inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-l border-border-soft transition-colors ${
+            hasAdversos
+              ? "text-warning hover:bg-warning-soft"
+              : "text-muted hover:bg-surface-alt hover:text-ink"
+          }`}
+          title={hasAdversos ? "Hay intentos adversos esta semana" : "Adversarial events"}
         >
-          Adversarial
+          <ShieldAlert className="h-4 w-4" />
+          {hasAdversos && (
+            <span className="font-mono font-semibold">{kpis.adversosSemana}</span>
+          )}
         </Link>
-      </div>
+      </footer>
     </article>
+  )
+}
+
+/* ═══ KpiCell — celda compacta con jerarquía visual ═══════════════════ */
+function KpiCell({
+  value,
+  label,
+  sublabel,
+  tone = "default",
+}: {
+  value: number | null
+  label: string
+  sublabel?: string
+  tone?: "default" | "warning" | "danger"
+}) {
+  const valueColor =
+    value === null
+      ? "text-muted-soft"
+      : tone === "danger" && value > 0
+        ? "text-danger"
+        : tone === "warning" && value > 0
+          ? "text-warning"
+          : "text-ink"
+
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className={`font-mono text-xl font-semibold leading-none tracking-tight ${valueColor}`}>
+        {value !== null ? value : "—"}
+      </span>
+      <span className="text-[10px] uppercase tracking-wider text-muted truncate">
+        {label}
+        {sublabel && <span className="text-muted-soft"> {sublabel}</span>}
+      </span>
+    </div>
   )
 }

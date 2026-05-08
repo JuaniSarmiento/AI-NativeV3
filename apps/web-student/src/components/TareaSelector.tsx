@@ -224,10 +224,10 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="max-w-md text-center px-6">
-          <p className="text-base font-medium text-slate-700 dark:text-slate-200 mb-2">
+          <p className="text-base font-medium text-body mb-2">
             Tu comision todavia no tiene TPs publicadas.
           </p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-muted">
             Tu docente las publica desde el panel de gestion.
           </p>
         </div>
@@ -238,10 +238,10 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-3xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted mb-2">
           Trabajos practicos
         </p>
-        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-50 mb-8">
+        <h2 className="text-2xl font-semibold text-ink mb-8">
           Tu materia, esta semana.
         </h2>
 
@@ -278,7 +278,7 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
             {loadMoreError && (
               <div
                 role="alert"
-                className="w-full max-w-md rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950 p-3 text-xs text-red-800 dark:text-red-200"
+                className="w-full max-w-md rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs text-danger"
               >
                 <p className="font-medium mb-1">No pudimos cargar mas trabajos practicos.</p>
                 <p className="font-mono">{loadMoreError}</p>
@@ -288,7 +288,7 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
               type="button"
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="px-4 py-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
+              className="px-4 py-2 rounded border border-border bg-white text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-60"
             >
               {loadingMore ? "Cargando..." : "Cargar mas"}
             </button>
@@ -309,10 +309,10 @@ function EntregaBadge({ estado }: { estado: EntregaEstado }) {
     returned: "Devuelta",
   }
   const classes: Record<EntregaEstado, string> = {
-    draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
-    submitted: "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300",
-    graded: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300",
-    returned: "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300",
+    draft: "bg-surface-alt text-muted",
+    submitted: "bg-accent-brand-soft text-accent-brand-deep",
+    graded: "bg-green-100 text-success",
+    returned: "bg-warning-soft text-warning/85",
   }
   return (
     <span
@@ -340,10 +340,10 @@ function ZonePendiente({
   return (
     <section className="mb-10" data-testid="zone-pendiente">
       <div className="flex items-baseline justify-between mb-4">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
+        <p className="text-xs font-mono uppercase tracking-wider text-body">
           Pendiente
         </p>
-        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+        <span className="text-xs text-muted font-mono">
           {tareas.length} {tareas.length === 1 ? "TP" : "TPs"}
         </span>
       </div>
@@ -397,27 +397,27 @@ function PendienteCard({
     <article
       data-testid="tp-card"
       data-tp-codigo={tarea.codigo}
-      className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-5"
+      className="rounded-lg border border-border bg-white p-5"
     >
       <header className="flex items-start gap-3 mb-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">
+          <p className="text-xs font-mono text-muted mb-1">
             {tarea.codigo} (v{tarea.version})
           </p>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          <h3 className="text-lg font-semibold text-ink">
             {tarea.titulo}
           </h3>
         </div>
       </header>
 
-      <div className="mb-4 text-xs text-slate-600 dark:text-slate-400">
+      <div className="mb-4 text-xs text-muted">
         {trajectory.length === 0 ? (
           <p data-testid="trajectory-empty" className="italic">
             Tu primera vez con esta TP.
           </p>
         ) : (
           <div className="flex items-center gap-2 flex-wrap" data-testid="trajectory-dots">
-            <span className="text-slate-500 dark:text-slate-400">
+            <span className="text-muted">
               Tu trayectoria en TPs analogas:
             </span>
             <span className="inline-flex items-center gap-1.5">
@@ -467,15 +467,15 @@ function ZonePorCorregir({
 }) {
   return (
     <section className="mb-10" data-testid="zone-por-corregir">
-      <div className="flex items-baseline gap-3 mb-3 border-b border-slate-200 dark:border-slate-800 pb-1">
-        <p className="text-xs font-mono uppercase tracking-wider text-blue-700 dark:text-blue-300">
+      <div className="flex items-baseline gap-3 mb-3 border-b border-border-soft pb-1">
+        <p className="text-xs font-mono uppercase tracking-wider text-accent-brand-deep">
           Por corregir
         </p>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
+        <span className="text-xs text-muted">
           esperando al docente
         </span>
       </div>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      <ul className="divide-y divide-slate-100">
         {tareas.map((t) => {
           const entrega = entregasByTareaId[t.id]
           return (
@@ -487,16 +487,16 @@ function ZonePorCorregir({
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    <span className="text-xs font-mono text-muted">
                       {t.codigo}
                     </span>
-                    <span className="text-xs font-mono text-slate-400">v{t.version}</span>
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                    <span className="text-xs font-mono text-muted-soft">v{t.version}</span>
+                    <span className="text-sm font-medium text-ink truncate">
                       {t.titulo}
                     </span>
                   </div>
                   {entrega?.submitted_at && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    <p className="text-xs text-muted mt-1">
                       Entregada el{" "}
                       {new Date(entrega.submitted_at).toLocaleString("es-AR", {
                         day: "2-digit",
@@ -507,7 +507,7 @@ function ZonePorCorregir({
                     </p>
                   )}
                 </div>
-                <span className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                <span className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-accent-brand-soft text-accent-brand-deep">
                   Esperando correccion
                 </span>
               </div>
@@ -532,15 +532,15 @@ function ZoneListo({
 }) {
   return (
     <section className="mb-10" data-testid="zone-listo">
-      <div className="flex items-baseline gap-3 mb-3 border-b border-slate-200 dark:border-slate-800 pb-1">
-        <p className="text-xs font-mono uppercase tracking-wider text-green-700 dark:text-green-300">
+      <div className="flex items-baseline gap-3 mb-3 border-b border-border-soft pb-1">
+        <p className="text-xs font-mono uppercase tracking-wider text-success">
           Listo
         </p>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
+        <span className="text-xs text-muted">
           corregidas por el docente
         </span>
       </div>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      <ul className="divide-y divide-slate-100">
         {tareas.map((t) => {
           const entrega = entregasByTareaId[t.id]
           return (
@@ -552,11 +552,11 @@ function ZoneListo({
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                    <span className="text-xs font-mono text-muted">
                       {t.codigo}
                     </span>
-                    <span className="text-xs font-mono text-slate-400">v{t.version}</span>
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                    <span className="text-xs font-mono text-muted-soft">v{t.version}</span>
+                    <span className="text-sm font-medium text-ink truncate">
                       {t.titulo}
                     </span>
                     {entrega && <EntregaBadge estado={entrega.estado} />}
@@ -565,7 +565,7 @@ function ZoneListo({
                 <button
                   type="button"
                   onClick={() => onSelect(t)}
-                  className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900"
+                  className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-green-100 text-success hover:bg-green-200"
                 >
                   Ver calificacion
                 </button>
@@ -589,13 +589,13 @@ function ZoneVencidas({
 }) {
   return (
     <section className="mb-6" data-testid="zone-vencidas">
-      <div className="flex items-baseline gap-3 mb-3 border-b border-slate-200 dark:border-slate-800 pb-1">
-        <p className="text-xs font-mono uppercase tracking-wider text-slate-500 dark:text-slate-500">
+      <div className="flex items-baseline gap-3 mb-3 border-b border-border-soft pb-1">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted">
           Vencidas
         </p>
-        <span className="text-xs text-slate-400 dark:text-slate-500">acceso solo lectura</span>
+        <span className="text-xs text-muted-soft">acceso solo lectura</span>
       </div>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      <ul className="divide-y divide-slate-100">
         {tareas.map((t) => {
           const lastResult = episodes
             .filter((ep) => ep.problema_id === t.id && ep.appropriation !== null)
@@ -605,14 +605,14 @@ function ZoneVencidas({
               return db - da
             })[0]
           return (
-            <li key={t.id} className="py-2.5 text-xs text-slate-500 dark:text-slate-500">
+            <li key={t.id} className="py-2.5 text-xs text-muted">
               <div className="flex items-center gap-2">
                 <span className="font-mono">{t.codigo}</span>
-                <span className="text-slate-400">v{t.version}</span>
-                <span className="text-slate-700 dark:text-slate-300 truncate">{t.titulo}</span>
+                <span className="text-muted-soft">v{t.version}</span>
+                <span className="text-body truncate">{t.titulo}</span>
               </div>
               {lastResult && lastResult.appropriation && (
-                <p className="mt-1 text-slate-500 flex items-center gap-1.5">
+                <p className="mt-1 text-muted flex items-center gap-1.5">
                   <span
                     aria-hidden="true"
                     className="inline-block w-2 h-2 rounded-full"
@@ -691,7 +691,7 @@ function formatDeadline(fechaFin: string | null): DeadlineInfo | null {
   if (diffMs <= 0) {
     return {
       label: `${absoluteLabel} (vencido)`,
-      colorClass: "text-red-600 dark:text-red-400 font-medium",
+      colorClass: "text-danger font-medium",
     }
   }
 
@@ -706,11 +706,11 @@ function formatDeadline(fechaFin: string | null): DeadlineInfo | null {
     relative = `en ${days}d`
   }
 
-  let colorClass = "text-slate-500 dark:text-slate-400"
+  let colorClass = "text-muted"
   if (diffHours < 24) {
-    colorClass = "text-red-600 dark:text-red-400 font-medium"
+    colorClass = "text-danger font-medium"
   } else if (diffHours < 72) {
-    colorClass = "text-amber-600 dark:text-amber-400"
+    colorClass = "text-warning"
   }
 
   return {

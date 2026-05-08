@@ -32,11 +32,8 @@ export function HelpButton({ title, content, size = "md" }: HelpButtonProps) {
         onClick={() => setIsOpen(true)}
         className={cn(
           "inline-flex items-center justify-center rounded-full",
-          "text-slate-500 hover:text-slate-900 hover:bg-slate-100",
-          "dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800",
-          "transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400",
-          "dark:focus-visible:ring-zinc-500",
+          "text-muted hover:text-ink hover:bg-surface-alt transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong",
           buttonSizes[size],
         )}
       >

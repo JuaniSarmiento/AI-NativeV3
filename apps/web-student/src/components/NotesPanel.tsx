@@ -58,19 +58,19 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
   }
 
   return (
-    <section className="flex flex-col rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+    <section className="flex flex-col rounded-lg border border-border-soft bg-white overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-2 flex items-center justify-between text-left border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+        className="w-full px-4 py-2 flex items-center justify-between text-left border-b border-border-soft hover:bg-surface-alt"
       >
         <span className="text-sm font-medium">
           Mis notas{" "}
           {notes.length > 0 && (
-            <span className="text-xs text-slate-500 ml-1">({notes.length})</span>
+            <span className="text-xs text-muted ml-1">({notes.length})</span>
           )}
         </span>
-        <span className="text-xs text-slate-500">{open ? "Ocultar" : "Mostrar"}</span>
+        <span className="text-xs text-muted">{open ? "Ocultar" : "Mostrar"}</span>
       </button>
 
       {open && (
@@ -84,11 +84,11 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
             placeholder="Anotá tu razonamiento, dudas, decisiones..."
             rows={4}
             disabled={saving}
-            className="w-full px-3 py-2 text-sm rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 resize-none focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 text-sm rounded border border-border bg-surface-alt resize-none focus:outline-none focus:border-accent-brand"
           />
           <div className="flex items-center justify-between gap-2">
             <span
-              className={`text-xs ${tooLong ? "text-[var(--color-danger)]" : "text-slate-500"}`}
+              className={`text-xs ${tooLong ? "text-[var(--color-danger)]" : "text-muted"}`}
             >
               {trimmed.length}/{MAX_LEN}
             </span>
@@ -96,7 +96,7 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
               type="button"
               onClick={handleSave}
               disabled={!canSave}
-              className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
+              className="px-3 py-1 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded font-medium"
             >
               {saving ? "Guardando..." : "Guardar nota"}
             </button>
@@ -106,14 +106,14 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
           )}
 
           {notes.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 max-h-48 overflow-y-auto space-y-2">
+            <div className="mt-2 pt-2 border-t border-border-soft max-h-48 overflow-y-auto space-y-2">
               {notes.map((n, i) => (
                 <div
                   key={`${n.ts}-${i}`}
-                  className="text-xs rounded bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2"
+                  className="text-xs rounded bg-surface-alt border border-border-soft p-2"
                 >
-                  <div className="text-slate-400 mb-1">{new Date(n.ts).toLocaleTimeString()}</div>
-                  <div className="whitespace-pre-wrap text-slate-700 dark:text-slate-300">
+                  <div className="text-muted-soft mb-1">{new Date(n.ts).toLocaleTimeString()}</div>
+                  <div className="whitespace-pre-wrap text-body">
                     {n.contenido}
                   </div>
                 </div>

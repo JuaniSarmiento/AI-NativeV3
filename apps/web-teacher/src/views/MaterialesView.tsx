@@ -67,11 +67,11 @@ const TIPO_LABEL: Record<MaterialTipo, string> = {
 }
 
 const TIPO_COLOR: Record<MaterialTipo, string> = {
-  pdf: "bg-red-100 text-red-800 border-red-200",
-  markdown: "bg-blue-100 text-blue-800 border-blue-200",
+  pdf: "bg-danger-soft text-danger border-danger/30",
+  markdown: "bg-accent-brand-soft text-accent-brand-deep border-accent-brand/30",
   code_archive: "bg-green-100 text-green-800 border-green-200",
-  text: "bg-slate-100 text-slate-800 border-slate-200",
-  video: "bg-violet-100 text-violet-800 border-violet-200",
+  text: "bg-surface-alt text-body border-border-soft",
+  video: "bg-warning-soft text-warning border-warning/30",
 }
 
 const ESTADO_LABEL: Record<MaterialEstado, string> = {
@@ -84,12 +84,12 @@ const ESTADO_LABEL: Record<MaterialEstado, string> = {
 }
 
 const ESTADO_COLOR: Record<MaterialEstado, string> = {
-  uploaded: "bg-slate-200 text-slate-800",
-  extracting: "bg-slate-200 text-slate-800",
-  chunking: "bg-slate-200 text-slate-800",
-  embedding: "bg-slate-200 text-slate-800",
+  uploaded: "bg-surface-alt text-body",
+  extracting: "bg-surface-alt text-body",
+  chunking: "bg-surface-alt text-body",
+  embedding: "bg-surface-alt text-body",
   indexed: "bg-green-100 text-green-800",
-  failed: "bg-red-100 text-red-800",
+  failed: "bg-danger-soft text-danger",
 }
 
 function formatBytes(bytes: number): string {
@@ -230,13 +230,13 @@ export function MaterialesView({ comisionId, getToken }: Props) {
     >
       <div className="space-y-6 max-w-6xl">
         {/* Upload form */}
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+        <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-4 space-y-3">
           <div className="flex items-center gap-2 mb-1">
             <HelpButton
               size="sm"
               title="Subir material"
               content={
-                <div className="space-y-3 text-zinc-300">
+                <div className="space-y-3 text-sidebar-text-muted">
                   <p>
                     <strong>Formatos y limites aceptados</strong>:
                   </p>
@@ -270,10 +270,10 @@ export function MaterialesView({ comisionId, getToken }: Props) {
               accept=".pdf,.md,.txt,.zip"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={uploading}
-              className="text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100 file:cursor-pointer"
+              className="text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-border file:bg-surface-alt file:text-body hover:file:bg-surface-alt file:cursor-pointer"
             />
             {file && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-muted">
                 {file.name} · {formatBytes(file.size)}
               </span>
             )}
@@ -281,17 +281,17 @@ export function MaterialesView({ comisionId, getToken }: Props) {
               type="button"
               onClick={handleUpload}
               disabled={!file || !materiaId || uploading}
-              className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white rounded font-medium"
+              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded font-medium"
             >
               {uploading ? "Subiendo..." : "Subir"}
             </button>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             Formatos aceptados: PDF, Markdown (.md), texto (.txt), ZIP de código. Tamaño máximo: 50
             MB por archivo.
           </p>
           {uploadError && (
-            <div className="p-2 rounded bg-red-50 text-red-900 text-xs">{uploadError}</div>
+            <div className="p-2 rounded bg-danger-soft text-danger text-xs">{uploadError}</div>
           )}
         </div>
 
@@ -304,24 +304,24 @@ export function MaterialesView({ comisionId, getToken }: Props) {
               type="button"
               onClick={refreshList}
               disabled={loading}
-              className="px-3 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40"
+              className="px-3 py-1 text-xs border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge disabled:opacity-40"
             >
               {loading ? "Cargando..." : "Refrescar"}
             </button>
           </div>
 
-          {error && <div className="p-3 rounded bg-red-50 text-red-900 text-sm">{error}</div>}
+          {error && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{error}</div>}
 
           {loading && materiales.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">Cargando materiales...</div>
+            <div className="p-8 text-center text-muted">Cargando materiales...</div>
           ) : materiales.length === 0 ? (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-center text-slate-500">
+            <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-8 text-center text-muted">
               No hay materiales subidos para esta materia todavía.
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <thead className="bg-surface-alt dark:bg-sidebar-bg-edge/50 border-b border-border-soft dark:border-sidebar-bg-edge">
                   <tr>
                     <th className="text-left px-4 py-2 font-medium">Nombre</th>
                     <th className="text-left px-4 py-2 font-medium">Tipo</th>
@@ -358,7 +358,7 @@ function MaterialRow({
   const isProcessing = !TERMINAL_STATES.includes(estado)
 
   return (
-    <tr className="border-b border-slate-100 dark:border-slate-800/50 last:border-0">
+    <tr className="border-b border-border-soft dark:border-sidebar-bg-edge/50 last:border-0">
       <td className="px-4 py-2">
         <div className="font-medium truncate max-w-xs" title={material.nombre}>
           {material.nombre}
@@ -379,7 +379,7 @@ function MaterialRow({
           {TIPO_LABEL[tipo]}
         </span>
       </td>
-      <td className="px-4 py-2 text-right tabular-nums text-slate-600">
+      <td className="px-4 py-2 text-right tabular-nums text-muted">
         {formatBytes(material.tamano_bytes)}
       </td>
       <td className="px-4 py-2">
@@ -391,17 +391,17 @@ function MaterialRow({
           {ESTADO_LABEL[estado]}
         </span>
       </td>
-      <td className="px-4 py-2 text-right tabular-nums text-slate-600">
+      <td className="px-4 py-2 text-right tabular-nums text-muted">
         {material.chunks_count ?? "..."}
       </td>
-      <td className="px-4 py-2 text-xs text-slate-500" title={material.created_at}>
+      <td className="px-4 py-2 text-xs text-muted" title={material.created_at}>
         {formatRelative(material.created_at)}
       </td>
       <td className="px-4 py-2 text-right">
         <button
           type="button"
           onClick={onDelete}
-          className="px-2 py-1 text-xs text-red-700 hover:bg-red-50 rounded"
+          className="px-2 py-1 text-xs text-danger hover:bg-danger-soft rounded"
         >
           Eliminar
         </button>

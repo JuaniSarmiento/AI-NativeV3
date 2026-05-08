@@ -23,10 +23,12 @@ export function StateMessage({
   action,
   className,
 }: StateMessageProps) {
+  // exactOptionalPropertyTypes: spread condicional para no asignar `undefined` explícito.
+  const descriptionPart = description !== undefined ? { description } : {}
   const defaults: Record<Variant, { title: string; description?: string }> = {
     loading: { title: title ?? "Cargando..." },
-    empty: { title: title ?? "Sin datos", description },
-    error: { title: title ?? "Error", description },
+    empty: { title: title ?? "Sin datos", ...descriptionPart },
+    error: { title: title ?? "Error", ...descriptionPart },
   }
   const resolved = defaults[variant]
 
@@ -38,9 +40,8 @@ export function StateMessage({
       className={cn(
         "flex flex-col items-center justify-center gap-3 px-6 py-10 text-center",
         variant === "empty" &&
-          "rounded-md border border-dashed border-slate-200 bg-slate-50/40 dark:border-zinc-800 dark:bg-zinc-900/30",
-        variant === "error" &&
-          "rounded-md border border-[var(--color-danger)]/20 bg-[var(--color-danger-soft)]",
+          "rounded-md border border-dashed border-border bg-surface-alt/40",
+        variant === "error" && "rounded-md border border-danger/20 bg-danger-soft",
         className,
       )}
     >
@@ -49,9 +50,7 @@ export function StateMessage({
         <p
           className={cn(
             "text-sm font-medium",
-            variant === "error"
-              ? "text-[var(--color-danger)]"
-              : "text-slate-700 dark:text-zinc-200",
+            variant === "error" ? "text-danger" : "text-body",
           )}
         >
           {resolved.title}
@@ -60,9 +59,7 @@ export function StateMessage({
           <p
             className={cn(
               "text-xs",
-              variant === "error"
-                ? "text-[var(--color-danger)]/80"
-                : "text-slate-500 dark:text-zinc-400",
+              variant === "error" ? "text-danger/80" : "text-muted",
             )}
           >
             {resolved.description}
@@ -79,7 +76,7 @@ function Spinner() {
     <span
       aria-hidden="true"
       data-testid="state-spinner"
-      className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700 dark:border-zinc-700 dark:border-t-zinc-200"
+      className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-border-soft border-t-accent-brand"
     />
   )
 }

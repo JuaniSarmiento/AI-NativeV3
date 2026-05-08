@@ -47,20 +47,20 @@ const ESTADO_BADGE: Record<
   { bg: string; text: string }
 > = {
   draft: {
-    bg: "bg-[#F5F5F5]",
-    text: "text-[#787774]",
+    bg: "bg-surface-alt",
+    text: "text-muted",
   },
   submitted: {
-    bg: "bg-blue-50",
-    text: "text-blue-700",
+    bg: "bg-accent-brand-soft",
+    text: "text-accent-brand-deep",
   },
   graded: {
-    bg: "bg-green-50",
-    text: "text-green-700",
+    bg: "bg-success-soft",
+    text: "text-success",
   },
   returned: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
+    bg: "bg-warning-soft",
+    text: "text-warning/85",
   },
 }
 
@@ -163,7 +163,7 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
 
   if (!comisionId) {
     return (
-      <div className="flex-1 flex items-center justify-center py-12 text-sm text-[#787774]">
+      <div className="flex-1 flex items-center justify-center py-12 text-sm text-muted">
         Selecciona una comision para ver las entregas.
       </div>
     )
@@ -175,7 +175,7 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
       <div className="flex items-center gap-3">
         <label
           htmlFor="estado-filter"
-          className="text-xs font-mono uppercase tracking-wider text-[#787774]"
+          className="text-xs font-mono uppercase tracking-wider text-muted"
         >
           Estado
         </label>
@@ -183,7 +183,7 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
           id="estado-filter"
           value={estadoFilter}
           onChange={(e) => setEstadoFilter(e.target.value as EntregaEstado | "")}
-          className="text-sm border border-[#EAEAEA] rounded px-3 py-1.5 bg-white text-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
+          className="text-sm border border-border rounded px-3 py-1.5 bg-white text-ink focus:outline-none focus:ring-1 focus:ring-[#111111]"
         >
           <option value="">Todos</option>
           {(["draft", "submitted", "graded", "returned"] as EntregaEstado[]).map((e) => (
@@ -204,13 +204,13 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
           {error}
         </div>
       )}
 
       {!loading && !error && entregas.length === 0 && (
-        <div className="py-12 text-center text-sm text-[#787774]">
+        <div className="py-12 text-center text-sm text-muted">
           {estadoFilter
             ? `No hay entregas con estado "${ESTADO_LABEL[estadoFilter as EntregaEstado]}".`
             : "Esta comision aun no tiene entregas."}
@@ -218,20 +218,20 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
       )}
 
       {!loading && !error && entregas.length > 0 && (
-        <div className="rounded-lg border border-[#EAEAEA] overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm" data-testid="entregas-table">
-            <thead className="bg-[#F5F5F5]">
+            <thead className="bg-surface-alt">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-[#787774]">
+                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
                   Estudiante
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-[#787774]">
+                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
                   TP
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-[#787774]">
+                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
                   Estado
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-[#787774]">
+                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
                   Enviada
                 </th>
                 <th className="px-4 py-3" />
@@ -245,21 +245,21 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
                   <tr
                     key={entrega.id}
                     data-testid="entrega-row"
-                    className="hover:bg-[#FAFAFA] transition-colors"
+                    className="hover:bg-canvas transition-colors"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-[#787774] max-w-[140px] truncate">
+                    <td className="px-4 py-3 font-mono text-xs text-muted max-w-[140px] truncate">
                       {entrega.student_pseudonym.slice(0, 8)}…
                     </td>
-                    <td className="px-4 py-3 text-[#111111] max-w-[200px]">
+                    <td className="px-4 py-3 text-ink max-w-[200px]">
                       {tarea ? (
                         <span className="truncate block">
-                          <span className="text-xs font-mono text-[#787774] mr-1.5">
+                          <span className="text-xs font-mono text-muted mr-1.5">
                             {tarea.codigo}
                           </span>
                           {tarea.titulo}
                         </span>
                       ) : (
-                        <span className="font-mono text-xs text-[#787774]">
+                        <span className="font-mono text-xs text-muted">
                           {entrega.tarea_practica_id.slice(0, 8)}…
                         </span>
                       )}
@@ -272,7 +272,7 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
                         {ESTADO_LABEL[entrega.estado]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#787774]">
+                    <td className="px-4 py-3 text-xs text-muted">
                       {entrega.submitted_at
                         ? new Date(entrega.submitted_at).toLocaleString("es-AR", {
                             day: "2-digit",
@@ -288,7 +288,7 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
                         type="button"
                         data-testid="entrega-drill-btn"
                         onClick={() => onSelectEntrega(entrega, tarea ?? null)}
-                        className="text-xs font-medium text-[#111111] hover:underline"
+                        className="text-xs font-medium text-ink hover:underline"
                       >
                         {entrega.estado === "submitted" ? "Corregir →" : "Ver →"}
                       </button>
@@ -338,34 +338,34 @@ function EjercicioPanel({ ej, resolvedEpisodeId, tarea, getToken }: EjercicioPan
   }
 
   return (
-    <div className="border border-[#EAEAEA] rounded-lg overflow-hidden" data-testid={`ej-estado-${ej.orden}`}>
+    <div className="border border-border rounded-lg overflow-hidden" data-testid={`ej-estado-${ej.orden}`}>
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#FAFAFA] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-canvas transition-colors text-left"
       >
         <span
           className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono ${
-            ej.completado ? "bg-green-600 text-white" : "bg-[#F5F5F5] text-[#787774]"
+            ej.completado ? "bg-green-600 text-white" : "bg-surface-alt text-muted"
           }`}
         >
           {ej.completado ? "✓" : ej.orden}
         </span>
-        <span className="text-[#111111] flex-1">
+        <span className="text-ink flex-1">
           {ejercicioInfo ? ejercicioInfo.titulo : `Ejercicio ${ej.orden}`}
         </span>
         {resolvedEpisodeId && (
-          <span className="text-xs font-mono text-[#787774]">
+          <span className="text-xs font-mono text-muted">
             ep: {resolvedEpisodeId.slice(0, 8)}…
           </span>
         )}
-        <span className="text-[#787774] text-xs">{expanded ? "▲" : "▼"}</span>
+        <span className="text-muted text-xs">{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded && (
-        <div className="border-t border-[#EAEAEA] bg-[#FAFAFA]">
+        <div className="border-t border-border bg-canvas">
           {!resolvedEpisodeId && (
-            <p className="px-4 py-3 text-xs text-[#787774]">
+            <p className="px-4 py-3 text-xs text-muted">
               Sin episodio asociado a este ejercicio.
             </p>
           )}
@@ -380,21 +380,21 @@ function EjercicioPanel({ ej, resolvedEpisodeId, tarea, getToken }: EjercicioPan
           )}
 
           {fetchError && (
-            <p className="px-4 py-3 text-xs text-red-600">{fetchError}</p>
+            <p className="px-4 py-3 text-xs text-danger">{fetchError}</p>
           )}
 
           {code !== null && !loading && (
-            <pre className="px-4 py-3 text-xs font-mono text-[#111111] overflow-x-auto whitespace-pre max-h-[400px] overflow-y-auto">
+            <pre className="px-4 py-3 text-xs font-mono text-ink overflow-x-auto whitespace-pre max-h-[400px] overflow-y-auto">
               {code}
             </pre>
           )}
 
           {resolvedEpisodeId && (
-            <div className="px-4 py-2 border-t border-[#EAEAEA] flex items-center gap-3">
+            <div className="px-4 py-2 border-t border-border flex items-center gap-3">
               <Link
                 to="/episode-n-level"
                 search={{ episodeId: resolvedEpisodeId }}
-                className="text-xs font-mono text-[#787774] hover:text-[#111111] hover:underline"
+                className="text-xs font-mono text-muted hover:text-ink hover:underline"
                 data-testid={`ep-link-${ej.orden}`}
               >
                 Ver niveles N1-N4 →
@@ -547,26 +547,26 @@ function GradingFormView({
       <button
         type="button"
         onClick={onBack}
-        className="text-xs text-[#787774] hover:text-[#111111] inline-flex items-center gap-1"
+        className="text-xs text-muted hover:text-ink inline-flex items-center gap-1"
       >
         <span aria-hidden="true">←</span>
         Volver a entregas
       </button>
 
       {/* Cabecera de la entrega */}
-      <div className="rounded-lg border border-[#EAEAEA] bg-white p-5">
+      <div className="rounded-lg border border-border bg-white p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-mono text-[#787774] mb-1">
+            <p className="text-xs font-mono text-muted mb-1">
               Entrega #{entrega.id.slice(0, 8)}
             </p>
             {tarea && (
-              <h3 className="text-base font-semibold text-[#111111] mb-1">
-                <span className="text-[#787774] mr-1.5 font-mono text-sm">{tarea.codigo}</span>
+              <h3 className="text-base font-semibold text-ink mb-1">
+                <span className="text-muted mr-1.5 font-mono text-sm">{tarea.codigo}</span>
                 {tarea.titulo}
               </h3>
             )}
-            <p className="text-xs text-[#787774] font-mono">
+            <p className="text-xs text-muted font-mono">
               Estudiante: {entrega.student_pseudonym.slice(0, 12)}…
             </p>
           </div>
@@ -580,8 +580,8 @@ function GradingFormView({
 
       {/* Ejercicios con codigo */}
       {entrega.ejercicio_estados && entrega.ejercicio_estados.length > 0 && (
-        <div className="rounded-lg border border-[#EAEAEA] bg-white p-5">
-          <p className="text-xs font-mono uppercase tracking-wider text-[#787774] mb-4">
+        <div className="rounded-lg border border-border bg-white p-5">
+          <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
             Ejercicios
           </p>
           <div className="space-y-3" data-testid="ejercicios-estados-list">
@@ -602,8 +602,8 @@ function GradingFormView({
       )}
 
       {/* Formulario de calificacion */}
-      <div className="rounded-lg border border-[#EAEAEA] bg-white p-5">
-        <p className="text-xs font-mono uppercase tracking-wider text-[#787774] mb-4">
+      <div className="rounded-lg border border-border bg-white p-5">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
           {yaCalificada && !loadingCalificacion ? "Calificacion" : "Calificar entrega"}
         </p>
 
@@ -622,10 +622,10 @@ function GradingFormView({
             <div>
               <label
                 htmlFor="nota-final"
-                className="block text-sm font-medium text-[#111111] mb-1.5"
+                className="block text-sm font-medium text-ink mb-1.5"
               >
                 Nota final{" "}
-                <span className="font-normal text-[#787774]">(0 a 10)</span>
+                <span className="font-normal text-muted">(0 a 10)</span>
               </label>
               <input
                 id="nota-final"
@@ -637,7 +637,7 @@ function GradingFormView({
                 onChange={(e) => setNota(e.target.value)}
                 disabled={yaCalificada}
                 data-testid="nota-final-input"
-                className="w-28 border border-[#EAEAEA] rounded px-3 py-2 text-sm text-[#111111] bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-[#F5F5F5] disabled:text-[#787774]"
+                className="w-28 border border-border rounded px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-surface-alt disabled:text-muted"
                 placeholder="ej. 7.5"
               />
             </div>
@@ -646,7 +646,7 @@ function GradingFormView({
             <div>
               <label
                 htmlFor="feedback"
-                className="block text-sm font-medium text-[#111111] mb-1.5"
+                className="block text-sm font-medium text-ink mb-1.5"
               >
                 Feedback general
               </label>
@@ -657,13 +657,13 @@ function GradingFormView({
                 onChange={(e) => setFeedback(e.target.value)}
                 disabled={yaCalificada}
                 data-testid="feedback-input"
-                className="w-full border border-[#EAEAEA] rounded px-3 py-2 text-sm text-[#111111] bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-[#F5F5F5] disabled:text-[#787774] resize-none"
+                className="w-full border border-border rounded px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-surface-alt disabled:text-muted resize-none"
                 placeholder="Describe los puntos fuertes y de mejora de la entrega..."
               />
             </div>
 
             {calificacion && (
-              <p className="text-xs text-[#787774] font-mono">
+              <p className="text-xs text-muted font-mono">
                 Calificado el{" "}
                 {new Date(calificacion.graded_at).toLocaleString("es-AR", {
                   day: "2-digit",
@@ -676,7 +676,7 @@ function GradingFormView({
             )}
 
             {submitError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <div className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-xs text-danger">
                 {submitError}
               </div>
             )}
@@ -711,7 +711,7 @@ function GradingFormView({
                   onClick={() => void handleDevolver()}
                   disabled={devolviendo}
                   data-testid="devolver-btn"
-                  className="px-4 py-2 rounded text-sm font-medium border border-[#EAEAEA] bg-white text-[#111111] hover:bg-[#F5F5F5] disabled:opacity-60"
+                  className="px-4 py-2 rounded text-sm font-medium border border-border bg-white text-ink hover:bg-surface-alt disabled:opacity-60"
                 >
                   {devolviendo ? "Devolviendo..." : "Devolver al estudiante"}
                 </button>

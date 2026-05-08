@@ -22,25 +22,27 @@ const sizeClasses: Record<Size, string> = {
   xl: "max-w-3xl",
 }
 
+/* Paleta v2 — Modal con tokens chrome. Variant `dark` consume sidebar-bg
+   para cohesionar con el sidebar carbón puro (no más mezcla de zinc + slate). */
 const panelClasses: Record<Variant, string> = {
-  light: "bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-700",
-  dark: "bg-zinc-900 border border-zinc-700",
+  light: "bg-surface border border-border",
+  dark: "bg-sidebar-bg border border-sidebar-bg-edge",
 }
 
 const headerBorderClasses: Record<Variant, string> = {
-  light: "border-slate-200 dark:border-slate-700",
-  dark: "border-zinc-700",
+  light: "border-border-soft",
+  dark: "border-sidebar-bg-edge",
 }
 
 const titleClasses: Record<Variant, string> = {
-  light: "text-slate-900 dark:text-zinc-100",
-  dark: "text-zinc-100",
+  light: "text-ink",
+  dark: "text-sidebar-text",
 }
 
 const closeBtnClasses: Record<Variant, string> = {
   light:
-    "text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 focus-visible:ring-slate-400 dark:focus-visible:ring-zinc-500",
-  dark: "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:ring-zinc-500",
+    "text-muted hover:text-ink hover:bg-surface-alt focus-visible:ring-border-strong",
+  dark: "text-sidebar-text-muted hover:text-sidebar-text hover:bg-sidebar-bg-edge focus-visible:ring-border-strong",
 }
 
 export function Modal({

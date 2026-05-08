@@ -5,7 +5,7 @@ export function ViewModeToggle() {
 
   return (
     <div
-      className="flex items-center rounded-full bg-[#EAEAEA] p-0.5 text-xs"
+      className="flex items-center rounded-full bg-border p-0.5 text-xs"
       role="radiogroup"
       aria-label="Modo de visualizacion"
     >
@@ -16,8 +16,8 @@ export function ViewModeToggle() {
         onClick={() => setMode("docente")}
         className={`px-3 py-1 rounded-full transition-colors ${
           mode === "docente"
-            ? "bg-white text-[#111111] font-medium shadow-sm"
-            : "text-[#787774] hover:text-[#111111]"
+            ? "bg-white text-ink font-medium shadow-sm"
+            : "text-muted hover:text-ink"
         }`}
       >
         Docente
@@ -29,8 +29,8 @@ export function ViewModeToggle() {
         onClick={() => setMode("investigador")}
         className={`px-3 py-1 rounded-full transition-colors ${
           mode === "investigador"
-            ? "bg-white text-[#111111] font-medium shadow-sm"
-            : "text-[#787774] hover:text-[#111111]"
+            ? "bg-white text-ink font-medium shadow-sm"
+            : "text-muted hover:text-ink"
         }`}
       >
         Investigador
