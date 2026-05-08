@@ -23,10 +23,13 @@ Es el único frontend que consume SSE (streaming del tutor), ejecuta código san
 - Ofrecer un `NotesPanel` para anotaciones libres del estudiante (1..5000 chars) — cada guardado emite `anotacion_creada` (alimenta CCD orphan ratio: sin notas, episodios reflexivos se marcan como huérfanos).
 - Persistir el `episode_id` activo en **`sessionStorage`** (key `active-episode-id`, scope per-tab, G4 recovery). Al recargar (F5) el browser, el frontend llama `GET /api/v1/episodes/{id}` y reconstruye el estado (mensajes + último snapshot de código + notas) via `_build_episode_state` del tutor-service.
 - Cerrar episodios con `POST /episodes/{id}/close` — emite `episodio_cerrado` y limpia el `sessionStorage`.
+- **Detectar abandono** ([ADR-025](../adr/025-episodio-abandonado.md), G10-A): listener `beforeunload` → `POST /api/v1/episodes/{id}/abandoned` con `reason="beforeunload"`. Idempotente con worker server-side (que emite `reason="timeout"` si la sesión queda inactiva 30 min).
+- **Renderizar el sandbox client-side de Pyodide** para tests unitarios ([ADR-033](../adr/033-sandbox-pyodide.md), [ADR-034](../adr/034-test-cases-tp.md)): el estudiante corre los `test_cases is_public=true` de la TP localmente; emite `POST /api/v1/episodes/{id}/run-tests` con SOLO conteos (no código). El classifier labeler v1.2.0 etiqueta como N3/N4. Hidden tests (`is_public=false`) NO se exponen al estudiante.
+- **Renderizar `ReflectionModal` post-clasificación** ([ADR-035](../adr/035-reflexion-metacognitiva.md)): modal opcional con 3 textareas (≤500 chars c/u) post-evento `episodio_cerrado` que emite evento CTR `reflexion_completada` (excluido del classifier por RN-133). Ofrece al estudiante el espacio para reflexión metacognitiva sin afectar la categoría N4 ya asignada.
 
 ## 4. Qué NO hace (anti-responsabilidades)
 
-- **NO ejecuta código en el backend**: toda ejecución Python es Pyodide WASM en el worker aislado del browser. Ventaja documentada en `CodeEditor.tsx` (cero costo de infra, cero riesgo de abuso). Limitación: network calls bloqueadas, paquetes PyPI requieren `micropip`.
+- **NO ejecuta código en el backend**: toda ejecución Python es Pyodide WASM en el worker aislado del browser ([ADR-033](../adr/033-sandbox-pyodide.md): sandbox Pyodide-only para piloto-1, sin worker Docker para reducir blast radius). Ventaja documentada en `CodeEditor.tsx` (cero costo de infra, cero riesgo de abuso). Limitación: network calls bloqueadas, paquetes PyPI requieren `micropip`.
 - **NO autora trabajos prácticos ni materiales**: eso es [web-teacher](./web-teacher.md). Acá se **consumen** las TPs `published` y el material de cátedra (via RAG del tutor, transparente al estudiante).
 - **NO muestra la clasificación N4 inmediatamente al cerrar el episodio**: la clasificación es asíncrona (corre en [classifier-service](./classifier-service.md) cuando se la dispara manualmente). El MD del EpisodePage tiene handling para mostrar "clasificando..." y el resultado via `classifyEpisode()` pero el trigger automático post-cierre no está (ver [classifier-service](./classifier-service.md) Sección 4).
 - **NO maneja identidad local**: en dev los headers los inyecta el proxy Vite (`x-user-id: b1b1b1b1-0001-0001-0001-000000000001` — estudiante 1 de A-Mañana del `seed-3-comisiones.py`). En prod via JWT de Keycloak validado por api-gateway.
@@ -35,16 +38,16 @@ Es el único frontend que consume SSE (streaming del tutor), ejecuta código san
 
 ## 5. Rutas principales
 
-Frontend con **una sola página**: `EpisodePage.tsx` (566 líneas). No hay router real — `App.tsx` monta `<EpisodePage />` directo. El "routing" interno son estados de la página:
+Frontend con **una sola página**: `EpisodePage.tsx`. No hay router real — `App.tsx` monta `<EpisodePage />` directo. El "routing" interno son estados de la página:
 
 | Estado | Render |
 |---|---|
 | Sin comisión elegida | `ComisionSelector` |
 | Con comisión, sin TP | `TareaSelector` (TPs `published` de la comisión) |
-| Con TP, sin episodio | "Abrir episodio" → `POST /episodes` |
-| Con episodio activo | Layout full-screen: enunciado TP (Markdown) + `CodeEditor` (Monaco + Pyodide) + chat SSE + `NotesPanel` |
-| Con episodio cerrado | Modo lectura (mensajes + último código + notas, sin enviar más) |
-| `recovering` (F5 con `sessionStorage` activo) | Fetch estado + restaurar UI antes de aceptar input |
+| Con TP, sin episodio | `OpeningStage` con CTAs "Abrir episodio" → `POST /episodes`. Estado de error con CTAs "Reintentar" / "Volver" (sesión 2026-05-08). |
+| Con episodio activo | Layout full-screen 3 columnas: **consigna** (Markdown) \| **editor** (Monaco + Pyodide + tests) \| **tutor** (chat SSE + `NotesPanel`). Animaciones motion 2026. |
+| Con episodio cerrado | Modo lectura (mensajes + último código + notas, sin enviar más) + **`ReflectionModal`** opcional post-clasificación ([ADR-035](../adr/035-reflexion-metacognitiva.md)). |
+| `recovering` (F5 con `sessionStorage` activo) | Fetch estado + restaurar UI antes de aceptar input. |
 
 `EpisodePage` es **excepción documentada** del patrón `PageContainer` del monorepo (CLAUDE.md "Sistema de ayuda in-app"): usa layout full-screen con header funcional propio (`ComisionSelector`, botón "Cambiar TP", info dinámica de TP/episodio) que `PageContainer` no puede sustituir. Usa `HelpButton` directo en el header existente.
 
@@ -75,13 +78,15 @@ Frontend — sin persistencia de DB. Estado client-side:
 
 ## 8. Archivos clave para entender el servicio
 
-- `apps/web-student/src/pages/EpisodePage.tsx` — **la página única**. Orquesta selector → episodio abierto → SSE → cierre → clasificación. 566 líneas densas. Contiene la lógica del G4 recovery, el handler del SSE stream y el manejo de errores (`EpisodeStateError`).
-- `apps/web-student/src/components/CodeEditor.tsx` — Monaco + Pyodide integration. Docstring explica el trade-off (costo cero + aislamiento vs. network bloqueado + stdlib-only). Handle de `runPythonAsync`, captura de stdout/stderr via `setStdout`/`setStderr`.
+- `apps/web-student/src/pages/EpisodePage.tsx` — **la página única**. Orquesta selector → episodio abierto → SSE → cierre → clasificación → reflexión modal. Layout 3 columnas (consigna|editor|tutor) con animaciones motion 2026. Contiene la lógica del G4 recovery, el handler del SSE stream, listener `beforeunload` para abandono ([ADR-025](../adr/025-episodio-abandonado.md)), y el manejo de errores (`EpisodeStateError`).
+- `apps/web-student/src/components/CodeEditor.tsx` — Monaco + Pyodide integration. Docstring explica el trade-off (costo cero + aislamiento vs. network bloqueado + stdlib-only). Handle de `runPythonAsync`, captura de stdout/stderr via `setStdout`/`setStderr`. Tests sandbox: ejecuta los `test_cases is_public=true` de la TP y emite conteos a `POST /run-tests` ([ADR-034](../adr/034-test-cases-tp.md)).
 - `apps/web-student/src/components/NotesPanel.tsx` — panel de notas con límite 1..5000 chars. Cada save dispara `emitAnotacionCreada`.
-- `apps/web-student/src/components/ComisionSelector.tsx` — selector de comisión. Depende de `GET /comisiones/mis` — hoy **devuelve [] para estudiantes reales** (CLAUDE.md "Brechas conocidas", gap F9 a destrabar con `comisiones_activas` en JWT).
+- `apps/web-student/src/components/ReflectionModal.tsx` — modal post-clasificación ([ADR-035](../adr/035-reflexion-metacognitiva.md)) con 3 textareas (≤500 chars c/u). Emite `POST /api/v1/episodes/{id}/reflection` con evento CTR `reflexion_completada`.
+- `apps/web-student/src/components/OpeningStage.tsx` — pantalla de apertura con CTAs Reintentar/Volver cuando hay error (sesión 2026-05-08).
+- `apps/web-student/src/components/ComisionSelector.tsx` — selector de comisión. Depende de `GET /comisiones/mis` — hoy **devuelve [] para estudiantes reales** (CLAUDE.md "Brechas conocidas", gap F9 a destrabar con `comisiones_activas` en JWT, plan en `docs/plan-b2-jwt-comisiones-activas.md`).
 - `apps/web-student/src/components/TareaSelector.tsx` — lista TPs `published` de la comisión elegida con paginación por cursor. Es el reemplazo del UUID hardcoded del problema inicial.
 - `apps/web-student/src/components/MarkdownRenderer.tsx` — **duplicado** con web-teacher (CLAUDE.md "Modelos no obvios"). `[&_h1]:...` selectors arbitrarios.
-- `apps/web-student/src/lib/api.ts` — `openEpisode`, `sendMessage` (SSE), `closeEpisode`, `getEpisodeState`, `classifyEpisode`, `emitAnotacionCreada`, `emitEdicionCodigo`, `emitCodigoEjecutado`, `getTareaById`.
+- `apps/web-student/src/lib/api.ts` — `openEpisode`, `sendMessage` (SSE), `closeEpisode`, `getEpisodeState`, `classifyEpisode`, `emitAnotacionCreada`, `emitEdicionCodigo`, `emitCodigoEjecutado`, `runTests`, `submitReflection`, `notifyAbandoned`, `getTareaById`.
 - `apps/web-student/src/utils/helpContent.tsx` — **1 sola entry** (el único dashboard del frontend).
 - `apps/web-student/vite.config.ts` — headers dev con `b1b1b1b1-0001-0001-0001-000000000001` + role `estudiante`.
 
@@ -134,3 +139,7 @@ La decisión de **una sola página full-screen** (sin PageContainer) es una conc
 - F5 — Pyodide + `codigo_ejecutado` (`docs/F5-STATE.md`).
 - F6 — `anotacion_creada` + `edicion_codigo` + G4 recovery con `sessionStorage`.
 - F8 — `TareaSelector` real (reemplazo del UUID hardcoded) + markdown rendering del enunciado.
+- 2026-04-29 ([ADR-025](../adr/025-episodio-abandonado.md)) — listener `beforeunload` con `POST /abandoned`.
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — `ReflectionModal` post-clasificación ([ADR-035](../adr/035-reflexion-metacognitiva.md)). Sandbox client-side de tests con Pyodide ([ADR-033](../adr/033-sandbox-pyodide.md), [ADR-034](../adr/034-test-cases-tp.md)).
+- 2026-05-04 — refactor de tokens centralizados en `packages/ui` con paleta "Stack Blue institucional" #185FA5.
+- 2026-05-08 — `OpeningStage` con CTAs "Reintentar" / "Volver" en error states; layout 3 columnas (consigna|editor|tutor) con animaciones motion 2026.

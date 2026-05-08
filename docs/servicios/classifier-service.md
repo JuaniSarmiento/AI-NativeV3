@@ -14,6 +14,8 @@ Pertenece al **plano pedagógico-evaluativo**. Materializa el componente "Clasif
 - Implementar el pipeline de clasificación como función pura y determinista: `classify_episode_from_events(events, reference_profile)` produce el mismo `ClassificationResult` para el mismo input.
 - Calcular las **5 coherencias separadas**: `ct_summary` (temporal), `ccd_mean` + `ccd_orphan_ratio` (código-discurso), `cii_stability` + `cii_evolution` (inter-iteración). Nunca colapsarlas en un score único (invariante crítico — CLAUDE.md "Propiedades críticas").
 - Aplicar el árbol de decisión (`services/tree.py`) con los umbrales del `reference_profile` activo. Árbol explicable — cada rama produce un `appropriation_reason` en texto que justifica la categoría asignada.
+- **Etiquetar eventos con N1-N4 derivado en lectura** ([ADR-020](../adr/020-event-labeler-n-level.md)): `event_labeler.py::label_event(event_type, payload, context=None)` función pura. **`LABELER_VERSION = "1.2.0"`** ([ADR-034](../adr/034-test-cases-tp.md)): v1.0.0 → v1.1.0 (override temporal `anotacion_creada` por ventana posicional, [ADR-023](../adr/023-anotacion-temporal-override.md)) → v1.2.0 (regla N3/N4 sobre `tests_ejecutados`).
+- **Excluir explícitamente eventos side-channel post-cierre del feature extraction** (RN-133): `_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}` en `pipeline.py`. Test anti-regresión `test_reflexion_completada_no_afecta_clasificacion_ni_features` en `tests/unit/test_pipeline_reproducibility.py`. **NO romper este test** al refactorizar classifier o agregar event types nuevos — si emerge un evento side-channel post-cierre, agregalo al set.
 - Computar `classifier_config_hash` de forma determinista: `sha256(json.dumps({"tree_version": ..., "profile": ...}, sort_keys=True, ensure_ascii=False, separators=(",", ":")))`. Cualquier cambio en serialización rompe reproducibilidad (CLAUDE.md "Constantes que NO deben inventarse").
 - Persistir append-only (ADR-010): si existe clasificación con el **mismo** `classifier_config_hash` para un episodio, es no-op (idempotencia). Si existe con **otro** hash, marca la anterior `is_current=false` e inserta la nueva con `is_current=true`.
 - Exponer `GET /api/v1/classifications/{episode_id}` (la current del episodio) y `GET /api/v1/classifications/aggregated` (distribución + promedios + timeseries para dashboard docente).
@@ -33,7 +35,7 @@ Pertenece al **plano pedagógico-evaluativo**. Materializa el componente "Clasif
 | `POST` | `/api/v1/classify_episode/{episode_id}` | Trae el episodio del CTR, corre el pipeline, persiste la clasificación. Idempotente por `classifier_config_hash`. | Rol en `CLASSIFY_ROLES`. |
 | `GET` | `/api/v1/classifications/{episode_id}` | Clasificación `is_current=true` del episodio. 404 si no hay. | Rol en `READ_ROLES`. |
 | `GET` | `/api/v1/classifications/aggregated?comision_id=...&period_days=30` | Distribución + promedios de coherencias + timeseries diaria para dashboard docente. | Rol en `READ_ROLES`. |
-| `GET` | `/health` | Stub `{"status": "ok"}`. | Ninguna. |
+| `GET` | `/health`, `/health/ready` | Health real con `check_postgres` + `check_http(ctr)` (epic `real-health-checks`, 2026-05-04). | Ninguna. |
 
 **Nota de ordenamiento de rutas**: `/classifications/aggregated` se registra **antes** que `/classifications/{episode_id}` para que FastAPI no matchee `"aggregated"` como UUID path param. Es un detalle de implementación en `routes/classify_ep.py:116`.
 
@@ -116,7 +118,8 @@ Base lógica: **`classifier_db`** (ADR-003). Migraciones en `apps/classifier-ser
 
 ## 8. Archivos clave para entender el servicio
 
-- `apps/classifier-service/src/classifier_service/services/pipeline.py` — orquestador. `compute_classifier_config_hash()` es la función del hash determinista (ver cita en Sección 9). `classify_episode_from_events()` es la función pura que otros tests pueden llamar directamente. `persist_classification()` implementa el append-only.
+- `apps/classifier-service/src/classifier_service/services/pipeline.py` — orquestador. `compute_classifier_config_hash()` es la función del hash determinista (ver cita en Sección 9). `classify_episode_from_events()` es la función pura que otros tests pueden llamar directamente. `persist_classification()` implementa el append-only. **`_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}`** (RN-133) — set crítico que protege el `classifier_config_hash` reproducible bit-a-bit.
+- `apps/classifier-service/src/classifier_service/services/event_labeler.py` — `label_event()` función pura + `LABELER_VERSION = "1.2.0"` ([ADR-034](../adr/034-test-cases-tp.md)). v1.1.0 metió override temporal de `anotacion_creada` por ventana posicional ([ADR-023](../adr/023-anotacion-temporal-override.md)) — constantes `ANOTACION_N1_WINDOW_SECONDS = 120.0` y `ANOTACION_N4_WINDOW_SECONDS = 60.0`. v1.2.0 metió regla N3/N4 sobre `tests_ejecutados` (`tests_passed/tests_total` ≥ umbral → N4; ≥ otro umbral → N3). `time_in_level()` y `n_level_distribution()` construyen contextos automáticamente con `_build_event_contexts()`. **Bumpear MINOR re-etiqueta históricos** (RN-020) sin tocar el CTR.
 - `apps/classifier-service/src/classifier_service/services/tree.py` — el árbol N4. `DEFAULT_REFERENCE_PROFILE` (umbrales por default). `classify()` — lógica explícita con 3 ramas principales (`delegacion_pasiva`, `apropiacion_reflexiva`, `apropiacion_superficial` como fallback). Cada rama construye un `reason` con los valores concretos que la gatillaron.
 - `apps/classifier-service/src/classifier_service/services/ct.py` — coherencia temporal. Ventanas de trabajo separadas por `PAUSE_THRESHOLD = 5min`. Preserva las ventanas individuales en `features` para explainability.
 - `apps/classifier-service/src/classifier_service/services/ccd.py` — coherencia código-discurso. `CORRELATION_WINDOW = 2min` para decidir si una acción tiene un "giro verbal" correlacionado.
@@ -307,12 +310,16 @@ El árbol N4 del Capítulo 6 de la tesis define las 3 categorías (`delegacion_p
 **Known gaps**:
 - Sin test de integración end-to-end (`POST /classify_episode/{id}` contra ctr-service real + DB).
 - Worker automático para clasificar al cerrar episodio **no implementado**; trigger es manual.
-- CII_stability con overlap léxico es operacionalización v1 — embeddings quedan como futuro.
-- `/health` es stub.
-- **Bug de idempotencia**: reclasificación con mismo `classifier_config_hash` falla con `IntegrityError` en lugar de devolver existente. Fix propuesto: hacer `SELECT FIRST` antes del `UPDATE + INSERT`.
+- CII_stability con overlap léxico es operacionalización v1 — embeddings quedan como futuro ([ADR-017](../adr/017-ccd-embeddings-deferred.md), G14 diferido).
+- **Bug de idempotencia**: reclasificación con mismo `classifier_config_hash` falla con `IntegrityError` en lugar de devolver existente. Fix propuesto: hacer `SELECT FIRST` antes del `UPDATE + INSERT`. Deuda QA 2026-05-07 explícita.
+- **106 classifications con hash legacy `9dd96894...`** (pre-bump labeler v1.2.0): re-classify masivo nunca corrió. Los hashes nuevos son deterministas; deuda operacional declarada en CLAUDE.md.
 
 **Fase de consolidación**:
 - F3 — implementación del árbol + 3 coherencias (`docs/F3-STATE.md`).
 - F4 — hardening, idempotencia append-only validada.
 - F7 — A/B de profiles (HU-118) operable vía analytics-service.
 - F9 — migraciones RLS (`20260902_0002_enable_rls_on_classifier_tables.py`).
+- 2026-04-26 ([ADR-020](../adr/020-event-labeler-n-level.md)) — `event_labeler.py` con N1-N4 derivado en lectura.
+- 2026-04-29 ([ADR-023](../adr/023-anotacion-temporal-override.md)) — `LABELER_VERSION = "1.1.0"` con override temporal de `anotacion_creada`.
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — `LABELER_VERSION = "1.2.0"` ([ADR-034](../adr/034-test-cases-tp.md)) con regla N3/N4 sobre `tests_ejecutados`. **`_EXCLUDED_FROM_FEATURES = {"reflexion_completada"}`** (RN-133) — bug genuino cerrado.
+- 2026-05-04 (epic `real-health-checks`) — `/health/ready` real con `check_postgres + check_http(ctr)`.

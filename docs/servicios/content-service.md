@@ -36,7 +36,7 @@ Pertenece al **plano pedagógico-evaluativo**. Materializa el componente "Servic
 | `GET` | `/api/v1/materiales/{id}` | Un material específico. | Autenticado. |
 | `DELETE` | `/api/v1/materiales/{id}` | Soft-delete (`deleted_at = now()`). | Rol en `MATERIAL_UPLOAD_ROLES`. |
 | `POST` | `/api/v1/retrieve` | RAG: vector search → threshold → rerank → top-k. Devuelve `chunks_used_hash`. | Rol en `RETRIEVAL_ROLES` (tutor via service-to-service + docente). |
-| `GET` | `/health` | Stub `{"status": "ok"}`. | Ninguna. |
+| `GET` | `/health`, `/health/ready` | Health real con `check_postgres` + `check_minio` + `check_embedder` (epic `real-health-checks`, 2026-05-04). | Ninguna. |
 
 **Ejemplo — request `POST /api/v1/retrieve`**:
 
@@ -347,11 +347,14 @@ Más `docs/golden-queries/` con queries de evaluación empírica.
 - Sin tests de integración contra pgvector real (solo mocks del embedder).
 - Ingesta síncrona bloquea el upload (F3+ prevé async).
 - Retrieval sin tests de aislamiento cross-comisión/cross-tenant con DB real (sólo revisión de código).
-- `/health` es stub — no verifica pgvector ni MinIO.
 - Soft-delete deja chunks huérfanos.
 - `IdentityReranker` como default en dev — calidad real del retrieval depende del embedder solo.
+- **4 de 5 materiales en `content_db.materiales` apuntan a `materia_id` huérfana** (no existe en `academic_main.materias`): 22 chunks indexados con embeddings pgvector NUNCA serán retrievados por alumno real con esa `materia_id`. Deuda operacional pre-piloto (corregible con re-import).
+- **Bug `GET /api/v1/materiales` 500 con role `docente_admin`** (audit 2026-05-07): verificar si fue fixed; mantener como bug conocido si no.
 
 **Fase de consolidación**:
 - F2 — schema inicial, pipeline de ingesta, retrieval con filtro doble (`docs/F2-STATE.md`).
 - F3 — integración con tutor-service (el `chunks_used_hash` atraviesa al CTR).
 - F8+ — job async de ingesta y cross-encoder real quedan como deuda conocida.
+- 2026-06-06 (epic `add-materia-id-to-materiales-and-chunks`, migración `20260606_0001`) — columna `materia_id` agregada a `materiales` y `chunks`. Permite filtrar por materia (no solo por comisión).
+- 2026-05-04 (epic `real-health-checks`) — `/health/ready` real con `check_postgres + check_minio + check_embedder`.

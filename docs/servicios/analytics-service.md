@@ -17,6 +17,8 @@ Es el único servicio del repo que lee **cross-base** (`ctr_store` + `classifier
 - Exponer `GET /api/v1/analytics/cohort/{comision_id}/progression` que construye trayectorias por estudiante (primer/último clasificación, `max_appropriation_reached`, `progression_label ∈ {mejorando, estable, empeorando, insuficiente}`), agrega por cohorte y devuelve `net_progression_ratio`.
 - Exponer `POST /api/v1/analytics/cohort/export` que encola un job asíncrono de export académico anonimizado; `GET /status/{job_id}` + `GET /download/{job_id}` cierran el flujo.
 - Exponer las vistas de drill-down del MVP G7 ([ADR-022](../adr/022-tanstack-router-migration.md), RN-131) consumidas por `web-teacher`: `GET /episode/{id}/n-level-distribution` (etiquetador N1-N4 derivado, [ADR-020](../adr/020-event-labeler-n-level.md)), `GET /student/{id}/cii-evolution-longitudinal` (slope longitudinal por `template_id`, [ADR-018](../adr/018-cii-evolution-longitudinal.md)), `GET /student/{id}/episodes` (lista de episodios + clasificaciones del estudiante), `GET /cohort/{id}/cii-quartiles` (estadística de cohorte con privacy gate N≥5), `GET /student/{id}/alerts` (3 alertas predictivas estadística clásica), `GET /cohort/{id}/adversarial-events` (eventos `intento_adverso_detectado` agregados, [ADR-019](../adr/019-guardrails-fase-a.md)).
+- **Nuevo (epic `unidades-trazabilidad`)**: `compute_evolution_per_unidad()` análogo a `cii_evolution_longitudinal` pero agrupando por `unidad_id` (cuando `template_id=NULL`). Función pura en `packages/platform-ops/src/platform_ops/cii_longitudinal.py`.
+- **Nuevo (ADR-037)**: `GET /api/v1/analytics/governance/events` cross-cohort para gobernanza institucional desde web-admin (filtros cascade facultad → materia → período + CSV export con headers ASCII cp1252-safe).
 - Correr un `ExportWorker` en el `lifespan` de FastAPI (RN-109) que consume el `ExportJobStore` global y procesa los jobs en background.
 - Aplicar las reglas de anonimización: `salt` mínimo 16 chars obligatorio (validado por Pydantic), `include_prompts=False` por default, `cohort_alias` para identificar la cohorte en el dataset publicable.
 - Seleccionar la fuente de datos: `RealCohortDataSource` + `RealLongitudinalDataSource` si `CTR_STORE_URL` y `CLASSIFIER_DB_URL` están configuradas, o `_StubDataSource` (data vacía) en su ausencia — permite arrancar en dev sin DB real sin que el servicio crashee.
@@ -47,7 +49,8 @@ Es el único servicio del repo que lee **cross-base** (`ctr_store` + `classifier
 | `GET` | `/api/v1/analytics/cohort/{comision_id}/cii-quartiles` | Estadística de cohorte (cuartiles + media) sobre `cii_evolution_longitudinal` per-template. **Privacy gate**: con N<5 → `insufficient_data: true` SIN cuartiles ([ADR-022](../adr/022-tanstack-router-migration.md), RN-131). | `X-Tenant-Id`. |
 | `GET` | `/api/v1/analytics/student/{student_pseudonym}/alerts` | 3 alertas predictivas (`regresion_vs_cohorte`, `bottom_quartile`, `slope_negativo_significativo`) computadas con z-score vs cohorte (NO ML). Degrada graciosamente si cohorte<5. | `X-Tenant-Id`. |
 | `GET` | `/api/v1/analytics/cohort/{comision_id}/adversarial-events` | Eventos `intento_adverso_detectado` agregados por estudiante + categoría ([ADR-019](../adr/019-guardrails-fase-a.md), Sección 17.8). Consumido por `CohortAdversarialView`. | `X-Tenant-Id`. |
-| `GET` | `/health` | Stub. | — |
+| `GET` | `/api/v1/analytics/governance/events` | Eventos cross-cohort de gobernanza institucional ([ADR-037](../adr/037-governance-ui.md)). Filtros cascade facultad/materia/período + CSV export. Consumido por `GovernanceEventsPage` del web-admin. | `X-Tenant-Id`. |
+| `GET` | `/health`, `/health/ready` | Health real con `check_postgres` (cross-base) + `check_classifier_db` (epic `real-health-checks`, 2026-05-04). | — |
 
 ## 6. Dependencias
 
@@ -135,11 +138,16 @@ Más tests en `packages/platform-ops/tests/` cubren la lógica analítica pura (
 - Audit log (κ, AB) en structlog a Loki, no en tabla queryable (documentado en CLAUDE.md).
 - Connection pool `pool_size=2` ad-hoc por request — oportunidad de optimización.
 - Acople por `sys.path.insert` con classifier-service — fragile bajo refactors.
-- `/health` es stub (no valida que las 2 URLs de DB respondan).
 - A/B endpoint sólo via API (UI deferida F8+).
+- ML predictivo verdadero (>1σ del propio trayecto del estudiante, no de cohorte) DEFERIDO a piloto-2 ([ADR-032](../adr/032-ml-predictive-deferred.md)) — el MVP estadístico (z-score vs cohorte + cuartiles + drill-down) cubre defensa pre-defensa.
+- CII longitudinal por `unidad_id` (epic `unidades-trazabilidad`) implementado en `packages/platform-ops/cii_longitudinal.py::compute_evolution_per_unidad`; endpoint análogo a `/cii-evolution-longitudinal` por unidad pendiente de wireup formal (verificar).
 
 **Fase de consolidación**:
 - F6 — κ + export básico (`docs/F6-STATE.md`).
 - F7 — `/progression`, `/ab-test-profiles`, export worker con `ExportJobStore`.
 - F8 — `RealCohortDataSource` + `RealLongitudinalDataSource` con RLS real por tenant.
 - F9 — declaración correcta de env vars en `Settings` (fix del trap `pydantic_settings`).
+- 2026-04-27 (MVP G7 / [ADR-022](../adr/022-tanstack-router-migration.md)) — 6 endpoints nuevos: `/episode/{id}/n-level-distribution`, `/student/{id}/cii-evolution-longitudinal`, `/student/{id}/episodes`, `/cohort/{id}/cii-quartiles`, `/student/{id}/alerts`, `/cohort/{id}/adversarial-events`. Privacy gate N≥5 para cuartiles.
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — `/governance/events` cross-cohort ([ADR-037](../adr/037-governance-ui.md)) con CSV export cp1252-safe.
+- 2026-05-04 (epic `real-health-checks`) — `/health/ready` real con check de cross-base.
+- 2026-05-07 (epic `unidades-trazabilidad`) — `compute_evolution_per_unidad()` análogo al longitudinal por template, pero agrupando por `unidad_id`.

@@ -22,7 +22,7 @@ Es el frontend más cargado en cantidad de vistas: 9 vistas (las 6 de F6-F9 + 3 
 - Implementar el rating intercoder del workflow de κ (`KappaRatingView`): el docente revisa N episodios con su `classifier_label` ya asignado y marca su propia etiqueta (`rater_a` vs `rater_b`), luego el frontend pega a `POST /api/v1/analytics/kappa` con el batch.
 - Renderizar visualizaciones empíricas: distribución N4 por comisión, trayectorias estudiantiles con color por `appropriation`, timeseries de progresión.
 - Enqueue jobs de export + polling de status + download del payload JSON con el dataset anonymizado.
-- Soportar el sistema de ayuda in-app con entries en `helpContent.tsx` (una por vista; Export consolida con KappaRating; las 3 vistas nuevas del MVP G7 tienen su propia entrada).
+- Soportar el sistema de ayuda in-app con entries en `helpContent.tsx` (una por vista; Export consolida con KappaRating). **Drift conocido**: 5/9 views (las 3 del MVP G7 + drill-downs nuevos) NO tienen `HelpButton` — gap declarado en CLAUDE.md, a cerrarse en el polish post-skill `impeccable`.
 - En dev mode, inyectar headers como docente (`x-user-id: 11111111-...`, role `docente`).
 
 ## 4. Qué NO hace (anti-responsabilidades)
@@ -120,9 +120,12 @@ Las vistas de `TareasPracticasView` y `TemplatesView` materializan [ADR-016](../
 **Known gaps**:
 - A/B testing de profiles (HU-118) sin UI — API-only, el investigador arma el JSON con curl. Drag-and-drop deferida F8+.
 - `MarkdownRenderer` duplicado entre web-teacher y web-student — overhead aceptado.
-- ML predictivo verdadero (>1σ del propio trayecto, no de cohorte) deferido a piloto-2 — el MVP estadístico (z-score vs cohorte + cuartiles + drill-down + 3 vistas) ya está hecho pre-defensa con [ADR-022](../adr/022-tanstack-router-migration.md) / RN-131.
+- ML predictivo verdadero (>1σ del propio trayecto, no de cohorte) deferido a piloto-2 ([ADR-032](../adr/032-ml-predictive-deferred.md)) — el MVP estadístico (z-score vs cohorte + cuartiles + drill-down + 3 vistas) ya está hecho pre-defensa con [ADR-022](../adr/022-tanstack-router-migration.md) / RN-131.
 - Rubrica de TPs renderizada como JSON crudo (no markdown wrapper) — documentado como gap estético.
 - `ProgressionView` con SVG nativo — interactividad limitada (no tooltips on hover, no zoom).
+- **5/9 views del web-teacher NO tienen `HelpButton`** (las nuevas G7/ADR-022: `EpisodeNLevelView`, `StudentLongitudinalView`, `CohortAdversarialView`, etc.) — drift declarado para cerrar en polish post-skill `impeccable`.
+- UI wizard para TP-gen IA ([ADR-036](../adr/036-tp-gen-ia.md)) DEFERIDA — endpoint operable vía curl.
+- Sin redirección visual al cierre de epic UX/UI — paleta "Stack Blue institucional" #185FA5 + tokens centralizados en `packages/ui/src/tokens/theme.css` cumplen contrato base; el polish completo (denso académico, no SaaS-genérico) está en deuda — ver `PRODUCT.md` y `DESIGN.md` en root.
 
 **Fase de consolidación**:
 - F6 — κ workflow + rating UI básico (`docs/F6-STATE.md`).
@@ -130,3 +133,5 @@ Las vistas de `TareasPracticasView` y `TemplatesView` materializan [ADR-016](../
 - F8 — adaptadores DB reales + TareasPracticasView con versionado.
 - F9 — Templates ([ADR-016](../adr/016-tp-template-instance.md)) + auto-fan-out UI.
 - 2026-04-27 — MVP G7 ([ADR-022](../adr/022-tanstack-router-migration.md)): migración a TanStack Router file-based + 3 vistas nuevas (`EpisodeNLevelView`, `StudentLongitudinalView`, `CohortAdversarialView`) + drill-down navegacional desde `ProgressionView` + 11 tests E2E + alertas predictivas estadística clásica (NO ML) + cuartiles privacy-safe N≥5.
+- 2026-05-04 — refactor de tokens centralizados en `packages/ui` con paleta "Stack Blue institucional" #185FA5. Sidebar agrupa rutas por dominio (apropiación + acento marca).
+- 2026-05-XX — `commit 2064442` preserva `comisionId` al navegar desde el sidebar (estado del sidebar como query param compartido).

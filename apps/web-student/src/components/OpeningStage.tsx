@@ -44,6 +44,10 @@ interface OpeningStageProps {
   errorMessage?: string | null
   /** Disparado por "ver detalles" cuando hay error. */
   onShowError?: () => void
+  /** Reintentar el POST /episodes (mismo tarea+ejercicio). */
+  onRetry?: () => void
+  /** Volver al selector de TPs sin abrir episodio. */
+  onCancel?: () => void
 }
 
 const STEP_DEFS: Array<Pick<Step, "key" | "label" | "detail">> = [
@@ -76,6 +80,8 @@ export function OpeningStage({
   episodeId = null,
   errorMessage = null,
   onShowError,
+  onRetry,
+  onCancel,
 }: OpeningStageProps) {
   const [tick, setTick] = useState(0)
   const [showRetry, setShowRetry] = useState(false)
@@ -160,6 +166,32 @@ export function OpeningStage({
           <p className="mt-6 text-xs font-mono text-muted">
             episodio: <span className="text-body">{episodeId.slice(0, 6)}...{episodeId.slice(-4)}</span>
           </p>
+        )}
+
+        {errorMessage && (onRetry || onCancel) && (
+          <div
+            data-testid="opening-error-actions"
+            className="mt-8 flex flex-wrap items-center gap-3"
+          >
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-accent-brand text-white hover:bg-accent-brand-deep press-shrink"
+              >
+                Reintentar
+              </button>
+            )}
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2 rounded-md text-sm font-medium border border-border-soft text-body hover:bg-surface-alt press-shrink"
+              >
+                Volver a la lista
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -2,8 +2,8 @@
 
 ## Proceso
 
-1. Leer el [plan detallado](./docs/plan-detallado-fases.md) para entender en qué fase estamos y qué tipo de cambios son apropiados.
-2. Mirar los [ADRs](./docs/adr/) antes de hacer cambios arquitectónicos significativos.
+1. Leer [`CLAUDE.md`](./CLAUDE.md) (verdades operativas + invariantes) y los STATE de fases en [`docs/phases/`](./docs/phases/) para entender en qué fase estamos y qué tipo de cambios son apropiados.
+2. Mirar los [ADRs](./docs/adr/) antes de hacer cambios arquitectónicos significativos. La doc por servicio vive en [`docs/servicios/`](./docs/servicios/).
 3. Crear branch desde `main` con prefijo `feat/`, `fix/`, `docs/`, `refactor/` o `chore/`.
 4. Abrir PR hacia `main` con descripción clara del cambio.
 5. Esperar a que CI pase y pedir review.

@@ -12,18 +12,19 @@ Es el núcleo conceptual de la tesis: sin las garantías que provee (append-only
 
 ## 3. Responsabilidades
 
-- Exponer `POST /api/v1/events` para recibir eventos desde servicios productores (exclusivamente `tutor-service`, con la salvedad de `codigo_ejecutado` cuyo `user_id` proviene del estudiante real).
-- Publicar cada evento al stream Redis `ctr.p{N}` correspondiente a su partición, calculada como `SHA-256(episode_id)[:4] mod NUM_PARTITIONS`.
+- Exponer `POST /api/v1/events` para recibir eventos desde servicios productores (exclusivamente `tutor-service`, con la salvedad de `codigo_ejecutado`/`edicion_codigo`/`anotacion_creada`/`tests_ejecutados`/`reflexion_completada` cuyo `user_id` proviene del estudiante real).
+- Publicar cada evento al stream Redis `ctr.p{N}` correspondiente a su partición, calculada como `SHA-256(episode_id)[:4] mod NUM_PARTITIONS`. **El sharding vive a nivel Redis Streams** (`ctr.p0..ctr.p7`), NO a nivel Postgres — la tabla `events` en `ctr_store` es **única y no particionada físicamente** (verificado 2026-05-04: `pg_inherits` devuelve 0 rows). Single-writer por partición aplica al **bus**: cada worker consumer-group consume una partición.
 - Ejecutar un `PartitionWorker` por cada partición (`NUM_PARTITIONS = 8`) que consume del stream, computa `self_hash` y `chain_hash`, valida `seq` consecutivos y persiste el evento en `ctr_store`.
 - Garantizar idempotencia por `(tenant_id, event_uuid)` — si un evento llega dos veces al worker (retry del productor, redelivery de Redis), se ignora el duplicado sin romper la cadena.
 - Manejar dead-letters: tras 3 intentos fallidos un mensaje se archiva en `dead_letters`, se publica al stream `ctr.dead` y el episodio afectado se marca `integrity_compromised=true`.
 - Ejecutar `IntegrityChecker` como CronJob batch que recorre episodios cerrados, recomputa sus cadenas completas y reporta corrupciones nuevas (distinguiendo "ya marcado" de "recién detectado").
-- Exponer `GET /api/v1/episodes/{id}` con el episodio completo y sus eventos ordenados por `seq`, y `POST /api/v1/episodes/{id}/verify` para recomputar y validar la cadena on-demand (auditorías manuales).
+- **Disparar attestation Ed25519 externa post-cierre** ([ADR-021](../adr/021-attestation-ed25519.md), RN-128): al persistir un `episodio_cerrado` o `episodio_abandonado`, hace XADD a stream Redis `attestation.requests` con buffer canónico bit-exact. El [integrity-attestation-service](./integrity-attestation-service.md) (puerto 8012) consume el stream con `XREADGROUP`, firma con clave Ed25519 y appendea a `attestations-YYYY-MM-DD.jsonl`. **Eventualmente consistente** (SLO 24h); su ausencia **NO bloquea** el cierre del episodio. Verificado 2026-05-07: stream con 20 entries, 108 episodios cerrados.
+- Exponer `GET /api/v1/episodes/{id}` con el episodio completo y sus eventos ordenados por `seq`, y `POST /api/v1/episodes/{id}/verify` para recomputar y validar la cadena on-demand (auditorías manuales). Adicionalmente expone **aliases `/api/v1/audit/episodes/{id}` y `/api/v1/audit/episodes/{id}/verify`** ([ADR-031](../adr/031-audit-aliases-ctr.md)) que apuntan al MISMO handler que el legacy — cero duplicación de lógica. Test anti-regresión `test_audit_aliases.py::test_audit_verify_episode_apunta_al_mismo_handler_que_legacy`. **NO mover los handlers** sin actualizar el `audit_router`.
 - Servir como fuente de verdad para lectores del plano académico (`analytics-service` abre sesiones read-only a `ctr_store` con `SET LOCAL app.current_tenant`).
 
 ## 4. Qué NO hace (anti-responsabilidades)
 
-- **NO valida autorización en el sentido amplio**: confía en que [api-gateway](./api-gateway.md) ya haya validado el JWT e inyectado los headers `X-Tenant-Id`/`X-User-Id`/`X-Role`. Localmente sólo chequea que `tenant_id` del payload coincida con el del user (salvo `superadmin`) y que el rol esté en `PUBLISH_ROLES`/`READ_ROLES`.
+- **NO valida autorización en el sentido amplio**: confía en que [api-gateway](./api-gateway.md) ya haya validado el JWT e inyectado los headers `X-Tenant-Id`/`X-User-Id`/`X-User-Roles` (plural). Localmente sólo chequea que `tenant_id` del payload coincida con el del user (salvo `superadmin`) y que el rol esté en `PUBLISH_ROLES`/`READ_ROLES`.
 - **NO computa métricas agregadas, κ ni progresión longitudinal**: eso es [analytics-service](./analytics-service.md). Este servicio es sólo persistencia + verificación de integridad.
 - **NO clasifica episodios en N4**: emite eventos; la clasificación la hace [classifier-service](./classifier-service.md) leyendo del mismo `ctr_store`.
 - **NO aloja el prompt del tutor**: `prompt_system_hash` llega embebido en cada evento desde el productor (que lo obtuvo de [governance-service](./governance-service.md)). El ctr-service nunca contacta governance.
@@ -37,7 +38,9 @@ Es el núcleo conceptual de la tesis: sin las garantías que provee (append-only
 | `POST` | `/api/v1/events` | Publica un evento al stream Redis de la partición correspondiente (202 Accepted — persistencia asíncrona). | Header `X-User-Id` + rol en `PUBLISH_ROLES`. |
 | `GET` | `/api/v1/episodes/{episode_id}` | Devuelve el episodio con todos sus eventos ordenados por `seq`. | Rol en `READ_ROLES`. |
 | `POST` | `/api/v1/episodes/{episode_id}/verify` | Recomputa la cadena completa y devuelve `ChainVerificationResult` con `valid`, `failing_seq`, `integrity_compromised`. | Rol en `READ_ROLES`. |
-| `GET` | `/health`, `/health/ready` | Readiness con checks reales contra DB y Redis (responde 503 si alguno falla — único servicio del repo que hoy tiene health real, ver Sección 11). | Ninguna. |
+| `GET` | `/api/v1/audit/episodes/{episode_id}` | **Alias** del GET legacy ([ADR-031](../adr/031-audit-aliases-ctr.md), gap D.4). MISMO handler — cero duplicación. Consumido por web-admin `AuditoriaPage`. | Rol en `READ_ROLES`. |
+| `POST` | `/api/v1/audit/episodes/{episode_id}/verify` | **Alias** del verify legacy. MISMO handler. Consumido por web-admin `AuditoriaPage` para verificación SHA-256 en vivo (útil para defensa doctoral). | Rol en `READ_ROLES`. |
+| `GET` | `/health`, `/health/ready` | Readiness con checks reales contra DB y Redis (responde 503 si alguno falla — patrón propio establecido pre-epic `real-health-checks`, mantenido estable). | Ninguna. |
 | `GET` | `/health/live` | Liveness trivial. | Ninguna. |
 
 **Ejemplo de payload para `POST /api/v1/events`** (evento `prompt_enviado` — schema en `apps/ctr-service/src/ctr_service/schemas/__init__.py::EventPublishRequest`):
@@ -113,12 +116,14 @@ Si la cadena está rota (tampering o corrupción detectada), `valid=false` + `fa
 - PostgreSQL 16 — base lógica `ctr_store`, usuario dedicado `ctr_user` (ADR-003 exige aislamiento del plano académico).
 - Redis 7 — bus de streams (ADR-005), un stream por partición + consumer group compartido.
 
-**Depende de (otros servicios):** ninguno en runtime. El servicio es **hoja**: recibe eventos y los persiste, no consulta a nadie. Los hashes de configuración (`prompt_system_hash`, `classifier_config_hash`, `curso_config_hash`) llegan embebidos en el payload del productor.
+**Depende de (otros servicios):** ninguno HTTP. El servicio es **hoja**: recibe eventos y los persiste, no consulta a nadie. Los hashes de configuración (`prompt_system_hash`, `classifier_config_hash`, `curso_config_hash`) llegan embebidos en el payload del productor. **Side-channel**: emite XADD a Redis Stream `attestation.requests` post-cierre — el consumer es [integrity-attestation-service](./integrity-attestation-service.md), pero su ausencia no bloquea cierres.
 
 **Dependen de él:**
-- [tutor-service](./tutor-service.md) — productor principal, publica casi todos los tipos de eventos (`episodio_abierto`, `prompt_enviado`, `tutor_respondio`, `episodio_cerrado`, etc.).
+- [tutor-service](./tutor-service.md) — productor principal, publica casi todos los tipos de eventos (`episodio_abierto`, `prompt_enviado`, `tutor_respondio`, `episodio_cerrado`, `episodio_abandonado`, `tests_ejecutados`, `reflexion_completada`, etc.).
 - [classifier-service](./classifier-service.md) — lee el `ctr_store` (conexión read-only separada) para extraer los eventos de un episodio y correr el pipeline N4.
 - [analytics-service](./analytics-service.md) — lee read-only `ctr_store` para κ, progresión longitudinal y export académico (HU-088).
+- [integrity-attestation-service](./integrity-attestation-service.md) — consume el stream `attestation.requests` con `XREADGROUP`.
+- [web-admin](./web-admin.md) — `AuditoriaPage.tsx` consume `/api/v1/audit/episodes/{id}/verify` via api-gateway ROUTE_MAP.
 - [`packages/ctr-client`](../../packages/ctr-client/) — cliente TS tipado para consumir el ctr-service desde los frontends (hoy sin consumidores directos; reservado).
 
 ## 7. Modelo de datos
@@ -138,7 +143,7 @@ Base lógica: **`ctr_store`** (ADR-003), usuario `ctr_user`. Migraciones Alembic
   - Relación: `ForeignKey(episodes.id, ondelete="RESTRICT")` — no se puede borrar un episodio con eventos.
   - Hashes: `self_hash`, `chain_hash`, `prev_chain_hash` (64 chars hex).
   - Hashes de configuración replicados en cada evento (redundancia defensiva: si cambia el episodio, el evento sigue verificable contra la config que estaba vigente).
-  - `event_type` en snake_case en runtime (9 tipos efectivamente emitidos en v1.0.0): `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `lectura_enunciado` (instrumentado desde el frontend), `intento_adverso_detectado` ([ADR-019](../adr/019-guardrails-fase-a.md), side-channel del tutor-service para análisis empírico Sección 17.8). `EpisodioAbandonado` está declarado en los contratos Pydantic y TS pero ningún servicio lo emite todavía — la decisión de cerrarlo es scope de G10. El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
+  - `event_type` en snake_case en runtime (12 tipos efectivamente emitidos al cierre del epic ai-native-completion): `episodio_abierto`, `prompt_enviado`, `codigo_ejecutado`, `tutor_respondio`, `anotacion_creada`, `edicion_codigo`, `episodio_cerrado`, `episodio_abandonado` ([ADR-025](../adr/025-episodio-abandonado.md)), `lectura_enunciado` (instrumentado desde el frontend), `intento_adverso_detectado` ([ADR-019](../adr/019-guardrails-fase-a.md), side-channel del tutor-service para análisis empírico Sección 17.8), `tests_ejecutados` ([ADR-034](../adr/034-test-cases-tp.md), conteos de tests unitarios), `reflexion_completada` ([ADR-035](../adr/035-reflexion-metacognitiva.md), 3 textareas post-cierre, **excluido del classifier** RN-133). El catálogo completo de payloads tipados vive en `packages/contracts/src/platform_contracts/ctr/events.py`.
 
 - **`dead_letters`** — eventos que fallaron 3 veces y fueron archivados.
   - Guarda `raw_payload` JSONB, `error_reason` text, `failed_attempts`, `first_seen_at`, `moved_to_dlq_at`.
@@ -150,7 +155,7 @@ Base lógica: **`ctr_store`** (ADR-003), usuario `ctr_user`. Migraciones Alembic
 
 ## 8. Archivos clave para entender el servicio
 
-- `apps/ctr-service/src/ctr_service/services/hashing.py` — `canonicalize()`, `compute_self_hash()`, `compute_chain_hash()`, `verify_chain_integrity()`. Es la matemática que sostiene la auditabilidad. `sort_keys=True, separators=(",", ":")`, `ensure_ascii=False` — cualquier cambio rompe reproducibilidad bit-a-bit.
+- `apps/ctr-service/src/ctr_service/services/hashing.py` — `canonicalize()`, `compute_self_hash()`, `compute_chain_hash()`, `verify_chain_integrity()`. Es la matemática que sostiene la auditabilidad. `sort_keys=True, separators=(",", ":")`, `ensure_ascii=False` — cualquier cambio rompe reproducibilidad bit-a-bit. **Bug fix cross-package (sesión 2026-05-04)**: `compute_chain_hash` en `packages/contracts/src/platform_contracts/ctr/hashing.py:46` calculaba `sha256(prev || self_hash)` mientras este servicio (y la DB) usan `sha256(self_hash || prev)`. Invertido el orden en contracts package + nuevo test cross-package `packages/contracts/tests/test_chain_hash_canonical_formula.py` con fixtures bit-exact de un episodio real. Sin este fix, un auditor doctoral que use el helper "oficial" para verificar la cadena obtenía falsos failures sobre cadenas íntegras.
 - `apps/ctr-service/src/ctr_service/services/producer.py` — `shard_of()` (sharding estable por `SHA-256(episode_id)`) + `EventProducer.publish()` (XADD al stream de la partición).
 - `apps/ctr-service/src/ctr_service/workers/partition_worker.py` — consumer single-writer por partición. Aloja la lógica de persistencia transaccional (lock sobre `Episode`, validación de `seq` esperado, cómputo de hashes, `INSERT ... ON CONFLICT DO NOTHING` para idempotencia, retry → DLQ).
 - `apps/ctr-service/src/ctr_service/workers/integrity_checker.py` — CronJob batch que recorre episodios cerrados y recomputa cadenas completas.
@@ -245,13 +250,15 @@ COMMIT;
 
 **Gotchas específicos**:
 
-- **Sharding inmutable**: `NUM_PARTITIONS = 8` está en tres lugares — `producer.py`, `config.py`, y la replicas del `StatefulSet` de K8s. Cambiar uno sin los otros genera eventos huérfanos. Documentado en CLAUDE.md "Constantes que NO deben inventarse".
+- **Sharding inmutable**: `NUM_PARTITIONS = 8` está en tres lugares — `producer.py`, `config.py`, y la replicas del `StatefulSet` de K8s. Cambiar uno sin los otros genera eventos huérfanos. Documentado en CLAUDE.md "Constantes que NO deben inventarse". **Aclaración importante** (verificado 2026-05-04): el sharding vive a nivel **Redis Streams** (`ctr.p0..ctr.p7`), no a nivel Postgres — la tabla `events` es **única y no particionada físicamente**. Single-writer aplica al bus. Cualquier futuro escalamiento que necesite native partitioning de Postgres requiere ADR + migration de `events` a tabla particionada por hash de `episode_id`.
 - **Orden del `chain_hash`**: `sha256(f"{self_hash}{prev_chain_hash}")` — **self primero, prev después**. Es contraintuitivo y cualquier invertido invalida toda la cadena. Ver `services/hashing.py:54-60`.
 - **Self-hash exclusiones**: `compute_self_hash()` excluye `{self_hash, chain_hash, prev_chain_hash, persisted_at, id}` del payload antes de hashear. Cambiar ese set es BC-breaking: los episodios viejos dejan de verificar.
 - **Single-writer por partición**: los 8 workers corren como `StatefulSet` en K8s, cada pod toma la partición que coincide con su ordinal (`ctr-worker-0` → p0, etc.). Si dos pods tomaran la misma partición por un bug de operación, se perderían eventos y/o se duplicarían. El deploy usa estrategia `rolling` (no blue-green) por esto — ver [ADR-015](../adr/015-blue-green-rolling-deploy.md).
 - **DLQ implica integrity_compromised**: un sólo evento que falle 3 veces deja todo el episodio marcado como comprometido. Esto está diseñado así — un "hueco" en la cadena invalida criptográficamente todo lo posterior. Para recuperar un episodio comprometido por operación (no por tampering real), el runbook `docs/pilot/runbook.md` incidente I01 tiene el procedimiento.
 - **Timestamp con sufijo `Z` obligatorio**: el `_json_default` serializa `datetime` como `iso.replace("+00:00", "Z")`. Un productor que mande `"+00:00"` literal produce un hash distinto — los productores Python usen `datetime.now(UTC).isoformat().replace("+00:00", "Z")`. El schema Pydantic coerce al formato correcto al publicar, pero si se bypasa el schema (push directo al stream), el hash no matchea y el evento termina en DLQ.
 - **`persisted_at` NO está en el hash**: es metadata del worker (wall-clock del commit), no del emisor. Su exclusión es intencional — si fuera parte del hash, re-correr el worker sobre el mismo evento produciría hashes distintos.
+- **Aliases `/api/v1/audit/*` apuntan al MISMO handler que el legacy** ([ADR-031](../adr/031-audit-aliases-ctr.md)): el `audit_router` registra `get_episode` y `verify_episode_chain` via `add_api_route` apuntando a las funciones legacy. **NO mover los handlers** sin actualizar el audit_router; el test `test_audit_aliases.py::test_audit_verify_episode_apunta_al_mismo_handler_que_legacy` falla si el alias deja de apuntar al mismo objeto.
+- **Attestation Ed25519 dispara post-commit** ([ADR-021](../adr/021-attestation-ed25519.md)): el XADD a `attestation.requests` ocurre **después** del commit del cierre. Si el XADD falla (Redis down), se logguea pero no se rollbackea el cierre — la cadena CTR intacta es prioridad sobre la attestation externa. Buffer canónico bit-exact: cualquier desviación (espacios, sufijo `Z` faltante, separadores) ROMPE la verificación. Eventualmente consistente, SLO 24h.
 
 **Traceback canónico del incidente I01** (corrupción detectada por `IntegrityChecker`) — extracto del `runbook.md`:
 
@@ -326,3 +333,8 @@ Cubre: hashing determinista (RN-004, RN-007, RN-008), sharding estable (HU-036),
 - F3 — implementación inicial del ctr-service con cadena cripto (ver `docs/F3-STATE.md`).
 - F4 — hardening: `IntegrityChecker`, métrica `ctr_episodes_integrity_compromised_total` (gate del canary de tutor-service en [ADR-015](../adr/015-blue-green-rolling-deploy.md)).
 - F9 — preflight operacional: migraciones RLS, runbook I01 (integridad CTR), procedimiento I06 (borrado via `anonymize_student()` sin tocar el CTR).
+- 2026-04-26 ([ADR-021](../adr/021-attestation-ed25519.md)) — registro externo Ed25519 con XADD a `attestation.requests` post-cierre.
+- 2026-04-29 ([ADR-031](../adr/031-audit-aliases-ctr.md)) — aliases `/api/v1/audit/*` apuntando al MISMO handler que el legacy (gap D.4).
+- 2026-04-29 ([ADR-025](../adr/025-episodio-abandonado.md)) — soporte para `episodio_abandonado` con `reason ∈ {beforeunload, timeout, explicit}`.
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — soporte para `tests_ejecutados` y `reflexion_completada`.
+- 2026-05-04 (sesión bug-fix cross-package) — `compute_chain_hash` invertido en contracts package; nuevo test cross-package.

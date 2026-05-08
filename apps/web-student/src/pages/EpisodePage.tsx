@@ -538,7 +538,33 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
       <ReflectionModal
         isOpen={reflectionTargetId !== null}
         episodeId={reflectionTargetId}
-        onClose={() => setReflectionTargetId(null)}
+        onClose={async () => {
+          setReflectionTargetId(null)
+          // Cierre/skip del modal de reflexión:
+          // - Si ya hay classification cargada, el render condicional muestra
+          //   ClassificationPanel (la pantalla N4) y desde ahí el alumno
+          //   navega con "Siguiente ejercicio →".
+          // - Si NO hay classification (classify falló silent o tardó >timeout
+          //   y el user cerró el modal antes), el alumno quedaba ATASCADO en
+          //   la EpisodePage con `closed=true` sin acción clara. Ahora si es
+          //   multi-ejercicio marcamos el ejercicio completo + onExit; si es
+          //   TP single, solo onExit (vuelve a /materia/$id).
+          if (!classification) {
+            if (ejercicioContext) {
+              try {
+                await markEjercicioCompleted(
+                  ejercicioContext.entregaId,
+                  ejercicioContext.ejercicioOrden,
+                  episodeId,
+                )
+              } catch {
+                // Best-effort: la TP queda con el ejercicio sin marcar pero
+                // el alumno puede volver a entrar y completar.
+              }
+            }
+            onExit()
+          }
+        }}
       />
     </>
   )

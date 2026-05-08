@@ -222,6 +222,21 @@ function MateriaPage() {
           onShowError={() => {
             // El error ya esta visible en el banner rojo de arriba.
           }}
+          onRetry={() => {
+            void openEpisodeAndNavigate(
+              currentView.tarea,
+              currentView.ejercicioOrden,
+            )
+          }}
+          onCancel={() => {
+            // Si veniamos de un ejercicio dentro de TP multi, volvemos a
+            // la lista de ejercicios; si no, al selector general.
+            if (currentView.ejercicioOrden != null) {
+              setView({ kind: "exercise-list", tarea: currentView.tarea })
+            } else {
+              setView({ kind: "selector" })
+            }
+          }}
         />
       )}
     </>

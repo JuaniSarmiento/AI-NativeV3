@@ -10,17 +10,15 @@ análisis empírico, privacidad, y toda la operación.
 
 ## Estado
 
-**Listo para piloto**. Fases F0–F9 integradas.
+**Listo para piloto**. Fases F0–F9 integradas + epics post-piloto cerrados (`ai-native-completion-and-byok`, `real-health-checks`, `unidades-trazabilidad`, `tp-entregas-correccion`).
 
 | Métrica | Valor |
 |---|---|
-| Tests | **~440 passing** (+ 4 RLS skipped en dev) |
-| Apps (servicios + frontends) | 15 (12 servicios Python + 3 frontends) |
+| Apps activas | 14 (11 servicios Python + 3 frontends) |
+| Servicios deprecated preservados | 2 (`identity-service` ADR-041, `enrollment-service` ADR-030) |
 | Packages compartidos | 7 |
-| LOC Python | ~27.000 |
-| LOC TypeScript | ~5.200 |
-| Migraciones Alembic | 7 |
-| ADRs | 16 |
+| Migraciones Alembic | 17 |
+| ADRs | 43 |
 
 ## Arquitectura en un vistazo
 
@@ -58,16 +56,20 @@ Ver detalles en [`docs/architecture.md`](docs/architecture.md).
 
 ## Decisiones arquitectónicas recientes
 
-### ADR-016 — TareaPractica: plantilla + instancia (2026-04-23)
+Catálogo completo en [`docs/adr/`](docs/adr/) (43 ADRs numerados). Las mayores cerradas en epics post-piloto:
 
-Cada **cátedra** (materia + período) define una `TareaPracticaTemplate` como fuente canónica editable. Al crearla, el sistema **auto-instancia** una `TareaPractica` en cada comisión de esa materia+período — así los estudiantes de A-Mañana, B-Tarde, C-Noche reciben el **mismo** enunciado/rúbrica/fechas sin que el docente tenga que copiar manualmente.
+- **ADR-016** — `TareaPracticaTemplate`: cada cátedra (materia+período) define un template canónico que auto-instancia una `TareaPractica` por cada comisión. `problema_id` del CTR apunta a la instancia (no al template), preservando cadena criptográfica.
+- **ADR-018** + **ADR-022/RN-131** — CII evolution longitudinal por `template_id` + alertas predictivas con z-score vs cohorte (privacy gate `MIN_STUDENTS_FOR_QUARTILES=5`).
+- **ADR-021/RN-128** — Attestation Ed25519 externa post-cierre de episodio (eventually consistent, SLO 24h, NO bloquea).
+- **ADR-023/G8a** — Override temporal de `anotacion_creada` en `LABELER_VERSION=1.1.0` (ventana posicional 120s/60s sobre `event_ts`).
+- **ADR-025/G10-A** — `EpisodioAbandonado` con doble trigger idempotente (frontend `beforeunload` + worker server-side scan cada 60s).
+- **ADR-029** — Bulk-import de inscripciones centralizado en academic-service.
+- **ADR-030, ADR-041** — Deprecación de `enrollment-service` e `identity-service` (preservados en disco con README de deprecation).
+- **ADR-033 / ADR-034 / ADR-035 / ADR-036** — Sandbox client-side (Pyodide) + `test_cases` JSONB + reflexión metacognitiva post-cierre + TP-gen IA (todo del epic `ai-native-completion-and-byok`). `LABELER_VERSION` bumpeada a 1.2.0 con regla N3/N4 sobre `tests_ejecutados`.
+- **ADR-037 / ADR-038 / ADR-039 / ADR-040** — BYOK multi-provider con AES-256-GCM, resolver jerárquico materia → tenant → env_fallback, helper compartido `packages/platform-ops/.../crypto.py`. Mistral adapter implementado (Gemini diferido).
+- **Unidades de trazabilidad** (epic SDD post-piloto) — entidad `Unidad` scoped a `comision_id`, FK nullable `tareas_practicas.unidad_id`, función `compute_evolution_per_unidad()` para trazabilidad longitudinal cuando `template_id=NULL`.
 
-- Si el docente edita una instancia directamente (sin pasar por el template), se marca `has_drift=true` — mantiene el vínculo al template pero queda excluida del re-sync automático al versionarlo.
-- `problema_id` del episodio CTR sigue apuntando a la **instancia**, no al template — cadena criptográfica SHA-256 intacta, `curso_config_hash` per-Comisión preservado.
-- Casbin: +14 policies sobre el nuevo recurso `tarea_practica_template` (total 108).
-- UI: `web-teacher` tiene vista "Plantillas" con cascada Universidad → Facultad → Carrera → Plan → Materia → Período.
-
-Ver [`docs/adr/016-tp-template-instance.md`](docs/adr/016-tp-template-instance.md) para el diseño completo + migración + alternativas descartadas.
+Documentación por servicio en [`docs/servicios/`](docs/servicios/). Verdades operativas y constantes que NO deben cambiarse en [`CLAUDE.md`](CLAUDE.md).
 
 ## Empezar
 
@@ -120,22 +122,16 @@ make dev
 
 ### Paso 4 — Levantar servicios backend
 
-Los 12 servicios Python se arrancan **cada uno en su propia terminal**:
+Los 11 servicios Python activos se arrancan **cada uno en su propia terminal**, **desde la raíz del repo** (no desde `apps/<svc>/` — `pydantic_settings` busca `.env` relativo al CWD):
 
 ```bash
-# api-gateway (OBLIGATORIO — proxy de entrada para los frontends)
+# api-gateway (OBLIGATORIO — única puerta externa de los frontends)
 uv run uvicorn api_gateway.main:app --port 8000 --reload
-
-# identity-service
-uv run uvicorn identity_service.main:app --port 8001 --reload
 
 # academic-service
 uv run uvicorn academic_service.main:app --port 8002 --reload
 
-# enrollment-service
-uv run uvicorn enrollment_service.main:app --port 8003 --reload
-
-# evaluation-service
+# evaluation-service (TP entregas + correcciones — epic tp-entregas-correccion)
 uv run uvicorn evaluation_service.main:app --port 8004 --reload
 
 # analytics-service
@@ -158,12 +154,18 @@ uv run uvicorn content_service.main:app --port 8009 --reload
 # en Windows usar ruta absoluta:
 PROMPTS_REPO_PATH="$(pwd)/ai-native-prompts" uv run uvicorn governance_service.main:app --port 8010 --reload
 
-# ai-gateway
+# ai-gateway (incluye BYOK resolver — ADRs 038/039/040)
 uv run uvicorn ai_gateway.main:app --port 8011 --reload
+
+# integrity-attestation-service (ADR-021 — en piloto vive en VPS UNSL separado;
+# en local es opcional, los eventos se acumulan en el stream Redis hasta drenarse)
+uv run uvicorn integrity_attestation_service.main:app --port 8012 --reload
 ```
 
-Para el flujo minimo (estudiante abre TP y chatea con el tutor) necesitas al menos:
+Para el flujo mínimo (estudiante abre TP y chatea con el tutor) necesitás al menos:
 **api-gateway** + **academic-service** + **tutor-service** + **ctr-service** + **governance-service** + **ai-gateway**.
+
+> **Servicios deprecated**: `identity-service` (ADR-041, 2026-05-07) e `enrollment-service` (ADR-030, 2026-04-29) están preservados en disco con README de deprecation pero **fuera del workspace `uv` y del `ROUTE_MAP` del api-gateway**. Auth se resuelve hoy en api-gateway via headers X-* + Casbin descentralizado; bulk-import de inscripciones vive en `academic-service` (ADR-029).
 
 ### Paso 5 — Prompts del tutor (governance-service)
 
@@ -230,58 +232,58 @@ make test-rls          # Solo multi-tenant contra Postgres real (requiere CTR_ST
 
 ```
 platform/
-├── apps/
-│   ├── academic-service/      # Usuarios, comisiones, Casbin RBAC
-│   ├── content-service/       # Materiales, chunker, RAG (pgvector)
-│   ├── ctr-service/           # Cuaderno Trabajo Reflexivo (cadena cripto)
-│   ├── classifier-service/    # Árbol N4 + 5 coherencias
-│   ├── tutor-service/         # Orquestador socrático (SSE)
-│   ├── ai-gateway/            # LLM proxy + budget por tenant
-│   ├── governance-service/    # Prompts versionados
-│   ├── api-gateway/           # JWT RS256 + inyección X-*
-│   ├── analytics-service/     # Kappa, progresión, export (F7-F8)
-│   ├── identity-service/      # Federación Keycloak
-│   ├── enrollment-service/    # Matrícula
-│   ├── evaluation-service/    # Rubricas (futuro)
-│   ├── web-student/           # React + Monaco + Pyodide
-│   ├── web-teacher/           # React: Progresión + Kappa + Export (F8)
-│   └── web-admin/             # Gestión de cohortes
+├── apps/                              # 11 servicios activos + 3 frontends + 2 deprecated
+│   ├── api-gateway/                   # JWT RS256 + headers X-* + ROUTE_MAP
+│   ├── academic-service/              # Universidad→Comisión + TPs + Casbin (131 policies)
+│   ├── analytics-service/             # Kappa, progresión, longitudinal, alertas, governance UI
+│   ├── tutor-service/                 # Orquestador socrático (SSE) + reflexión + abandonment worker
+│   ├── ctr-service/                   # CTR append-only SHA-256 + alias /audit/* (ADR-031)
+│   ├── classifier-service/            # Árbol N4 + 5 coherencias + labeler v1.2.0
+│   ├── content-service/               # Materiales + RAG (pgvector + chunker estratificado)
+│   ├── governance-service/            # Prompts versionados (FS Git) + tp_generator/v1.0.0
+│   ├── ai-gateway/                    # LLM proxy + BYOK multi-provider (ADRs 038-040) + Mistral
+│   ├── evaluation-service/            # Entregas + calificación (epic tp-entregas-correccion)
+│   ├── integrity-attestation-service/ # Attestation Ed25519 externa (ADR-021)
+│   ├── identity-service/              # DEPRECATED (ADR-041) — preservado en disco
+│   ├── enrollment-service/            # DEPRECATED (ADR-030) — preservado en disco
+│   ├── web-admin/                     # Gestión institucional + Auditoría + BYOK + Governance UI
+│   ├── web-teacher/                   # TanStack Router + 3 vistas G7 (ADR-022) + drill-down
+│   └── web-student/                   # React + Monaco + Pyodide + 3-cols + reflexión modal
 │
 ├── packages/
-│   ├── contracts/             # Schemas + hashing canónico
-│   ├── observability/         # OTel + structlog unificado
-│   ├── platform-ops/          # Onboarding, privacy, Kappa, audit,
-│   │                          # LDAP, longitudinal, A/B, export worker,
-│   │                          # real datasources
-│   ├── ctr-client/            # Cliente tipado del ctr-service
-│   ├── auth-client/           # keycloak-js + authenticated fetch
-│   ├── ui/                    # Componentes React compartidos
-│   └── test-utils/            # Helpers de testing
+│   ├── contracts/                     # Schemas + hashing canónico (cross-package fix 2026-05-04)
+│   ├── observability/                 # OTel + structlog + helper de health checks reales
+│   ├── platform-ops/                  # Privacy, Kappa, longitudinal, alertas, crypto AES-GCM
+│   ├── ctr-client/                    # Cliente tipado del ctr-service
+│   ├── auth-client/                   # keycloak-js + authenticated fetch
+│   ├── ui/                            # Componentes React compartidos + tokens "Stack Blue"
+│   └── test-utils/                    # Helpers de testing
 │
-├── infrastructure/            # docker-compose.dev.yml + observability configs
+├── infrastructure/                    # docker-compose.dev.yml + observability configs
 ├── ops/
-│   ├── k8s/                   # Manifests K8s + canary Argo Rollouts
-│   └── grafana/               # Dashboards + provisioning
+│   ├── k8s/                           # Manifests K8s + canary Argo Rollouts
+│   └── grafana/                       # Dashboards + provisioning
 │
 ├── docs/
-│   ├── architecture.md        # Diseño general
-│   ├── adr/                   # 15 Architecture Decision Records
-│   ├── onboarding.md          # Guía para nuevos devs
-│   ├── F0-STATE.md ... F9-STATE.md   # Log por fase
-│   ├── golden-queries/        # Queries de evaluación RAG
-│   └── pilot/                 # Protocolo piloto UNSL
-│       ├── protocolo-piloto-unsl.docx   # Documento formal (23KB)
-│       ├── generate_protocol.js         # Fuente docx-js
-│       ├── runbook.md                   # 10 incidentes codificados
-│       ├── analysis-template.ipynb      # Notebook Jupyter de análisis
-│       └── README.md                    # Guía operativa del piloto
+│   ├── architecture.md                # Diseño general
+│   ├── adr/                           # 43 ADRs numerados (incluyendo 9 diferidos para piloto-2)
+│   ├── servicios/                     # 1 .md por servicio activo + integrity-attestation
+│   ├── specs/                         # historias.md, reglas.md, bulk-import-csv-format.md
+│   ├── research/                      # audi1/2.md, BUGS-PILOTO.md, CHANGELOGs, plan-b2-jwt-...
+│   ├── phases/                        # F0–F9 STATE.md (log incremental de fases)
+│   ├── pilot/                         # Protocolo UNSL (DOCX), runbook, analysis-template.ipynb
+│   ├── golden-queries/                # Queries de evaluación RAG
+│   ├── onboarding.md                  # Guía para nuevos devs
+│   └── SESSION-LOG.md                 # Bitácora narrativa cross-sesión
 │
-├── examples/
-│   └── unsl_onboarding.py     # Script runnable de bootstrap UNSL
-│
-├── scripts/                   # bash + python (migrate-all, backup, etc.)
-├── Makefile                   # Orquestación
-└── README.md                  # (este archivo)
+├── ai-native-prompts/                 # Prompts versionados (consumidos por governance-service)
+├── examples/                          # Scripts runnable de bootstrap UNSL
+├── scripts/                           # bash + python (migrate-all, backup, eval-retrieval, etc.)
+├── tests/                             # Smoke E2E (epic tests-smoke)
+├── CLAUDE.md                          # Verdades operativas + invariantes (source of truth)
+├── PRODUCT.md / DESIGN.md             # Identidad + tokens visuales (post-impeccable)
+├── Makefile                           # Orquestación (defaults dev: EMBEDDER=mock, etc.)
+└── README.md                          # (este archivo)
 ```
 
 ## Workflows comunes
@@ -336,15 +338,17 @@ jupyter notebook docs/pilot/analysis-template.ipynb
 ### Si sos **docente participante** del piloto UNSL
 
 1. Leer [`docs/pilot/README.md`](docs/pilot/README.md) — operativa diaria
-2. Entrar a http://localhost:5176 — UI con las 3 vistas del piloto
+2. Entrar a http://localhost:5174 — panel docente
 3. Ante un incidente: [`docs/pilot/runbook.md`](docs/pilot/runbook.md)
 
 ### Si sos **desarrollador nuevo** contribuyendo al código
 
 1. Leer [`docs/onboarding.md`](docs/onboarding.md)
 2. Ejecutar `make init` para entorno local
-3. Revisar [`docs/adr/`](docs/adr/) para decisiones arquitectónicas clave
-4. [`CONTRIBUTING.md`](CONTRIBUTING.md) para el workflow de contribución
+3. Revisar [`docs/servicios/`](docs/servicios/) para entender cada microservicio
+4. Revisar [`docs/adr/`](docs/adr/) para decisiones arquitectónicas clave (43 ADRs)
+5. Leer [`CLAUDE.md`](CLAUDE.md) para invariantes y constantes que NO deben cambiarse
+6. [`CONTRIBUTING.md`](CONTRIBUTING.md) para el workflow de contribución
 
 ### Si sos **investigador** analizando los datos
 
@@ -386,13 +390,12 @@ por tests automatizados. **Al modificar código, respetar**:
 
 ## Fases del desarrollo
 
-El monorepo se construyó incrementalmente en 10 fases. Cada una tiene
-su doc de estado en [`docs/F*-STATE.md`](docs/):
+El monorepo se construyó incrementalmente en 10 fases (F0–F9) más epics post-piloto. Cada fase tiene su doc de estado en [`docs/phases/`](docs/phases/).
 
 | Fase | Alcance |
 |---|---|
-| F0 | Monorepo semilla (12 servicios + 3 frontends + CI + docs) |
-| F1 | academic-service + enrollment-service (RLS + Casbin) |
+| F0 | Monorepo semilla (servicios + frontends + CI + docs) |
+| F1 | academic-service + enrollment-service (RLS + Casbin) — enrollment luego deprecado |
 | F2 | content-service con RAG (pgvector + chunker estratificado) |
 | F3 | ctr-service (cadena cripto) + classifier + tutor + ai-gateway |
 | F4 | Hardening: SLOs, rate limiting, integrity checker |
@@ -401,6 +404,16 @@ su doc de estado en [`docs/F*-STATE.md`](docs/):
 | F7 | Empírico: longitudinal, A/B profiles, export worker |
 | F8 | Adaptadores DB reales + frontend docente + Grafana + protocolo DOCX |
 | F9 | Preflight operacional: RLS migrations, runbook, notebook |
+
+### Epics post-F9 cerrados
+
+| Epic | Alcance |
+|---|---|
+| `tp-entregas-correccion` | evaluation-service implementado: 8 endpoints REST, audit log, RLS forzada |
+| `ai-native-completion-and-byok` | Reflexión post-cierre + sandbox client-side + test_cases JSONB + TP-gen IA + BYOK multi-provider (ADRs 033-040) |
+| `real-health-checks` | Health checks reales en los 11 servicios via helper compartido en `packages/observability` |
+| `unidades-trazabilidad` | Entidad `Unidad` para trazabilidad longitudinal cuando `template_id=NULL` |
+| `tests-smoke` | Suite E2E de 32 smoke tests contra stack real en `tests/e2e/smoke/` (red de seguridad) |
 
 ## Licencia
 

@@ -2,7 +2,7 @@
 
 ## 1. Qué hace (una frase)
 
-Es la puerta única de la plataforma: valida el JWT de Keycloak, reescribe autoritativamente los headers `X-User-Id`/`X-Tenant-Id`/`X-User-Email`/`X-User-Roles`/`X-User-Realm`, aplica rate limiting por principal y rutea a 11 servicios downstream por prefijo de path.
+Es la puerta única de la plataforma: valida el JWT de Keycloak (RS256), reescribe autoritativamente los headers `X-User-Id`/`X-Tenant-Id`/`X-User-Email`/`X-User-Roles` (plural) `/X-User-Realm`, aplica rate limiting por principal y rutea a los servicios downstream por prefijo de path. Es **la fuente única de identidad** del sistema — el viejo `identity-service` quedó deprecado por [ADR-041](../adr/041-deprecate-identity-service.md) porque toda esa lógica ya vive acá + Casbin descentralizado.
 
 ## 2. Rol en la arquitectura
 
@@ -38,21 +38,24 @@ Es el único servicio "externamente expuesto" de la plataforma: los frontends y 
 | Método | Path | Qué hace | Auth |
 |---|---|---|---|
 | `GET` | `/` | Status trivial. | Exento. |
-| `GET` | `/health` | Stub `{"status": "ok"}`. | Exento. |
-| `ALL` | `/api/{full_path:path}` | Proxy a los 11 servicios via `ROUTE_MAP`. | JWT + rate limit. |
+| `GET` | `/health`, `/health/ready` | Health real con `check_redis(rate_limit_redis)` + `check_keycloak_jwks` (epic `real-health-checks`, 2026-05-04). | Exento. |
+| `ALL` | `/api/{full_path:path}` | Proxy a los servicios via `ROUTE_MAP`. | JWT + rate limit. |
 
 Las rutas ruteadas (map interno en `routes/proxy.py`):
 
 | Prefijo | Destino |
 |---|---|
-| `/api/v1/universidades`, `/facultades`, `/carreras`, `/planes`, `/materias`, `/comisiones`, `/periodos`, `/tareas-practicas`, `/bulk` | [academic-service](./academic-service.md) |
-| `/api/v1/imports` | [enrollment-service](./enrollment-service.md) |
+| `/api/v1/universidades`, `/facultades`, `/carreras`, `/planes`, `/materias`, `/comisiones`, `/periodos`, `/tareas-practicas`, `/tareas-practicas-templates`, `/unidades`, `/bulk` | [academic-service](./academic-service.md) |
+| `/api/v1/entregas` | [evaluation-service](./evaluation-service.md) |
 | `/api/v1/materiales`, `/retrieve` | [content-service](./content-service.md) |
 | `/api/v1/episodes` | [tutor-service](./tutor-service.md) |
 | `/api/v1/classify_episode`, `/classifications` | [classifier-service](./classifier-service.md) |
 | `/api/v1/analytics` | [analytics-service](./analytics-service.md) |
+| `/api/v1/audit/episodes` | [ctr-service](./ctr-service.md) (aliases `/audit/*` apuntan al MISMO handler que el legacy, [ADR-031](../adr/031-audit-aliases-ctr.md)) |
 
-**Prefijos no ruteados hoy** (no aparecen en `ROUTE_MAP` y `resolve_target()` retorna `None`): endpoints de [governance-service](./governance-service.md), [ai-gateway](./ai-gateway.md), [identity-service](./identity-service.md), [evaluation-service](./evaluation-service.md), `/api/v1/ctr/*` (write/read/verify directo del [ctr-service](./ctr-service.md)) y `/api/v1/integrity-attestation/*` (servicio externo institucional). Si se consumen desde el frontend, **no pasan por api-gateway** — o el frontend pega directo al servicio interno (no soportado en prod) o el mapa se amplía.
+**Prefijos no ruteados hoy** (no aparecen en `ROUTE_MAP` y `resolve_target()` retorna `None`): endpoints de [governance-service](./governance-service.md), [ai-gateway](./ai-gateway.md) (LLM proxy interno), `/api/v1/ctr/*` (eventos write directo del [ctr-service](./ctr-service.md), service-to-service), `/api/v1/attestations/*` ([integrity-attestation-service](./integrity-attestation-service.md), infra institucional separada). Si se consumen desde el frontend, **no pasan por api-gateway** — o el frontend pega directo al servicio interno (no soportado en prod) o el mapa se amplía.
+
+> **Nota**: los servicios deprecados `enrollment-service` ([ADR-030](../adr/030-deprecate-enrollment-service.md)) y `identity-service` ([ADR-041](../adr/041-deprecate-identity-service.md)) ya NO están en el ROUTE_MAP. Bulk-import de inscripciones se centralizó en `academic-service` ([ADR-029](../adr/029-bulk-import-centralized.md)); auth se resuelve acá + Casbin local.
 
 **Match implícito por `startswith`**: `resolve_target()` matchea con `path.startswith(prefix)`, así que `/api/v1/tareas-practicas-templates` queda routeado a academic-service vía el prefix `/api/v1/tareas-practicas` (sin necesidad de entrada propia). Lo mismo pasa con sub-paths: `/api/v1/episodes/{id}/events/codigo_ejecutado` resuelve por `/api/v1/episodes` → tutor-service. Cuando agregues una entidad nueva, verificá si su prefijo no colisiona con uno existente.
 
@@ -107,6 +110,7 @@ Las rutas ruteadas (map interno en `routes/proxy.py`):
 - **JWKS sin reload activo**: si Keycloak rota keys, el gateway espera hasta que expire el TTL (300s) para re-fetchear. En esa ventana los tokens nuevos pueden fallar. Aceptable para el piloto.
 - **Rate limit por IP como fallback**: si el request no trae `X-User-Id` (ni el gateway logra validarlo), el counter es por `client.host`. Detrás de un load balancer que enmascare la IP (misma IP para todos), el counter colapsa al tenant entero. Nota: sólo aplica cuando el JWT no valida; con JWT válido el principal es `user_id`.
 - **30s timeout de httpx**: requests lentas (ingesta de materiales grandes, exports pesados) pueden cortarse por el gateway aunque el downstream siga procesando. El bug es del lado del cliente (no sabe si fue éxito o falla). Revisar si algún endpoint requiere timeout más alto.
+- **Header autoritativo `X-User-Roles` (plural), NO `X-Role`**: documentos viejos podían tener la versión incorrecta. El JWT trae `realm_access.roles: ["docente", ...]` y el gateway lo serializa como CSV en `X-User-Roles`. Cualquier servicio downstream debe parsear `request.headers["X-User-Roles"].split(",")`.
 
 ## 10. Relación con la tesis doctoral
 
@@ -125,15 +129,17 @@ El api-gateway no implementa componentes de la tesis. Su existencia es una **pro
 - `tests/unit/test_rate_limit.py` — sliding window correcto, principales distintos, fail-open en Redis down.
 
 **Known gaps**:
-- Los 4 servicios "periféricos" (governance, ai-gateway, identity, evaluation) no están en `ROUTE_MAP` — si algún frontend los necesita, hoy no pueden via gateway.
-- `tareas-practicas-templates` tampoco está en el map — el web-teacher usa la vista Plantillas y debe estar haciendo bypass o hay un fallback no documentado.
+- Los servicios periféricos (governance, ai-gateway, attestation) no están en `ROUTE_MAP` — son service-to-service por diseño. Si algún frontend los necesita, hoy no pueden via gateway.
+- `byok` endpoints del ai-gateway no están en `ROUTE_MAP` aún — la UI BYOK del web-admin (DEFERIDA) los necesitará.
 - SSE passthrough via `StreamingResponse` en una sola emisión — probable buffering (no verificado e2e).
 - Sin circuit breaker ni retry policies.
 - `dev_trust_headers=True` como default es riesgoso si se mal-despliega.
-- `/health` es stub — no valida Keycloak ni Redis. Si Keycloak cae, el gateway arranca y responde OK pero no puede validar ningún token.
 
 **Fase de consolidación**:
 - F1 — passthrough inicial con JWT opcional (`docs/F1-STATE.md`).
 - F3 — validación real de JWT con JWKS.
 - F4 — rate limiting sliding window.
 - F5 — modo `dev_trust_headers` + reescritura autoritativa de headers.
+- 2026-04-29 ([ADR-029](../adr/029-bulk-import-centralized.md), [ADR-030](../adr/030-deprecate-enrollment-service.md), [ADR-031](../adr/031-audit-aliases-ctr.md)) — `enrollment-service` deprecado y bulk-import centralizado en academic-service; aliases `/api/v1/audit/*` ruteados al ctr-service.
+- 2026-05-04 (epic `real-health-checks`) — `/health/ready` real con `check_redis + check_keycloak_jwks`.
+- 2026-05-07 ([ADR-041](../adr/041-deprecate-identity-service.md)) — `identity-service` deprecado; auth completamente resuelta acá + Casbin descentralizado en cada servicio.

@@ -6,21 +6,25 @@ Es la consola de gestión académica del tenant: permite a roles `docente_admin`
 
 ## 2. Rol en la arquitectura
 
-Pertenece a los **frontends**. Sin correspondencia directa con un componente de la arquitectura de la tesis. Existe como UI institucional para operar el plano académico-operacional — es la cara de [academic-service](./academic-service.md) y [enrollment-service](./enrollment-service.md) para el coordinador académico del tenant (rol `docente_admin`) y el superadmin de la plataforma.
+Pertenece a los **frontends**. Sin correspondencia directa con un componente de la arquitectura de la tesis. Existe como UI institucional para operar el plano académico-operacional — es la cara de [academic-service](./academic-service.md) (incluyendo el bulk-import centralizado por [ADR-029](../adr/029-bulk-import-centralized.md), reemplazo del viejo `enrollment-service` deprecado por [ADR-030](../adr/030-deprecate-enrollment-service.md)) para el coordinador académico del tenant (rol `docente_admin`) y el superadmin de la plataforma. Adicionalmente expone gobernanza institucional cross-cohort ([ADR-037](../adr/037-governance-ui.md)), gestión de BYOK keys ([ADR-038](../adr/038-byok-encryption.md)) y verificación de auditoría CTR ([ADR-031](../adr/031-audit-aliases-ctr.md)).
 
 ## 3. Responsabilidades
 
-- Renderizar 10 páginas CRUD sobre las entidades del dominio académico (Universidades, Facultades, Carreras, Planes, Materias, Periodos, Comisiones) + Home + BulkImport + Clasificaciones.
+- Renderizar páginas CRUD sobre las entidades del dominio académico (Universidades, Facultades, Carreras, Planes, Materias, Periodos, Comisiones, **Unidades**) + Home + BulkImport + Clasificaciones + Gobernanza + Auditoría + BYOK.
 - Ejecutar CRUD completo sobre cada entidad via `/api/v1/*` ruteado por [api-gateway](./api-gateway.md): listar, crear (modal), editar (modal), soft-delete (confirm dialog).
-- Soportar la UI del import masivo (`BulkImportPage.tsx`): upload CSV → reporte de dry-run (filas válidas, errores) → botón de commit (apunta al stub de [enrollment-service](./enrollment-service.md) que hoy no persiste).
+- Soportar la UI del import masivo (`BulkImportPage.tsx`): upload CSV → reporte de dry-run (filas válidas, errores) → botón de commit. **Bulk-import operacional** (gap B.1 cerrado por [ADR-029](../adr/029-bulk-import-centralized.md)): tiene como entidad `inscripciones` (estudiantes en una comisión) — destraba el alta masiva del piloto sin tocar SQL. CSV requiere `comision_id`, `student_pseudonym`, `fecha_inscripcion`. Otras entidades (comisiones, materias, etc.) también soportadas.
 - Exponer la vista de Clasificaciones agregadas por comisión (consume `/api/v1/classifications/aggregated` de [classifier-service](./classifier-service.md) via gateway).
-- Renderizar el sistema de ayuda in-app uniforme (`HelpButton` en toda page + `helpContent.tsx` con entries) — `web-admin` tiene 10 entries (una por página) — ver sección "Sistema de ayuda in-app" en CLAUDE.md.
-- En dev mode, inyectar headers `X-User-Id`/`X-Tenant-Id`/`X-User-Email`/`X-User-Roles` en el proxy de Vite (`vite.config.ts`) para que el api-gateway con `dev_trust_headers=True` acepte requests sin JWT real.
+- **Página `GovernanceEventsPage.tsx`** ([ADR-037](../adr/037-governance-ui.md)): consume `GET /api/v1/analytics/governance/events` cross-cohort. Filtros cascade facultad → materia → período + CSV export con headers ASCII (cp1252-safe).
+- **Página `AuditoriaPage.tsx`** ([ADR-031](../adr/031-audit-aliases-ctr.md), gap D.4): consume `POST /api/v1/audit/episodes/{id}/verify` via api-gateway ROUTE_MAP. Verifica integridad criptográfica SHA-256 de cualquier episodio cerrado en vivo — útil para defensa doctoral (el comité puede ver la verificación en pantalla). NO confundir con las attestations Ed25519 externas (ADR-021) — son dos pruebas independientes complementarias.
+- **Página BYOK con `UsagePanel` + stats grid** (epic `ai-native-completion-and-byok`): UI para CRUD de `byok_keys` y visualización de `byok_keys_usage`. **DEFERIDA** al momento del cierre del epic (endpoints CRUD operables vía curl).
+- **CRUD de `Unidad`** (epic `unidades-trazabilidad`): página para gestionar unidades por comisión. Permite trazabilidad longitudinal cuando `template_id=NULL`.
+- Renderizar el sistema de ayuda in-app uniforme (`HelpButton` en toda page + `helpContent.tsx` con entries) — ver sección "Sistema de ayuda in-app" en CLAUDE.md.
+- En dev mode, inyectar headers `X-User-Id`/`X-Tenant-Id`/`X-User-Email`/`X-User-Roles` (plural) en el proxy de Vite (`vite.config.ts`) para que el api-gateway con `dev_trust_headers=True` acepte requests sin JWT real.
 
 ## 4. Qué NO hace (anti-responsabilidades)
 
-- **NO interactúa con el CTR, ni episodios, ni tutor**: su dominio es la gestión académica, no la interacción pedagógica. Eso es [web-student](./web-student.md).
-- **NO maneja rúbricas ni evaluación**: es parte del alcance nominal de [evaluation-service](./evaluation-service.md) (stub F0).
+- **NO interactúa con el CTR como productor**: NO emite episodios ni eventos pedagógicos. SÍ verifica integridad de la cadena CTR via `AuditoriaPage` ([ADR-031](../adr/031-audit-aliases-ctr.md)) — es uso read-only.
+- **NO maneja rúbricas ni calificaciones**: es alcance de [evaluation-service](./evaluation-service.md). Acá no hay UI para entregas/correcciones.
 - **NO tiene progresión longitudinal ni κ**: esas vistas viven en [web-teacher](./web-teacher.md).
 - **NO valida localmente identidad**: se apoya enteramente en el api-gateway (JWT o `dev_trust_headers`). En dev, el header inyectado es `docente_admin,superadmin` hardcoded para no requerir realm Keycloak activo.
 - **NO tiene test runner activo**: `package.json` tiene `vitest` declarado y `test: "vitest run --passWithNoTests"`. La suite de tests UI es mínima (los tests del frontend hoy viven en `packages/ui/`).
@@ -39,14 +43,18 @@ Routing "basado en useState" (no TanStack Router type-safe todavía — previsto
 | `materias` | `MateriasPage.tsx` | Materias |
 | `periodos` | `PeriodosPage.tsx` | Periodos lectivos (+ modal `EditPeriodoModal` migrado al `Modal` del design system) |
 | `comisiones` | `ComisionesPage.tsx` | Comisiones — la más grande (637 líneas) |
-| `bulk-import` | `BulkImportPage.tsx` | CSV → dry-run → commit |
+| `unidades` | `UnidadesPage.tsx` | CRUD de Unidad por comisión (epic `unidades-trazabilidad`) |
+| `bulk-import` | `BulkImportPage.tsx` | CSV → dry-run → commit (incluye `inscripciones` por ADR-029) |
 | `clasificaciones` | `ClasificacionesPage.tsx` | Distribución N4 por comisión |
+| `governance-events` | `GovernanceEventsPage.tsx` | Cross-cohort governance events ([ADR-037](../adr/037-governance-ui.md)) con filtros cascade + CSV export |
+| `auditoria` | `AuditoriaPage.tsx` | Verificación SHA-256 en vivo de episodios cerrados ([ADR-031](../adr/031-audit-aliases-ctr.md)) |
+| `byok` (DEFERIDA) | `ByokPage.tsx` | CRUD de BYOK keys + `UsagePanel` + stats grid (endpoints operables; UI deferida) |
 
 ## 6. Dependencias
 
 **Depende de (servicios):**
 - [api-gateway](./api-gateway.md) via proxy `/api` de Vite (default `http://127.0.0.1:8000`).
-- Aguas abajo del gateway: [academic-service](./academic-service.md) (la mayoría de las operaciones), [enrollment-service](./enrollment-service.md) (BulkImportPage), [classifier-service](./classifier-service.md) (ClasificacionesPage).
+- Aguas abajo del gateway: [academic-service](./academic-service.md) (la mayoría de las operaciones, incluyendo `BulkImportPage` por ADR-029), [classifier-service](./classifier-service.md) (`ClasificacionesPage`), [analytics-service](./analytics-service.md) (`GovernanceEventsPage` por ADR-037), [ctr-service](./ctr-service.md) (`AuditoriaPage` via aliases `/api/v1/audit/*` por ADR-031), [ai-gateway](./ai-gateway.md) (página BYOK DEFERIDA cuando se implemente).
 
 **Depende de (packages workspace):**
 - `@platform/ui` — `Sidebar`, `Modal`, `HelpButton`, `PageContainer`, tokens de CSS.
@@ -68,7 +76,10 @@ Frontend — no tiene persistencia propia. Usa los contratos TS de `@platform/co
 - `apps/web-admin/src/pages/ComisionesPage.tsx` — la página más extensa (637 líneas) — sirve de referencia del patrón CRUD completo con modales.
 - `apps/web-admin/src/pages/BulkImportPage.tsx` — flujo dry-run → commit. Maneja `ImportResponse` de enrollment-service.
 - `apps/web-admin/src/pages/ClasificacionesPage.tsx` — consume el endpoint `classifications/aggregated`, renderiza distribución + timeseries.
-- `apps/web-admin/src/utils/helpContent.tsx` — **10 entries** del sistema de ayuda in-app, una por página. Español sin tildes (evita cp1252 en Windows).
+- `apps/web-admin/src/pages/GovernanceEventsPage.tsx` — cross-cohort events ([ADR-037](../adr/037-governance-ui.md)), filtros cascade facultad/materia/período, CSV export con headers ASCII.
+- `apps/web-admin/src/pages/AuditoriaPage.tsx` — verificación SHA-256 en vivo via `/api/v1/audit/episodes/{id}/verify` ([ADR-031](../adr/031-audit-aliases-ctr.md)).
+- `apps/web-admin/src/pages/UnidadesPage.tsx` — CRUD de Unidad por comisión (epic `unidades-trazabilidad`).
+- `apps/web-admin/src/utils/helpContent.tsx` — entries del sistema de ayuda in-app. Español sin tildes (evita cp1252 en Windows). Tokens centralizados en `packages/ui/src/tokens/theme.css`.
 - `apps/web-admin/src/lib/` — clientes HTTP tipados.
 - `apps/web-admin/vite.config.ts` — proxy `/api` + inyección de headers en dev (user UUID `33333333-...`, roles `docente_admin,superadmin`).
 
@@ -106,11 +117,15 @@ La vista de Clasificaciones es un **viewer** de las agregaciones que produce [cl
 **Known gaps**:
 - Routing state-based — migración a TanStack Router type-safe prevista F2-F3 (la dep ya está en `package.json`).
 - Sin tests e2e del flujo BulkImport end-to-end.
-- BulkImport commit no persiste (gap del backend — ver [enrollment-service](./enrollment-service.md)).
 - Test runner configurado con `--passWithNoTests` — no hay suite real.
-- 10 entries de `helpContent.tsx` en español sin tildes (política del monorepo).
+- Página BYOK DEFERIDA — endpoints CRUD del ai-gateway operables vía curl o cliente HTTP.
+- Tokens visuales centralizados en `packages/ui/src/tokens/theme.css` (paleta "Stack Blue institucional" #185FA5; light backgrounds — rejected dark sidebar). Audit redesign post-skill `impeccable` está en deuda — ver `PRODUCT.md` y `DESIGN.md` en root.
 
 **Fase de consolidación**:
 - F1 — scaffold inicial con Sidebar + 10 páginas CRUD (`docs/F1-STATE.md`).
 - F5 — integración con keycloak-js (hoy latente, activada con `VITE_KEYCLOAK_URL`).
-- F8+ — migración a TanStack Router pendiente.
+- 2026-04-29 — `BulkImportPage` con entidad `inscripciones` ([ADR-029](../adr/029-bulk-import-centralized.md)); `AuditoriaPage` ([ADR-031](../adr/031-audit-aliases-ctr.md)).
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — `GovernanceEventsPage` ([ADR-037](../adr/037-governance-ui.md)) cross-cohort. Página BYOK DEFERIDA.
+- 2026-05-04 — refactor de tokens centralizados en `packages/ui` con paleta "Stack Blue institucional" #185FA5.
+- 2026-05-07 (epic `unidades-trazabilidad`) — `UnidadesPage` con CRUD por comisión.
+- F8+ — migración a TanStack Router pendiente. Audit UX/UI redesign post-skill `impeccable` (ver `PRODUCT.md` y `DESIGN.md` en root).

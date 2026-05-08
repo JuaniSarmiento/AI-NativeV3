@@ -18,6 +18,7 @@ Sin este servicio, `prompt_system_hash` en los eventos del CTR sería un valor o
 - Exponer `POST /api/v1/prompts/{name}/{version}/verify` que recomputa el hash y lo compara contra el declarado en el `manifest.yaml` del directorio del prompt.
 - Implementar **fail-loud ante hash mismatch** (RN-091): si el `manifest.yaml` declara un hash que no coincide con el contenido actual, el endpoint `/prompts/...` devuelve 500 con `"Prompt integrity compromised"`. No se sirve contenido potencialmente manipulado.
 - Cachear en memoria los prompts ya cargados (`_cache: dict[(name, version), PromptConfig]`) para no re-leer el archivo en cada request.
+- **Servir el prompt `tp_generator/v1.0.0`** (epic `ai-native-completion-and-byok`, [ADR-036](../adr/036-tp-gen-ia.md)): consumido por `academic-service` cada vez que se invoca `POST /api/v1/tareas-practicas/generate`. Drift conocido: el prompt declara restricciones sintácticas que Mistral respeta, pero las semánticas (no usar funciones en dificultad="basica") las rompe ocasionalmente.
 
 ## 4. Qué NO hace (anti-responsabilidades)
 
@@ -34,7 +35,7 @@ Sin este servicio, `prompt_system_hash` en los eventos del CTR sería un valor o
 | `GET` | `/api/v1/active_configs` | Devuelve el manifest global: qué versión de cada prompt (tutor, classifier) está activa para `default` y por tenant. | Ninguna explícita (viene del gateway). |
 | `GET` | `/api/v1/prompts/{name}/{version}` | Devuelve `{name, version, content, hash, path}`. 404 si no existe, 500 si el hash del manifest no matchea el computado. | Ninguna explícita. |
 | `POST` | `/api/v1/prompts/{name}/{version}/verify` | Recomputa y compara; devuelve `VerifyResult` con `valid: bool`. A diferencia de GET, devuelve 200 con `valid=false` en mismatch (no 500). | Ninguna explícita. |
-| `GET` | `/health` | Status trivial `{"status": "ok"}` — no verifica que el repo exista. | Ninguna. |
+| `GET` | `/health`, `/health/ready` | Health real con `check_repo_path` (verifica que el directorio del repo de prompts exista y sea legible) — epic `real-health-checks`, 2026-05-04. | Ninguna. |
 
 **Response de `GET /api/v1/prompts/tutor/v1.0.0` (happy path)**:
 
@@ -88,7 +89,8 @@ Los tenants que no aparecen en el mapa caen al `default`. La clave es el `tenant
 **Depende de (otros servicios):** ninguno en runtime. Es **hoja**.
 
 **Dependen de él:**
-- [tutor-service](./tutor-service.md) — al abrir cada episodio, llama `GET /api/v1/prompts/tutor/v1.0.0` para obtener `content` + `hash` (este hash queda embebido como `prompt_system_hash` en todos los eventos CTR del episodio). Sin governance respondiendo, la apertura falla 500.
+- [tutor-service](./tutor-service.md) — al abrir cada episodio, llama `GET /api/v1/prompts/tutor/v1.0.0` (con override de env → eventos persisten `v1.1.0`) para obtener `content` + `hash` (este hash queda embebido como `prompt_system_hash` en todos los eventos CTR del episodio). Sin governance respondiendo, la apertura falla 500.
+- [academic-service](./academic-service.md) — `GET /api/v1/prompts/tp_generator/v1.0.0` en el endpoint TP-gen IA ([ADR-036](../adr/036-tp-gen-ia.md)).
 - [classifier-service](./classifier-service.md) — (previsto en F5+) recuperar el prompt asociado a un `classifier_config_hash` para auditorías de reproducibilidad. Hoy no hay llamada directa en runtime.
 
 ## 7. Modelo de datos
@@ -236,6 +238,8 @@ def load(self, name: str, version: str) -> PromptConfig:
 
 - **Cache en memoria no se invalida**: si editás `system.md` en disco con el servicio corriendo, el cache retiene la versión vieja. Hay que reiniciar el proceso (`kill + uv run uvicorn ...`). Para dev está ok; para prod + webhook de Git va a requerir un `reload()` del cache al recibir el push event.
 
+- **Divergencia entre `manifest.yaml` y `tutor-service.config.default_prompt_version`**: el `manifest.yaml` (parseado por `PromptLoader.active_configs()`, expuesto en `GET /api/v1/active_configs`) declara la versión activa para frontends/dashboards. **Pero el tutor-service NO consulta ese manifest en runtime** — usa `apps/tutor-service/src/tutor_service/config.py:default_prompt_version` directo. Si solo se cambia uno, frontends ven una versión y el CTR registra otra. El test `apps/tutor-service/tests/unit/test_config_prompt_version.py::test_manifest_yaml_existe_y_se_parsea` cubre la consistencia, pero es responsabilidad operacional en cualquier rotación futura.
+
 - **Sin health check real**: el endpoint `/health` no valida que el repo exista ni que el prompt default sea legible. Si falla el mount en K8s, el servicio arranca y responde OK — el error recién se ve cuando un cliente llama a `/prompts/...`. Contraste con [ctr-service](./ctr-service.md) que sí tiene health real.
 
 - **No hay endpoint para listar prompts disponibles**: el caller tiene que conocer el `{name, version}` por convención (`"tutor"` + `"v1.0.0"`). Si se sembran versiones nuevas en disco, el descubrimiento es manual — hay que actualizar el `default_prompt_version` del tutor-service o el `active_configs` del manifest.
@@ -277,10 +281,13 @@ La redundancia no es accidental — RN-040 de `reglas.md` la exige explícitamen
 - `/health` es stub — no valida el repo. Parte de la deuda general descrita en CLAUDE.md "Brechas conocidas: Health checks reales".
 - Parser YAML minimal — no soporta features avanzados del formato.
 - Sin endpoint `GET /prompts` para listar prompts disponibles.
+- Drift declarado entre `manifest.yaml` (consumido por frontends/dashboards via `/active_configs`) y `tutor-service.config.default_prompt_version` (consumido por el tutor en runtime). Test cubre consistencia; rotación operacional requiere cambiar ambos.
 
 **Fase de consolidación**:
 - F3 — implementación del PromptLoader con verificación de hash (`docs/F3-STATE.md`).
 - F5 previsto — webhook + GPG, no iniciado al momento de esta documentación.
+- 2026-05-04 (epic `ai-native-completion-and-byok`) — prompt `tp_generator/v1.0.0` agregado al repo de prompts ([ADR-036](../adr/036-tp-gen-ia.md)).
+- 2026-05-04 (epic `real-health-checks`) — `/health/ready` real con `check_repo_path`.
 
 **Operación recomendada del repo de prompts** (no documentada formalmente en ADR — convención operativa del piloto):
 

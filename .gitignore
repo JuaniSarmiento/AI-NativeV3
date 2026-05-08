@@ -37,12 +37,21 @@ dist/
 
 # Testing
 .playwright/
+.playwright-mcp/
 playwright-report/
 test-results/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
 .dev-logs/e2e-artifacts/
 .dev-logs/e2e-shared/
+.hypothesis/
+
+# Tooling caches (orchestrator skill registry, runtime logs por servicio)
+.atl/
+.dev-logs/
+
+# Screenshots accidentales en raiz — si tienen valor, mover a docs/screenshots/
+/*.png
 
 # IDE
 .vscode/
