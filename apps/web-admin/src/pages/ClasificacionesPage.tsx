@@ -79,6 +79,7 @@ export function ClasificacionesPage(): ReactNode {
   return (
     <PageContainer
       title="Clasificaciones N4"
+      eyebrow="Inicio · Clasificaciones N4"
       description={
         stats
           ? `Ultimos ${stats.period_days} dias · ${stats.total_episodes} episodios cerrados`
@@ -156,7 +157,7 @@ export function ClasificacionesPage(): ReactNode {
             </section>
 
             {/* Promedios de las 3 coherencias */}
-            <section className="rounded-lg border border-border-soft bg-white p-4">
+            <section className="rounded-lg border border-border-soft bg-surface p-4">
               <h2 className="text-sm font-semibold uppercase text-muted mb-3">
                 Promedios de las tres coherencias
               </h2>
@@ -169,7 +170,7 @@ export function ClasificacionesPage(): ReactNode {
 
             {/* Timeseries */}
             {stats.timeseries.length > 0 && (
-              <section className="rounded-lg border border-border-soft bg-white p-4">
+              <section className="rounded-lg border border-border-soft bg-surface p-4">
                 <h2 className="text-sm font-semibold uppercase text-muted mb-4">
                   Evolución temporal
                 </h2>
@@ -200,12 +201,12 @@ function DistributionCard({
   const bg = {
     red: "bg-danger-soft border-danger/30",
     yellow: "bg-warning-soft border-warning/30",
-    green: "bg-success-soft border-green-200",
+    green: "bg-success-soft border-success/30",
   }[color]
   const textColor = {
     red: "text-danger",
     yellow: "text-warning",
-    green: "text-green-900",
+    green: "text-success",
   }[color]
 
   return (

@@ -507,6 +507,71 @@ async def revoke_byok_key(tenant_id: UUID, key_id: UUID) -> dict[str, Any] | Non
         return _key_to_dict(row)
 
 
+async def increment_usage(
+    tenant_id: UUID,
+    key_id: UUID,
+    tokens_input: int,
+    tokens_output: int,
+    cost_usd: float,
+) -> None:
+    """Incrementa contadores de uso de una BYOK key (audit trail por mes).
+
+    Se llama desde el endpoint /complete (y /stream) después de que el
+    LLM responde, cuando `resolved.key_id is not None` (o sea, NO env_fallback).
+    UPSERT por PK compuesta (key_id, yyyymm).
+
+    También actualiza `last_used_at` en `byok_keys` para que admin vea
+    cuándo fue la última vez que se usó cada key.
+
+    Idempotencia: el ON CONFLICT garantiza que dos calls concurrentes
+    al mismo (key_id, yyyymm) suman correctamente sin duplicar.
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    now = datetime.now(UTC)
+    yyyymm = f"{now.year:04d}{now.month:02d}"
+    sm = _get_sessionmaker()
+    async with sm() as session:
+        await _set_tenant_rls(session, tenant_id)
+
+        # UPSERT en byok_keys_usage
+        stmt = (
+            pg_insert(BYOKKeyUsage)
+            .values(
+                key_id=key_id,
+                yyyymm=yyyymm,
+                tenant_id=tenant_id,
+                tokens_input_total=tokens_input,
+                tokens_output_total=tokens_output,
+                cost_usd_total=cost_usd,
+                request_count=1,
+                updated_at=now,
+            )
+            .on_conflict_do_update(
+                index_elements=["key_id", "yyyymm"],
+                set_={
+                    "tokens_input_total": BYOKKeyUsage.__table__.c.tokens_input_total
+                    + tokens_input,
+                    "tokens_output_total": BYOKKeyUsage.__table__.c.tokens_output_total
+                    + tokens_output,
+                    "cost_usd_total": BYOKKeyUsage.__table__.c.cost_usd_total + cost_usd,
+                    "request_count": BYOKKeyUsage.__table__.c.request_count + 1,
+                    "updated_at": now,
+                },
+            )
+        )
+        await session.execute(stmt)
+
+        # Actualizar last_used_at en la key
+        from sqlalchemy import update
+
+        await session.execute(
+            update(BYOKKey).where(BYOKKey.id == key_id).values(last_used_at=now)
+        )
+
+        await session.commit()
+
+
 async def get_byok_key_usage(
     tenant_id: UUID, key_id: UUID, yyyymm: str | None = None
 ) -> dict[str, Any]:

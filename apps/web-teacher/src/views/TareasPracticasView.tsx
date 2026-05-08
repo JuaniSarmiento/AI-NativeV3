@@ -18,7 +18,8 @@
  * fueron consolidados en un enum para evitar el race condition de "dos modales
  * abiertos al mismo tiempo" si un handler apagaba uno pero olvidaba el otro.
  */
-import { HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
+import { Badge, HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
+import { Archive, Eye, FileText, GitBranch, History, Pencil, Plus, Send, Sparkles, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
 import { GenerarConIAWizard } from "../components/GenerarConIAWizard"
@@ -44,10 +45,10 @@ const ESTADO_LABEL: Record<TareaEstado, string> = {
   archived: "Archivado",
 }
 
-const ESTADO_COLOR: Record<TareaEstado, string> = {
-  draft: "text-muted",
-  published: "text-success",
-  archived: "text-warning/85",
+const ESTADO_VARIANT: Record<TareaEstado, "default" | "success" | "warning"> = {
+  draft: "default",
+  published: "success",
+  archived: "warning",
 }
 
 type EstadoFilter = "all" | TareaEstado
@@ -202,15 +203,24 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
     }
   }
 
+  const totalDraft = tareas.filter((t) => t.estado === "draft").length
+  const totalPublished = tareas.filter((t) => t.estado === "published").length
+
   return (
     <PageContainer
       title="Trabajos prácticos"
       description={`Diseña los TPs de la comisión. Solo los TPs publicados aceptan episodios. Comisión: ${comisionLabelText}`}
+      eyebrow={`Inicio · Tareas prácticas · ${comisionLabelText}`}
       helpContent={helpContent.tareasPracticas}
     >
-      <div className="space-y-6 max-w-6xl">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-1 bg-canvas border border-border rounded-lg p-1">
+      <div className="space-y-6">
+        {/* ═══ Toolbar: filtros + acciones ════════════════════════════════ */}
+        <div className="flex items-center justify-between gap-4 flex-wrap animate-fade-in-up">
+          <div
+            role="tablist"
+            aria-label="Filtro por estado"
+            className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]"
+          >
             {(["all", "draft", "published", "archived"] as const).map((f) => {
               const labels: Record<typeof f, string> = {
                 all: "Todos",
@@ -218,18 +228,32 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                 published: "Publicado",
                 archived: "Archivado",
               }
+              const counts: Record<typeof f, number | null> = {
+                all: tareas.length,
+                draft: totalDraft,
+                published: totalPublished,
+                archived: tareas.filter((t) => t.estado === "archived").length,
+              }
+              const active = estadoFilter === f
               return (
                 <button
                   key={f}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setEstadoFilter(f)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    estadoFilter === f
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors press-shrink ${
+                    active
                       ? "bg-ink text-white"
-                      : "text-muted hover:text-ink bg-transparent"
+                      : "text-muted hover:text-ink hover:bg-surface-alt"
                   }`}
                 >
                   {labels[f]}
+                  <span
+                    className={`ml-1.5 font-mono tabular-nums text-[10px] ${active ? "text-white/70" : "text-muted-soft"}`}
+                  >
+                    {counts[f]}
+                  </span>
                 </button>
               )
             })}
@@ -239,72 +263,102 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
               type="button"
               onClick={refreshList}
               disabled={loading}
-              className="px-3 py-1.5 text-xs border border-border rounded-md hover:bg-canvas transition-colors disabled:opacity-40 text-muted"
+              className="press-shrink px-3 py-1.5 text-xs border border-border bg-surface rounded-md hover:bg-surface-alt transition-colors disabled:opacity-40 text-muted"
             >
               {loading ? "Cargando..." : "Refrescar"}
             </button>
             <button
               type="button"
               onClick={() => setModal({ kind: "generar-ia" })}
-              className="px-4 py-1.5 text-sm border border-border hover:bg-canvas text-ink rounded-md font-medium transition-colors"
+              className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm border border-border bg-surface hover:bg-surface-alt text-ink rounded-md font-medium transition-colors"
             >
+              <Sparkles className="h-3.5 w-3.5 text-accent-brand-deep" />
               Generar con IA
             </button>
             <button
               type="button"
               onClick={() => setModal({ kind: "create" })}
-              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors"
+              className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
             >
-              + Nuevo TP
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo TP
             </button>
           </div>
         </div>
 
+        {/* ═══ Error ══════════════════════════════════════════════════════ */}
         {error && (
-          <div className="rounded-xl border border-danger/30 bg-danger-soft p-3 text-danger text-sm">
-            {error}
+          <div className="animate-fade-in-up rounded-xl border border-danger/30 bg-danger-soft p-4">
+            <div className="text-sm font-semibold text-danger">No pudimos completar la operación</div>
+            <div className="mt-1.5 font-mono text-xs text-danger/85 break-all">{error}</div>
           </div>
         )}
 
-        {loading && tareas.length === 0 ? (
-          <div className="p-8 text-center text-muted text-sm">Cargando TPs...</div>
-        ) : tareas.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center text-muted text-sm">
-            No hay TPs para esta comision todavia. Crea el primero con{" "}
-            <span className="font-semibold text-ink">+ Nuevo TP</span>.
+        {/* ═══ Loading skeleton ═══════════════════════════════════════════ */}
+        {loading && tareas.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-fade-in">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="skeleton h-44 rounded-xl" />
+            ))}
           </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-white overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-canvas border-b border-border text-xs uppercase tracking-wider text-muted">
-                <tr>
-                  <th className="text-left px-4 py-2.5 font-medium">Codigo</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Titulo</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Estado</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Version</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Inicio</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Fin</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Peso</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tareas.map((t) => (
-                  <TareaRow
-                    key={t.id}
-                    tarea={t}
-                    onView={() => setModal({ kind: "view", tarea: t })}
-                    onEdit={() => setModal({ kind: "edit", tarea: t })}
-                    onPublish={() => handlePublish(t)}
-                    onArchive={() => handleArchive(t)}
-                    onNewVersion={() => setModal({ kind: "versioning", tarea: t })}
-                    onDelete={() => handleDelete(t)}
-                    onShowVersions={() => setModal({ kind: "versions-list", tarea: t })}
-                  />
-                ))}
-              </tbody>
-            </table>
+        )}
+
+        {/* ═══ Empty state ════════════════════════════════════════════════ */}
+        {!loading && tareas.length === 0 && (
+          <div className="animate-fade-in-up rounded-2xl border border-dashed border-border bg-surface p-10 max-w-2xl mx-auto text-center">
+            <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+              <FileText className="h-7 w-7 text-muted" />
+            </div>
+            <h2 className="text-lg font-semibold text-ink mb-2">
+              Todavía no hay TPs en esta comisión
+            </h2>
+            <p className="text-sm text-muted leading-relaxed max-w-sm mx-auto mb-5">
+              Empezá creando un TP a mano o pedile a la IA un punto de partida que después podés
+              editar a fondo.
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setModal({ kind: "generar-ia" })}
+                className="press-shrink inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs border border-border bg-surface hover:bg-surface-alt text-ink rounded-md font-medium transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-accent-brand-deep" />
+                Generar con IA
+              </button>
+              <button
+                type="button"
+                onClick={() => setModal({ kind: "create" })}
+                className="press-shrink inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nuevo TP
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* ═══ Grid de TPs ════════════════════════════════════════════════ */}
+        {tareas.length > 0 && (
+          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {tareas.map((t, idx) => (
+              <li
+                key={t.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+              >
+                <TareaCard
+                  tarea={t}
+                  onView={() => setModal({ kind: "view", tarea: t })}
+                  onEdit={() => setModal({ kind: "edit", tarea: t })}
+                  onPublish={() => handlePublish(t)}
+                  onArchive={() => handleArchive(t)}
+                  onNewVersion={() => setModal({ kind: "versioning", tarea: t })}
+                  onDelete={() => handleDelete(t)}
+                  onShowVersions={() => setModal({ kind: "versions-list", tarea: t })}
+                />
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* Wizard: generar TP con IA */}
@@ -441,9 +495,9 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
   )
 }
 
-// ── Row ───────────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────
 
-function TareaRow({
+function TareaCard({
   tarea,
   onView,
   onEdit,
@@ -463,112 +517,137 @@ function TareaRow({
   onShowVersions: () => void
 }) {
   const estado = tarea.estado
+  const accentByEstado: Record<TareaEstado, string> = {
+    draft: "bg-muted-soft",
+    published: "bg-success",
+    archived: "bg-warning",
+  }
 
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-canvas transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-ink">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span>{tarea.codigo}</span>
-          {tarea.template_id && <TemplateBadge templateId={tarea.template_id} />}
-          {tarea.has_drift && <DriftBadge />}
+    <article className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+      {/* Banda izquierda según estado */}
+      <div
+        aria-hidden="true"
+        className={`absolute left-0 top-0 bottom-0 w-1 ${accentByEstado[estado]} opacity-60 group-hover:opacity-100 transition-opacity`}
+      />
+
+      <div className="p-4 flex-1 flex flex-col gap-3">
+        {/* Kicker: código + badges */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft">
+              {tarea.codigo}
+            </span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-soft">
+              v{tarea.version}
+            </span>
+            {tarea.template_id && <TemplateBadge templateId={tarea.template_id} />}
+            {tarea.has_drift && <DriftBadge />}
+          </div>
+          <Badge variant={ESTADO_VARIANT[estado]}>{ESTADO_LABEL[estado]}</Badge>
         </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="font-medium truncate max-w-xs text-ink" title={tarea.titulo}>
-          {tarea.titulo}
-        </div>
-        {tarea.parent_tarea_id && <div className="text-xs text-muted">(derivado)</div>}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`text-xs font-medium ${ESTADO_COLOR[estado]}`}>
-          {ESTADO_LABEL[estado]}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right tabular-nums text-muted text-xs">v{tarea.version}</td>
-      <td className="px-4 py-3 text-xs text-muted">{formatShortDate(tarea.fecha_inicio)}</td>
-      <td className="px-4 py-3 text-xs text-muted">{formatShortDate(tarea.fecha_fin)}</td>
-      <td className="px-4 py-3 text-right tabular-nums text-muted text-xs">{tarea.peso}</td>
-      <td className="px-4 py-3 text-right">
-        <div className="flex justify-end gap-1 flex-wrap">
-          <button
-            type="button"
-            onClick={onShowVersions}
-            className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
-            title="Ver historial de versiones"
-          >
-            Historial
-          </button>
-          {estado === "draft" && (
-            <>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={onPublish}
-                className="px-2 py-1 text-xs text-success hover:bg-success-soft rounded font-medium transition-colors"
-              >
-                Publicar
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="px-2 py-1 text-xs text-danger hover:bg-danger-soft rounded transition-colors"
-              >
-                Eliminar
-              </button>
-            </>
-          )}
-          {estado === "published" && (
-            <>
-              <button
-                type="button"
-                onClick={onView}
-                className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
-              >
-                Ver
-              </button>
-              <button
-                type="button"
-                onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
-              >
-                Nueva version
-              </button>
-              <button
-                type="button"
-                onClick={onArchive}
-                className="px-2 py-1 text-xs text-warning/85 hover:bg-warning-soft rounded transition-colors"
-              >
-                Archivar
-              </button>
-            </>
-          )}
-          {estado === "archived" && (
-            <>
-              <button
-                type="button"
-                onClick={onView}
-                className="px-2 py-1 text-xs text-muted hover:text-ink hover:bg-border rounded transition-colors"
-              >
-                Ver
-              </button>
-              <button
-                type="button"
-                onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-[var(--color-accent-brand)] hover:bg-canvas rounded transition-colors"
-              >
-                Nueva version
-              </button>
-            </>
+
+        {/* Headline */}
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-semibold text-ink leading-tight tracking-tight line-clamp-2" title={tarea.titulo}>
+            {tarea.titulo}
+          </h3>
+          {tarea.parent_tarea_id && (
+            <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
+              <GitBranch className="h-3 w-3" />
+              Versión derivada
+            </div>
           )}
         </div>
-      </td>
-    </tr>
+
+        {/* Mini-grid de metadatos */}
+        <dl className="grid grid-cols-3 gap-2 mt-auto">
+          <MetaCell label="Inicio" value={formatShortDate(tarea.fecha_inicio)} />
+          <MetaCell label="Fin" value={formatShortDate(tarea.fecha_fin)} />
+          <MetaCell label="Peso" value={tarea.peso} mono />
+        </dl>
+      </div>
+
+      {/* Footer con acciones */}
+      <footer className="flex items-stretch border-t border-border-soft">
+        <button
+          type="button"
+          onClick={onShowVersions}
+          className="press-shrink flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-muted hover:bg-surface-alt hover:text-ink transition-colors"
+          title="Ver historial de versiones"
+        >
+          <History className="h-3.5 w-3.5" />
+          Historial
+        </button>
+        {estado === "draft" && (
+          <>
+            <ActionButton onClick={onEdit} icon={<Pencil className="h-3.5 w-3.5" />} label="Editar" tone="brand" />
+            <ActionButton onClick={onPublish} icon={<Send className="h-3.5 w-3.5" />} label="Publicar" tone="success" />
+            <ActionButton onClick={onDelete} icon={<Trash2 className="h-3.5 w-3.5" />} label="" tone="danger" title="Eliminar" />
+          </>
+        )}
+        {estado === "published" && (
+          <>
+            <ActionButton onClick={onView} icon={<Eye className="h-3.5 w-3.5" />} label="Ver" tone="muted" />
+            <ActionButton onClick={onNewVersion} icon={<GitBranch className="h-3.5 w-3.5" />} label="Versión" tone="brand" title="Crear nueva versión" />
+            <ActionButton onClick={onArchive} icon={<Archive className="h-3.5 w-3.5" />} label="" tone="warning" title="Archivar" />
+          </>
+        )}
+        {estado === "archived" && (
+          <>
+            <ActionButton onClick={onView} icon={<Eye className="h-3.5 w-3.5" />} label="Ver" tone="muted" />
+            <ActionButton onClick={onNewVersion} icon={<GitBranch className="h-3.5 w-3.5" />} label="Versión" tone="brand" title="Crear nueva versión" />
+          </>
+        )}
+      </footer>
+    </article>
+  )
+}
+
+function MetaCell({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-[10px] uppercase tracking-wider text-muted-soft">{label}</span>
+      <span
+        className={`text-xs text-body truncate ${mono ? "font-mono tabular-nums" : ""}`}
+        title={value}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function ActionButton({
+  onClick,
+  icon,
+  label,
+  tone,
+  title,
+}: {
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  tone: "brand" | "success" | "warning" | "danger" | "muted"
+  title?: string
+}) {
+  const toneCls: Record<typeof tone, string> = {
+    brand: "text-accent-brand-deep hover:bg-accent-brand-soft",
+    success: "text-success hover:bg-success-soft",
+    warning: "text-warning hover:bg-warning-soft",
+    danger: "text-danger hover:bg-danger-soft",
+    muted: "text-muted hover:bg-surface-alt hover:text-ink",
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`press-shrink inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium border-l border-border-soft transition-colors ${toneCls[tone]}`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 
@@ -922,7 +1001,7 @@ function TareaFormModal({
                           onChange={(e) => updateEjercicio(i, { inicial_codigo: e.target.value })}
                           rows={5}
                           placeholder="# Codigo que el alumno ve al empezar..."
-                          className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-sidebar-bg text-sidebar-text resize-y focus:outline-none focus:border-ink"
+                          className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-surface-alt text-ink resize-y focus:outline-none focus:border-ink"
                         />
                       </label>
                       <label className="block">
@@ -993,7 +1072,7 @@ function TareaViewModal({
             size="sm"
             title="Detalle del TP"
             content={
-              <div className="space-y-3 text-sidebar-text-muted">
+              <div className="space-y-3 text-body">
                 <p>Esta vista muestra el detalle completo del TP en modo solo lectura:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
@@ -1015,15 +1094,11 @@ function TareaViewModal({
               </div>
             }
           />
-          <span className="text-sm text-muted dark:text-sidebar-text-muted">Ayuda sobre esta vista</span>
+          <span className="text-sm text-muted">Ayuda sobre esta vista</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[tarea.estado]}`}
-          >
-            {ESTADO_LABEL[tarea.estado]}
-          </span>
+          <Badge variant={ESTADO_VARIANT[tarea.estado]}>{ESTADO_LABEL[tarea.estado]}</Badge>
           <span className="text-xs text-muted">
             v{tarea.version}
             {tarea.parent_tarea_id && " · derivado"}
@@ -1051,7 +1126,7 @@ function TareaViewModal({
 
         <div>
           <div className="text-xs font-medium text-muted mb-1">Enunciado</div>
-          <div className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge max-h-96 overflow-y-auto">
+          <div className="p-3 rounded bg-surface-alt max-h-96 overflow-y-auto">
             <MarkdownRenderer content={tarea.enunciado} />
           </div>
         </div>
@@ -1061,7 +1136,7 @@ function TareaViewModal({
             <div className="text-xs font-medium text-muted mb-1">Rúbrica</div>
             {/* Rúbrica se muestra como JSON crudo a propósito — el shape no está
                 versionado todavía, así que markdown sería engañoso. */}
-            <pre className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <pre className="p-3 rounded bg-surface-alt text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {JSON.stringify(tarea.rubrica, null, 2)}
             </pre>
           </div>
@@ -1133,7 +1208,7 @@ function VersionsModal({
             size="sm"
             title="Historial de versiones"
             content={
-              <div className="space-y-3 text-sidebar-text-muted">
+              <div className="space-y-3 text-body">
                 <p>Muestra la linea de tiempo de todas las versiones del TP:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
@@ -1156,7 +1231,7 @@ function VersionsModal({
               </div>
             }
           />
-          <span className="text-sm text-muted dark:text-sidebar-text-muted">
+          <span className="text-sm text-muted">
             Ayuda sobre el historial
           </span>
         </div>
@@ -1168,11 +1243,11 @@ function VersionsModal({
         ) : sorted.length === 0 ? (
           <div className="p-6 text-center text-muted text-sm">Sin versiones registradas.</div>
         ) : (
-          <ol className="relative border-l border-border-soft dark:border-sidebar-bg-edge ml-3 space-y-4">
+          <ol className="relative border-l border-border-soft ml-3 space-y-4">
             {sorted.map((v) => (
               <li key={v.id} className="ml-4">
                 <span
-                  className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 border-white dark:border-sidebar-bg ${
+                  className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 border-surface ${
                     v.is_current ? "bg-accent-brand" : "bg-border-strong"
                   }`}
                   aria-hidden="true"
@@ -1180,17 +1255,13 @@ function VersionsModal({
                 <div
                   className={`rounded border p-3 ${
                     v.is_current
-                      ? "border-accent-brand/40 bg-accent-brand-soft dark:bg-accent-brand-deep/30"
-                      : "border-border-soft dark:border-sidebar-bg-edge"
+                      ? "border-accent-brand/40 bg-accent-brand-soft"
+                      : "border-border-soft bg-surface"
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold">v{v.version}</span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[v.estado]}`}
-                    >
-                      {ESTADO_LABEL[v.estado]}
-                    </span>
+                    <Badge variant={ESTADO_VARIANT[v.estado]}>{ESTADO_LABEL[v.estado]}</Badge>
                     {v.is_current && (
                       <span className="text-xs text-accent-brand-deep font-medium">(actual)</span>
                     )}

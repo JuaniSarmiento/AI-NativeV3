@@ -51,7 +51,7 @@ function entregaEstadoBadgeClass(estado: EntregaEstado): string {
     case "submitted":
       return "bg-accent-brand-soft text-accent-brand-deep"
     case "graded":
-      return "bg-green-100 text-success"
+      return "bg-success-soft text-success"
     case "returned":
       return "bg-warning-soft text-warning/85"
   }
@@ -243,7 +243,7 @@ export function ExerciseListView({
                   type="button"
                   data-testid="ver-calificacion-btn"
                   onClick={() => onViewGrade(entrega)}
-                  className="shrink-0 px-3 py-1.5 rounded border border-border bg-white text-xs font-medium text-body hover:bg-surface-alt"
+                  className="shrink-0 px-3 py-1.5 rounded border border-border bg-surface text-xs font-medium text-body hover:bg-surface-alt"
                 >
                   Ver calificacion →
                 </button>
@@ -266,10 +266,10 @@ export function ExerciseListView({
                 data-testid={`ejercicio-item-${ejercicio.orden}`}
                 className={`rounded-lg border p-4 transition-colors ${
                   completed
-                    ? "border-green-300 bg-success-soft"
+                    ? "border-success/30 bg-success-soft"
                     : locked
                       ? "border-border-soft bg-surface-alt opacity-60"
-                      : "border-border bg-white"
+                      : "border-border bg-surface"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -293,7 +293,7 @@ export function ExerciseListView({
                         locked
                           ? "text-muted"
                           : completed
-                            ? "text-green-800"
+                            ? "text-success"
                             : "text-ink"
                       }`}
                     >

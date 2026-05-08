@@ -190,6 +190,7 @@ export function MateriasPage(): ReactNode {
   return (
     <PageContainer
       title="Materias"
+      eyebrow="Inicio · Materias"
       description="Asignaturas de un plan de estudios."
       helpContent={helpContent.materias}
     >
@@ -207,7 +208,7 @@ export function MateriasPage(): ReactNode {
 
         {breadcrumbItems.length > 0 && <Breadcrumb items={breadcrumbItems} />}
 
-        <div className="rounded-lg border border-border-soft bg-white p-4 grid grid-cols-3 gap-4">
+        <div className="rounded-lg border border-border-soft bg-surface p-4 grid grid-cols-3 gap-4">
           <Field label="Universidad" required>
             {loadingUniversidades ? (
               <span className="text-sm text-muted">Cargando universidades…</span>
@@ -304,7 +305,7 @@ export function MateriasPage(): ReactNode {
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-muted text-sm">Cargando…</div>
           ) : !universidadId ? (
@@ -402,7 +403,7 @@ function MateriaForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
@@ -538,7 +539,7 @@ function MateriaForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"
 
 function Field({
   label,

@@ -103,7 +103,7 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
         {!loading && calificacion && (
           <div className="space-y-6" data-testid="calificacion-detail">
             {/* Nota final */}
-            <div className="rounded-lg border border-border-soft bg-white p-6 flex items-center gap-6">
+            <div className="rounded-lg border border-border-soft bg-surface p-6 flex items-center gap-6">
               <div className="text-center">
                 <p className="text-xs font-mono text-muted mb-1">
                   NOTA FINAL
@@ -140,7 +140,7 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
             {calificacion.feedback_general && (
               <div
                 data-testid="feedback-general"
-                className="rounded-lg border border-border-soft bg-white p-5"
+                className="rounded-lg border border-border-soft bg-surface p-5"
               >
                 <p className="text-xs font-mono uppercase tracking-wider text-muted mb-3">
                   Feedback del docente
@@ -153,7 +153,7 @@ export function GradeDetailView({ entrega, onBack }: GradeDetailViewProps) {
 
             {/* Detalle por criterio */}
             {calificacion.detalle_criterios && calificacion.detalle_criterios.length > 0 && (
-              <div className="rounded-lg border border-border-soft bg-white p-5">
+              <div className="rounded-lg border border-border-soft bg-surface p-5">
                 <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
                   Criterios de evaluacion
                 </p>

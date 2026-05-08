@@ -5,7 +5,6 @@ import { type ReactNode, useState } from "react"
 import {
   type ByokKey,
   type ByokKeyCreate,
-  type ByokKeyUsage,
   HttpError,
   byokApi,
   facultadesApi,
@@ -21,7 +20,7 @@ type ModalState =
   | { type: "usage"; key: ByokKey }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"
 
 function Field({
   label,
@@ -73,6 +72,7 @@ export function ByokPage(): ReactNode {
   return (
     <PageContainer
       title="BYOK Keys"
+      eyebrow="Inicio · BYOK Keys"
       description="Gestion de claves de proveedor LLM por tenant o materia (Bring Your Own Key)."
       helpContent={helpContent.byok}
     >
@@ -110,7 +110,7 @@ export function ByokPage(): ReactNode {
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
           {keysQuery.isLoading ? (
             <div className="p-8 text-center text-muted text-sm">Cargando...</div>
           ) : keys.length === 0 ? (
@@ -162,7 +162,7 @@ export function ByokPage(): ReactNode {
                           Revocada
                         </span>
                       ) : (
-                        <span className="rounded-full bg-green-100 text-success px-2 py-0.5 text-xs">
+                        <span className="rounded-full bg-success-soft text-success px-2 py-0.5 text-xs">
                           Activa
                         </span>
                       )}
@@ -569,7 +569,10 @@ function UsagePanel({
     queryFn: () => byokApi.usage(byokKey.id),
   })
 
-  const usage: ByokKeyUsage[] = usageQuery.data ?? []
+  // Backend devuelve single object con el agregado mensual (default mes actual).
+  // Si nunca se usó la key, devuelve `{request_count: 0, ..._total: 0}` (no 404).
+  const usage = usageQuery.data
+  const isEmpty = !usage || usage.request_count === 0
 
   return (
     <Modal
@@ -580,34 +583,60 @@ function UsagePanel({
     >
       <div className="space-y-4">
         {usageQuery.isLoading ? (
-          <div className="text-center text-muted text-sm py-4">Cargando...</div>
-        ) : usage.length === 0 ? (
-          <div className="text-center text-muted text-sm py-4">
-            No hay registros de uso para esta key.
+          <div className="text-center text-muted text-sm py-8">Cargando...</div>
+        ) : isEmpty ? (
+          <div className="rounded-lg border border-border-soft bg-surface-alt/40 p-6 text-center">
+            <p className="text-sm font-medium text-body mb-1">Sin uso registrado este mes</p>
+            <p className="text-xs text-muted leading-relaxed max-w-sm mx-auto">
+              Esta key no fue resuelta por ningún call de IA en {usage?.yyyymm ?? "el período actual"}.
+              El contador se incrementa cuando docente o alumno disparan completions
+              con materia/facultad/tenant que matchean el scope de la key.
+            </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-surface-alt border-b border-border-soft text-left">
-              <tr>
-                <th className="px-3 py-2 font-medium">Periodo</th>
-                <th className="px-3 py-2 font-medium text-right">Tokens entrada</th>
-                <th className="px-3 py-2 font-medium text-right">Tokens salida</th>
-                <th className="px-3 py-2 font-medium text-right">Requests</th>
-                <th className="px-3 py-2 font-medium text-right">Costo (USD)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usage.map((u) => (
-                <tr key={u.yyyymm} className="border-b border-border-soft">
-                  <td className="px-3 py-2 font-mono text-xs">{u.yyyymm}</td>
-                  <td className="px-3 py-2 text-right text-xs">{u.tokens_input_total.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right text-xs">{u.tokens_output_total.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right text-xs">{u.request_count}</td>
-                  <td className="px-3 py-2 text-right text-xs font-medium">${u.cost_usd_total.toFixed(4)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            {/* Stats header con cifras grandes */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="rounded-lg border border-border-soft bg-surface p-3">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                  Período
+                </div>
+                <div className="font-mono text-base font-semibold text-ink mt-1">
+                  {usage.yyyymm.slice(0, 4)}-{usage.yyyymm.slice(4)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-accent-brand/30 bg-accent-brand-soft/40 p-3">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                  Requests
+                </div>
+                <div className="font-mono text-2xl font-semibold text-accent-brand-deep leading-none mt-1">
+                  {usage.request_count.toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border-soft bg-surface p-3">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                  Tokens (in / out)
+                </div>
+                <div className="font-mono text-base font-semibold text-ink leading-none mt-1">
+                  {usage.tokens_input_total.toLocaleString()}
+                  <span className="text-muted-soft mx-1">/</span>
+                  {usage.tokens_output_total.toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success-soft/40 p-3">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                  Costo USD
+                </div>
+                <div className="font-mono text-2xl font-semibold text-success leading-none mt-1">
+                  ${usage.cost_usd_total.toFixed(4)}
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              Agregado del mes actual. Para historial multi-mes (deuda v1.1) hay que
+              llamar al endpoint con <code className="font-mono text-[11px] bg-surface-alt px-1 rounded">?yyyymm=</code>.
+            </p>
+          </>
         )}
         <div className="flex justify-end">
           <button

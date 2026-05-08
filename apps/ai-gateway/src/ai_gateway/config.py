@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Feature flag: si False, el resolver salta directo a env fallback
     # (modo dev legacy o degradado). Si True y no hay key configurada para
     # el scope, el resolver intenta env tambien.
-    byok_enabled: bool = False
+    byok_enabled: bool = True
     # DB de academic_main donde viven byok_keys + byok_keys_usage. El
     # resolver necesita session SQLA con tenant RLS aplicado.
     academic_db_url: str = (

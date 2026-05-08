@@ -86,6 +86,7 @@ export function FacultadesPage(): ReactNode {
   return (
     <PageContainer
       title="Facultades"
+      eyebrow="Inicio · Facultades"
       description="Divisiones academicas dentro de una universidad."
       helpContent={helpContent.facultades}
     >
@@ -101,7 +102,7 @@ export function FacultadesPage(): ReactNode {
           </button>
         </div>
 
-        <div className="rounded-lg border border-border-soft bg-white p-4">
+        <div className="rounded-lg border border-border-soft bg-surface p-4">
           {/* biome-ignore lint/a11y/noLabelWithoutControl: el select se renderea dentro del label en la rama final del ternario; biome no detecta el control bajo conditionals. */}
           <label className="flex flex-col gap-1 max-w-md">
             <span className="text-xs font-medium text-body">Universidad</span>
@@ -143,7 +144,7 @@ export function FacultadesPage(): ReactNode {
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
           {loading ? (
             <StateMessage variant="loading" />
           ) : !universidadId ? (
@@ -227,7 +228,7 @@ function FacultadForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
@@ -302,7 +303,7 @@ function FacultadForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"
 
 function Field({
   label,

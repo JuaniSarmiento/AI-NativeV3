@@ -153,26 +153,29 @@ export function UnidadesView({ comisionId, getToken }: Props) {
   return (
     <PageContainer
       title="Unidades de trazabilidad"
-      description={`Organiza los TPs de la comision en unidades tematicas para mejorar el analisis longitudinal.`}
+      description="Organiza los TPs de la comision en unidades tematicas para mejorar el analisis longitudinal."
+      eyebrow="Inicio · Unidades"
       helpContent={helpContent.unidades}
     >
       <div className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
+          <div className="animate-fade-in-up rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             <div className="font-semibold">Error al cargar datos</div>
-            <div className="mt-1 font-mono text-xs">{error}</div>
+            <div className="mt-1 font-mono text-xs break-all">{error}</div>
           </div>
         )}
 
         {loading && (
-          <div className="rounded-xl border border-border bg-white p-6 text-sm text-muted">
-            Cargando unidades...
+          <div className="space-y-2 animate-fade-in">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="skeleton h-14 rounded-xl" />
+            ))}
           </div>
         )}
 
         {!loading && (
           <>
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 animate-fade-in-up">
               <div className="text-sm text-muted">
                 {unidades.length === 0
                   ? "Sin unidades creadas todavia."
@@ -181,7 +184,7 @@ export function UnidadesView({ comisionId, getToken }: Props) {
               <button
                 type="button"
                 onClick={() => setModal({ kind: "create" })}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-sidebar-bg-edge transition-colors"
+                className="press-shrink inline-flex items-center gap-1.5 rounded-md bg-accent-brand hover:bg-accent-brand-deep px-3 py-1.5 text-sm font-medium text-white transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 Nueva unidad
@@ -189,19 +192,24 @@ export function UnidadesView({ comisionId, getToken }: Props) {
             </div>
 
             <div className="space-y-2">
-              {unidades.map((unidad) => (
-                <UnidadCard
+              {unidades.map((unidad, idx) => (
+                <div
                   key={unidad.id}
-                  unidad={unidad}
-                  tps={tpsByUnidad[unidad.id] ?? []}
-                  allUnidades={unidades}
-                  expanded={expandedIds.has(unidad.id)}
-                  onToggle={() => toggleExpand(unidad.id)}
-                  onEdit={() => setModal({ kind: "edit", unidad })}
-                  onDelete={() => setModal({ kind: "confirm-delete", unidad })}
-                  onAssignTP={handleAssignTP}
-                  savingTpId={savingTpId}
-                />
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+                >
+                  <UnidadCard
+                    unidad={unidad}
+                    tps={tpsByUnidad[unidad.id] ?? []}
+                    allUnidades={unidades}
+                    expanded={expandedIds.has(unidad.id)}
+                    onToggle={() => toggleExpand(unidad.id)}
+                    onEdit={() => setModal({ kind: "edit", unidad })}
+                    onDelete={() => setModal({ kind: "confirm-delete", unidad })}
+                    onAssignTP={handleAssignTP}
+                    savingTpId={savingTpId}
+                  />
+                </div>
               ))}
 
               {/* Sin unidad — siempre visible */}
@@ -302,7 +310,7 @@ function UnidadCard({
   savingTpId: string | null
 }) {
   return (
-    <div className="rounded-xl border border-border bg-white overflow-hidden">
+    <div className="hover-lift rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
       <div className="flex items-center gap-3 px-4 py-3">
         <button
           type="button"
@@ -329,7 +337,7 @@ function UnidadCard({
           <button
             type="button"
             onClick={onEdit}
-            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-canvas transition-colors"
+            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface-alt transition-colors"
             title="Editar unidad"
             aria-label={`Editar unidad ${unidad.nombre}`}
           >
@@ -348,7 +356,7 @@ function UnidadCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-border divide-y divide-[#EAEAEA]">
+        <div className="border-t border-border divide-y divide-border-soft">
           {tps.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted italic">
               Sin TPs asignados a esta unidad.
@@ -388,7 +396,7 @@ function SinUnidadCard({
   savingTpId: string | null
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-canvas overflow-hidden">
+    <div className="rounded-xl border border-dashed border-border bg-surface-alt overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -407,7 +415,7 @@ function SinUnidadCard({
       </button>
 
       {expanded && (
-        <div className="border-t border-border divide-y divide-[#EAEAEA]">
+        <div className="border-t border-border divide-y divide-border-soft">
           {tps.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted italic">
               Todos los TPs tienen unidad asignada.
@@ -453,7 +461,7 @@ function TPRow({
           value={tp.unidad_id ?? ""}
           disabled={saving}
           onChange={(e) => onAssign(tp.id, e.target.value || null)}
-          className="text-xs rounded-lg border border-border bg-white px-2 py-1 text-ink disabled:opacity-60 hover:border-ink transition-colors"
+          className="text-xs rounded-md border border-border bg-surface px-2 py-1 text-ink disabled:opacity-60 hover:border-ink transition-colors"
           aria-label={`Asignar unidad a ${tp.codigo}`}
         >
           <option value="">Sin unidad</option>
@@ -508,7 +516,7 @@ function UnidadFormModal({
             placeholder="Ej: Condicionales"
             maxLength={120}
             required
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder-[#787774] focus:border-ink focus:outline-none transition-colors"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-soft focus:border-ink focus:outline-none transition-colors"
           />
         </div>
         <div>
@@ -522,7 +530,7 @@ function UnidadFormModal({
             placeholder="Breve descripcion del tema de la unidad"
             rows={2}
             maxLength={500}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder-[#787774] focus:border-ink focus:outline-none transition-colors resize-none"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-soft focus:border-ink focus:outline-none transition-colors resize-none"
           />
         </div>
         <div className="flex justify-end gap-3">
@@ -536,7 +544,7 @@ function UnidadFormModal({
           <button
             type="submit"
             disabled={!isValid || saving}
-            className="rounded-lg bg-ink px-4 py-1.5 text-sm font-medium text-white hover:bg-sidebar-bg-edge disabled:opacity-60 transition-colors"
+            className="press-shrink rounded-md bg-accent-brand hover:bg-accent-brand-deep px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-colors"
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>

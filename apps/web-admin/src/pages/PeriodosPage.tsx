@@ -84,6 +84,7 @@ export function PeriodosPage(): ReactNode {
   return (
     <PageContainer
       title="Periodos"
+      eyebrow="Inicio · Periodos"
       description="Periodos lectivos (ej. 2026-S1, 2026-S2). Cada comision se crea dentro de un periodo."
       helpContent={helpContent.periodos}
     >
@@ -113,7 +114,7 @@ export function PeriodosPage(): ReactNode {
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-muted text-sm">Cargando…</div>
           ) : items.length === 0 ? (
@@ -253,7 +254,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
@@ -372,7 +373,7 @@ function PeriodoForm({ onCreated }: { onCreated: () => void }): ReactNode {
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"
 
 function Field({
   label,
@@ -533,7 +534,7 @@ function EditPeriodoModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-50"
+            className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-50"
           >
             Cancelar
           </button>

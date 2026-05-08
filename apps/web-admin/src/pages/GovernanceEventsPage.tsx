@@ -129,6 +129,7 @@ export function GovernanceEventsPage(): ReactNode {
   return (
     <PageContainer
       title="Eventos de gobernanza"
+      eyebrow="Inicio · Eventos de gobernanza"
       description="Vista institucional cross-cohort de intentos adversos al tutor (ADR-019, RN-129)"
       helpContent={helpContent.governanceEvents}
     >
@@ -211,7 +212,7 @@ function FilterPanel({
         e.preventDefault()
         onApply()
       }}
-      className="rounded-lg border border-border-soft bg-white p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
+      className="rounded-lg border border-border-soft bg-surface p-4 grid grid-cols-1 md:grid-cols-3 gap-3"
     >
       <FilterText
         label="Facultad ID (UUID)"
@@ -330,7 +331,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm rounded border border-border px-2 py-1.5 bg-white"
+        className="w-full text-sm rounded border border-border px-2 py-1.5 bg-surface"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -345,7 +346,7 @@ function FilterSelect({
 function EventsTable({ events }: { events: GovernanceEvent[] }): ReactNode {
   if (events.length === 0) return null
   return (
-    <div className="rounded-lg border border-border-soft bg-white overflow-x-auto">
+    <div className="rounded-lg border border-border-soft bg-surface overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-surface-alt text-left text-xs uppercase text-muted">
           <tr>

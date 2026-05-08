@@ -60,11 +60,12 @@ export function AuditoriaPage(): ReactNode {
   return (
     <PageContainer
       title="Auditoria de integridad CTR"
+      eyebrow="Inicio · Auditoria de integridad CTR"
       description="Verifica la cadena criptografica SHA-256 de un episodio cerrado del piloto"
       helpContent={helpContent.auditoria}
     >
       <div className="space-y-6">
-        <form onSubmit={onSubmit} className="rounded-lg border border-border-soft bg-white p-4">
+        <form onSubmit={onSubmit} className="rounded-lg border border-border-soft bg-surface p-4">
           <label
             htmlFor="auditoria-episode-id"
             className="block text-sm font-medium text-body mb-2"
@@ -134,7 +135,7 @@ function VerificationResultCard({ result }: { result: ChainVerificationResult })
       data-valid={result.valid ? "true" : "false"}
       data-events-count={String(result.events_count)}
       className={`rounded-lg border p-5 ${
-        ok ? "bg-success-soft border-green-200 text-green-900" : "bg-danger-soft border-danger/30 text-danger"
+        ok ? "bg-success-soft border-success/30 text-success" : "bg-danger-soft border-danger/30 text-danger"
       }`}
     >
       <div className="flex items-baseline gap-3">

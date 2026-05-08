@@ -17,7 +17,8 @@
  * Patron de estados de modal: `ModalState` discriminated union — mutex
  * estricto para evitar doble modal. Mismo patron que `TareasPracticasView`.
  */
-import { HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
+import { Badge, HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
+import { Archive, Eye, FileStack, GitBranch, Layers, Pencil, Plus, Send, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import {
   type AcademicContext,
@@ -43,10 +44,10 @@ const ESTADO_LABEL: Record<TareaEstado, string> = {
   archived: "Archivado",
 }
 
-const ESTADO_COLOR: Record<TareaEstado, string> = {
-  draft: "bg-surface-alt text-body",
-  published: "bg-green-100 text-green-800",
-  archived: "bg-warning-soft text-warning/90",
+const ESTADO_VARIANT: Record<TareaEstado, "default" | "success" | "warning"> = {
+  draft: "default",
+  published: "success",
+  archived: "warning",
 }
 
 type ModalState =
@@ -152,75 +153,94 @@ export function TemplatesView({ getToken }: Props) {
     <PageContainer
       title="Plantillas de Trabajos Prácticos"
       description="Gestión de templates canónicos a nivel cátedra (materia + periodo). Las plantillas se instancian automáticamente en todas las comisiones de la misma materia y periodo."
+      eyebrow="Inicio · Plantillas (cátedra)"
       helpContent={helpContent.templates}
     >
-      <div className="space-y-6 max-w-6xl">
+      <div className="space-y-6">
         <AcademicContextSelector value={ctx} onChange={setCtx} getToken={getToken} />
 
         {!ctx ? (
-          <div className="rounded-lg border border-dashed border-border dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-8 text-center text-sm text-muted">
-            Selecciona universidad, facultad, carrera, plan, materia y periodo para ver o crear
-            plantillas.
+          <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center animate-fade-in-up">
+            <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+              <Layers className="h-7 w-7 text-muted" />
+            </div>
+            <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
+              Seleccioná universidad, facultad, carrera, plan, materia y período para ver o crear
+              plantillas.
+            </p>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={refreshList}
-                disabled={loading}
-                className="px-3 py-1 text-xs border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge disabled:opacity-40"
-              >
-                {loading ? "Cargando..." : "Refrescar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setModal({ kind: "create" })}
-                className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded font-medium"
-              >
-                + Nueva plantilla
-              </button>
+            <div className="flex items-center justify-between gap-3 flex-wrap animate-fade-in-up">
+              <p className="text-xs text-muted leading-relaxed max-w-2xl">
+                Templates canónicos para esta materia y período. Crear uno auto-instancia un TP en
+                cada comisión existente. Las nuevas versiones se propagan a las instancias sin
+                drift.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={refreshList}
+                  disabled={loading}
+                  className="press-shrink px-3 py-1.5 text-xs border border-border bg-surface rounded-md hover:bg-surface-alt disabled:opacity-40 text-muted transition-colors"
+                >
+                  {loading ? "Cargando..." : "Refrescar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModal({ kind: "create" })}
+                  className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Nueva plantilla
+                </button>
+              </div>
             </div>
 
-            {error && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{error}</div>}
+            {error && (
+              <div className="animate-fade-in-up rounded-xl border border-danger/30 bg-danger-soft p-4">
+                <div className="text-sm font-semibold text-danger">No pudimos cargar las plantillas</div>
+                <div className="mt-1.5 font-mono text-xs text-danger/85 break-all">{error}</div>
+              </div>
+            )}
 
             {loading && templates.length === 0 ? (
-              <div className="p-8 text-center text-muted">Cargando plantillas...</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-fade-in">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="skeleton h-40 rounded-xl" />
+                ))}
+              </div>
             ) : templates.length === 0 ? (
-              <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-8 text-center text-muted">
-                No hay plantillas para esta materia y periodo. Crea la primera con{" "}
-                <span className="font-medium">+ Nueva plantilla</span>.
+              <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center animate-fade-in-up">
+                <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+                  <FileStack className="h-7 w-7 text-muted" />
+                </div>
+                <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
+                  No hay plantillas para esta materia y período. Creá la primera con el botón "Nueva
+                  plantilla".
+                </p>
               </div>
             ) : (
-              <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-surface-alt dark:bg-sidebar-bg-edge/50 border-b border-border-soft dark:border-sidebar-bg-edge">
-                    <tr>
-                      <th className="text-left px-4 py-2 font-medium">Codigo</th>
-                      <th className="text-left px-4 py-2 font-medium">Titulo</th>
-                      <th className="text-left px-4 py-2 font-medium">Estado</th>
-                      <th className="text-right px-4 py-2 font-medium">Version</th>
-                      <th className="text-right px-4 py-2 font-medium">Peso</th>
-                      <th className="text-right px-4 py-2 font-medium">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {templates.map((t) => (
-                      <TemplateRow
-                        key={t.id}
-                        template={t}
-                        onView={() => setModal({ kind: "view", template: t })}
-                        onEdit={() => setModal({ kind: "edit", template: t })}
-                        onPublish={() => handlePublish(t)}
-                        onArchive={() => handleArchive(t)}
-                        onDelete={() => handleDelete(t)}
-                        onShowInstances={() => setModal({ kind: "instances", template: t })}
-                        onNewVersion={() => setModal({ kind: "new-version", template: t })}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {templates.map((t, idx) => (
+                  <li
+                    key={t.id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+                  >
+                    <TemplateCard
+                      template={t}
+                      onView={() => setModal({ kind: "view", template: t })}
+                      onEdit={() => setModal({ kind: "edit", template: t })}
+                      onPublish={() => handlePublish(t)}
+                      onArchive={() => handleArchive(t)}
+                      onDelete={() => handleDelete(t)}
+                      onShowInstances={() => setModal({ kind: "instances", template: t })}
+                      onNewVersion={() => setModal({ kind: "new-version", template: t })}
+                    />
+                  </li>
+                ))}
+              </ul>
             )}
           </>
         )}
@@ -304,9 +324,9 @@ export function TemplatesView({ getToken }: Props) {
   )
 }
 
-// ── Row ───────────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────
 
-function TemplateRow({
+function TemplateCard({
   template,
   onView,
   onEdit,
@@ -326,96 +346,130 @@ function TemplateRow({
   onNewVersion: () => void
 }) {
   const estado = template.estado
+  const accentByEstado: Record<TareaEstado, string> = {
+    draft: "bg-muted-soft",
+    published: "bg-success",
+    archived: "bg-warning",
+  }
   return (
-    <tr className="border-b border-border-soft dark:border-sidebar-bg-edge/50 last:border-0">
-      <td className="px-4 py-2 font-mono text-xs">{template.codigo}</td>
-      <td className="px-4 py-2">
-        <div className="font-medium truncate max-w-xs" title={template.titulo}>
-          {template.titulo}
+    <article className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+      <div
+        aria-hidden="true"
+        className={`absolute left-0 top-0 bottom-0 w-1 ${accentByEstado[estado]} opacity-60 group-hover:opacity-100 transition-opacity`}
+      />
+
+      <div className="p-4 flex-1 flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft">
+              {template.codigo}
+            </span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-soft">
+              v{template.version}
+            </span>
+          </div>
+          <Badge variant={ESTADO_VARIANT[estado]}>{ESTADO_LABEL[estado]}</Badge>
         </div>
-        {template.parent_template_id && <div className="text-xs text-muted">(derivada)</div>}
-      </td>
-      <td className="px-4 py-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[estado]}`}
+
+        <div className="min-w-0">
+          <h3
+            className="text-[15px] font-semibold text-ink leading-tight tracking-tight line-clamp-2"
+            title={template.titulo}
+          >
+            {template.titulo}
+          </h3>
+          {template.parent_template_id && (
+            <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
+              <GitBranch className="h-3 w-3" />
+              Versión derivada
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-muted mt-auto pt-2 border-t border-border-soft">
+          <span className="text-[10px] uppercase tracking-wider text-muted-soft">Peso</span>
+          <span className="font-mono tabular-nums text-body">{template.peso}</span>
+        </div>
+      </div>
+
+      <footer className="flex items-stretch border-t border-border-soft text-[11px] font-medium">
+        <button
+          type="button"
+          onClick={onShowInstances}
+          className="press-shrink flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-2.5 text-muted hover:bg-surface-alt hover:text-ink transition-colors"
+          title="Ver instancias en comisiones"
         >
-          {ESTADO_LABEL[estado]}
-        </span>
-      </td>
-      <td className="px-4 py-2 text-right tabular-nums text-muted">v{template.version}</td>
-      <td className="px-4 py-2 text-right tabular-nums text-muted">{template.peso}</td>
-      <td className="px-4 py-2 text-right">
-        <div className="flex justify-end gap-1 flex-wrap">
-          <button
-            type="button"
-            onClick={onShowInstances}
-            className="px-2 py-1 text-xs text-body hover:bg-surface-alt rounded"
-            title="Ver instancias en comisiones"
-          >
-            Instancias
-          </button>
-          <button
-            type="button"
-            onClick={onView}
-            className="px-2 py-1 text-xs text-body hover:bg-surface-alt rounded"
-          >
-            Ver
-          </button>
-          {estado === "draft" && (
-            <>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="px-2 py-1 text-xs text-accent-brand-deep hover:bg-accent-brand-soft rounded"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={onPublish}
-                className="px-2 py-1 text-xs text-success hover:bg-success-soft rounded font-medium"
-              >
-                Publicar
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="px-2 py-1 text-xs text-danger hover:bg-danger-soft rounded"
-              >
-                Eliminar
-              </button>
-            </>
-          )}
-          {estado === "published" && (
-            <>
-              <button
-                type="button"
-                onClick={onNewVersion}
-                className="px-2 py-1 text-xs text-accent-brand-deep hover:bg-accent-brand-soft rounded"
-              >
-                Nueva version
-              </button>
-              <button
-                type="button"
-                onClick={onArchive}
-                className="px-2 py-1 text-xs text-warning/85 hover:bg-warning-soft rounded"
-              >
-                Archivar
-              </button>
-            </>
-          )}
-          {estado === "archived" && (
+          <Layers className="h-3.5 w-3.5" />
+          Instancias
+        </button>
+        <button
+          type="button"
+          onClick={onView}
+          className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-muted hover:bg-surface-alt hover:text-ink transition-colors"
+          title="Ver detalle"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        {estado === "draft" && (
+          <>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-accent-brand-deep hover:bg-accent-brand-soft transition-colors"
+              title="Editar"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onPublish}
+              className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-success hover:bg-success-soft transition-colors"
+              title="Publicar"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-danger hover:bg-danger-soft transition-colors"
+              title="Eliminar"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+        {estado === "published" && (
+          <>
             <button
               type="button"
               onClick={onNewVersion}
-              className="px-2 py-1 text-xs text-accent-brand-deep hover:bg-accent-brand-soft rounded"
+              className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-accent-brand-deep hover:bg-accent-brand-soft transition-colors"
+              title="Nueva versión"
             >
-              Nueva version
+              <GitBranch className="h-3.5 w-3.5" />
             </button>
-          )}
-        </div>
-      </td>
-    </tr>
+            <button
+              type="button"
+              onClick={onArchive}
+              className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-warning hover:bg-warning-soft transition-colors"
+              title="Archivar"
+            >
+              <Archive className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+        {estado === "archived" && (
+          <button
+            type="button"
+            onClick={onNewVersion}
+            className="press-shrink inline-flex items-center justify-center gap-1.5 px-2 py-2.5 border-l border-border-soft text-accent-brand-deep hover:bg-accent-brand-soft transition-colors"
+            title="Nueva versión"
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </footer>
+    </article>
   )
 }
 
@@ -547,7 +601,7 @@ function TemplateFormModal({
               </div>
             }
           />
-          <span className="text-sm text-muted dark:text-sidebar-text-muted">
+          <span className="text-sm text-muted">
             Ayuda sobre el formulario
           </span>
         </div>
@@ -562,7 +616,7 @@ function TemplateFormModal({
               required
               disabled={lockCodigo}
               placeholder="TP1"
-              className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg disabled:opacity-60"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface disabled:opacity-60"
             />
           </label>
           <label className="block">
@@ -575,7 +629,7 @@ function TemplateFormModal({
               value={peso}
               onChange={(e) => setPeso(e.target.value)}
               required
-              className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg tabular-nums"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface tabular-nums"
             />
           </label>
         </div>
@@ -588,7 +642,7 @@ function TemplateFormModal({
             onChange={(e) => setTitulo(e.target.value)}
             required
             placeholder="Ej: Recursion y divide & conquer"
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
           />
         </label>
 
@@ -602,7 +656,7 @@ function TemplateFormModal({
             required
             rows={12}
             placeholder="Escribir en markdown..."
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg font-mono"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
           />
         </label>
 
@@ -615,7 +669,7 @@ function TemplateFormModal({
               type="datetime-local"
               value={fechaInicio}
               onChange={(e) => setFechaInicio(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
             />
           </label>
           <label className="block">
@@ -626,7 +680,7 @@ function TemplateFormModal({
               type="datetime-local"
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg"
+              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
             />
           </label>
         </div>
@@ -640,7 +694,7 @@ function TemplateFormModal({
             onChange={(e) => setInicialCodigo(e.target.value)}
             rows={4}
             placeholder="Codigo base que ve el estudiante al abrir el TP"
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg font-mono"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
           />
         </label>
 
@@ -653,7 +707,7 @@ function TemplateFormModal({
             onChange={(e) => setRubricaRaw(e.target.value)}
             rows={5}
             placeholder='{"criterios": [...]}'
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg font-mono"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
           />
           <p className="text-xs text-muted mt-1">
             Se valida que sea JSON valido antes de enviar.
@@ -662,12 +716,12 @@ function TemplateFormModal({
 
         {formError && <div className="p-2 rounded bg-danger-soft text-danger text-xs">{formError}</div>}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border-soft dark:border-sidebar-bg-edge">
+        <div className="flex justify-end gap-2 pt-2 border-t border-border-soft">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge disabled:opacity-40"
+            className="px-4 py-1.5 text-sm border border-border rounded hover:bg-surface-alt disabled:opacity-40"
           >
             Cancelar
           </button>
@@ -752,7 +806,7 @@ function NewVersionModal({
               </div>
             }
           />
-          <span className="text-sm text-muted dark:text-sidebar-text-muted">
+          <span className="text-sm text-muted">
             Ayuda sobre nueva version
           </span>
         </div>
@@ -764,7 +818,7 @@ function NewVersionModal({
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             required
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
           />
         </label>
         <label className="block">
@@ -776,7 +830,7 @@ function NewVersionModal({
             onChange={(e) => setEnunciado(e.target.value)}
             required
             rows={10}
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg font-mono"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
           />
         </label>
         <label className="block">
@@ -789,7 +843,7 @@ function NewVersionModal({
             value={peso}
             onChange={(e) => setPeso(e.target.value)}
             required
-            className="w-full px-2 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded bg-white dark:bg-sidebar-bg tabular-nums"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface tabular-nums"
           />
         </label>
 
@@ -800,7 +854,7 @@ function NewVersionModal({
             onChange={(e) => setReinstance(e.target.checked)}
             className="mt-0.5"
           />
-          <span className="text-body dark:text-sidebar-text-muted">
+          <span className="text-body">
             Re-instanciar en comisiones sin drift.{" "}
             <span className="text-muted text-xs">
               Las comisiones con `has_drift=true` no se tocan.
@@ -810,12 +864,12 @@ function NewVersionModal({
 
         {err && <div className="p-2 rounded bg-danger-soft text-danger text-xs">{err}</div>}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-border-soft dark:border-sidebar-bg-edge">
+        <div className="flex justify-end gap-2 pt-2 border-t border-border-soft">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-1.5 text-sm border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge disabled:opacity-40"
+            className="px-4 py-1.5 text-sm border border-border rounded hover:bg-surface-alt disabled:opacity-40"
           >
             Cancelar
           </button>
@@ -850,11 +904,7 @@ function TemplateViewModal({
     >
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[template.estado]}`}
-          >
-            {ESTADO_LABEL[template.estado]}
-          </span>
+          <Badge variant={ESTADO_VARIANT[template.estado]}>{ESTADO_LABEL[template.estado]}</Badge>
           <span className="text-xs text-muted">
             v{template.version}
             {template.parent_template_id && " · derivada"}
@@ -863,7 +913,7 @@ function TemplateViewModal({
 
         <div>
           <div className="text-xs font-medium text-muted mb-1">Enunciado</div>
-          <div className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge max-h-96 overflow-y-auto">
+          <div className="p-3 rounded bg-surface-alt max-h-96 overflow-y-auto">
             <MarkdownRenderer content={template.enunciado} />
           </div>
         </div>
@@ -871,7 +921,7 @@ function TemplateViewModal({
         {template.inicial_codigo && (
           <div>
             <div className="text-xs font-medium text-muted mb-1">Codigo inicial</div>
-            <pre className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <pre className="p-3 rounded bg-surface-alt text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {template.inicial_codigo}
             </pre>
           </div>
@@ -880,17 +930,17 @@ function TemplateViewModal({
         {template.rubrica && (
           <div>
             <div className="text-xs font-medium text-muted mb-1">Rubrica</div>
-            <pre className="p-3 rounded bg-surface-alt dark:bg-sidebar-bg-edge text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <pre className="p-3 rounded bg-surface-alt text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {JSON.stringify(template.rubrica, null, 2)}
             </pre>
           </div>
         )}
 
-        <div className="flex justify-end pt-2 border-t border-border-soft dark:border-sidebar-bg-edge">
+        <div className="flex justify-end pt-2 border-t border-border-soft">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-sidebar-bg-edge hover:bg-sidebar-bg-edge text-white rounded"
+            className="px-4 py-1.5 text-sm bg-ink hover:bg-accent-brand-deep text-white rounded"
           >
             Cerrar
           </button>
@@ -956,7 +1006,7 @@ function InstancesModal({
               </div>
             }
           />
-          <span className="text-sm text-muted dark:text-sidebar-text-muted">
+          <span className="text-sm text-muted">
             Ayuda sobre las instancias
           </span>
         </div>
@@ -970,9 +1020,9 @@ function InstancesModal({
             periodo todavia, o si el template fallo al fan-out-ear.
           </div>
         ) : (
-          <div className="rounded border border-border-soft dark:border-sidebar-bg-edge overflow-hidden">
+          <div className="rounded border border-border-soft overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-surface-alt dark:bg-sidebar-bg-edge/50 border-b border-border-soft dark:border-sidebar-bg-edge">
+              <thead className="bg-surface-alt border-b border-border-soft">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Comision</th>
                   <th className="text-left px-3 py-2 font-medium">Estado</th>
@@ -985,17 +1035,13 @@ function InstancesModal({
                 {instances.map((i) => (
                   <tr
                     key={i.id}
-                    className="border-b border-border-soft dark:border-sidebar-bg-edge/50 last:border-0"
+                    className="border-b border-border-soft last:border-0"
                   >
                     <td className="px-3 py-2 font-mono text-xs" title={i.comision_id}>
                       {i.comision_id.slice(0, 8)}...
                     </td>
                     <td className="px-3 py-2">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[i.estado]}`}
-                      >
-                        {ESTADO_LABEL[i.estado]}
-                      </span>
+                      <Badge variant={ESTADO_VARIANT[i.estado]}>{ESTADO_LABEL[i.estado]}</Badge>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-muted">
                       v{i.version}
@@ -1021,11 +1067,11 @@ function InstancesModal({
           </div>
         )}
 
-        <div className="flex justify-end pt-2 border-t border-border-soft dark:border-sidebar-bg-edge">
+        <div className="flex justify-end pt-2 border-t border-border-soft">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-sidebar-bg-edge hover:bg-sidebar-bg-edge text-white rounded"
+            className="px-4 py-1.5 text-sm bg-ink hover:bg-accent-brand-deep text-white rounded"
           >
             Cerrar
           </button>

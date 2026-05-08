@@ -200,22 +200,27 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
             : ""
           : "Slope ordinal de apropiacion a traves de problemas analogos (Seccion 15.4, ADR-018, RN-130). N>=3 episodios por template para slope valido."
       }
+      eyebrow={
+        isDocente
+          ? "Inicio · Mis alumnos · Detalle"
+          : "Inicio · Cohorte · Estudiante"
+      }
       helpContent={helpContent.studentLongitudinal}
     >
       <div className="space-y-6">
         {comisionId && (
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs animate-fade-in-up">
             <Link
               to="/progression"
               search={{ comisionId }}
-              className="text-muted hover:text-ink transition-colors"
+              className="press-shrink inline-flex items-center gap-1 text-muted hover:text-ink transition-colors"
             >
               ← {isDocente ? "Volver a mis alumnos" : "Volver a la cohorte"}
             </Link>
             {studentId && !isDocente && (
               <>
-                <span className="text-border">·</span>
-                <span className="font-mono text-muted">
+                <span className="text-border-soft">·</span>
+                <span className="font-mono text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft">
                   {studentId.slice(0, 8)}...{studentId.slice(-4)}
                 </span>
               </>
@@ -224,15 +229,15 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
         )}
 
         {(!studentId || !comisionId) && !loading && (
-          <div className="rounded-xl border border-dashed border-border bg-white p-8 text-sm text-muted space-y-2">
+          <div className="rounded-2xl border border-dashed border-border bg-surface p-8 animate-fade-in-up">
             <p className="font-semibold text-ink">
               {isDocente
                 ? "No hay ningun alumno seleccionado."
                 : "Llegaste aca sin estudiante seleccionado."}
             </p>
-            <p>
+            <p className="mt-2 text-sm text-muted leading-relaxed">
               Volve a{" "}
-              <Link to="/" className="text-[var(--color-accent-brand)] underline">
+              <Link to="/" className="text-accent-brand-deep underline hover:text-accent-brand">
                 {isDocente ? "tus alumnos" : "tus comisiones"}
               </Link>
               {isDocente
@@ -243,15 +248,16 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
         )}
 
         {loading && (
-          <div className="rounded-xl border border-border bg-white p-4 text-sm text-muted">
-            {isDocente ? "Cargando informacion del alumno..." : "Cargando evolucion del estudiante..."}
+          <div className="space-y-4 animate-fade-in">
+            <div className="skeleton h-32 rounded-xl" />
+            <div className="skeleton h-48 rounded-xl" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
-            <div className="font-semibold">Error consultando al estudiante</div>
-            <div className="mt-1 font-mono text-xs">{error}</div>
+          <div className="animate-fade-in-up rounded-xl border border-danger/30 bg-danger-soft p-4">
+            <div className="text-sm font-semibold text-danger">Error consultando al estudiante</div>
+            <div className="mt-1.5 font-mono text-xs text-danger/85 break-all">{error}</div>
           </div>
         )}
 
@@ -305,7 +311,7 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
               alertsData.alerts.length === 0 &&
               alertsData.cohort_stats &&
               !alertsData.cohort_stats.insufficient_data && (
-                <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                <div className="rounded-xl border border-success/30 bg-success-soft p-3 text-sm text-success">
                   {isDocente ? (
                     <>
                       <strong>Todo bien</strong>: este alumno esta dentro de lo esperado
@@ -327,7 +333,7 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
             {data.evolution_per_unidad.length > 0 ? (
               <>
                 {data.evolution_per_unidad.every((e) => e.insufficient_data) ? (
-                  <div className="rounded-xl border border-dashed border-border bg-white p-6 text-sm text-muted space-y-1">
+                  <div className="rounded-xl border border-dashed border-border bg-surface p-6 text-sm text-muted space-y-1">
                     <div className="font-semibold text-ink">
                       {isDocente
                         ? "Todavia no hay datos suficientes por unidad."
@@ -359,7 +365,7 @@ export function StudentLongitudinalView({ getToken, initialComisionId, initialSt
                 )}
               </>
             ) : data.evolution_per_template.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-white p-8 text-center text-sm text-muted">
+              <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-muted">
                 <div className="font-semibold text-ink">
                   {isDocente
                     ? "Todavia no hay datos suficientes."
@@ -399,7 +405,7 @@ function DocenteSummary({
   docenteSlope: ReturnType<typeof slopeToDocente>
 }) {
   return (
-    <div className="rounded-xl border border-border bg-white px-6 py-5">
+    <div className="rounded-xl border border-border bg-surface px-6 py-5">
       <div className="flex items-center gap-4 mb-3">
         <span className={`text-4xl leading-none ${docenteSlope.color}`} aria-hidden="true">
           {docenteSlope.emoji}
@@ -434,7 +440,7 @@ function InvestigadorSummary({
   meanLabel: ReturnType<typeof slopeLabel>
 }) {
   return (
-    <div className="rounded-xl border border-border bg-white px-6 py-5">
+    <div className="rounded-xl border border-border bg-surface px-6 py-5">
       <div className="flex items-center gap-4 mb-4">
         <span className={`text-4xl leading-none ${meanLabel.color}`} aria-hidden="true">
           {meanLabel.arrow}
@@ -475,7 +481,7 @@ function DocenteTemplateTable({
   colors: [string, string, string]
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <table className="w-full text-sm">
         <thead className="bg-canvas text-left text-xs text-muted border-b border-border">
           <tr>
@@ -550,7 +556,7 @@ function InvestigadorTemplateTable({
   labelerVersion: string
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <table className="w-full text-sm">
         <thead className="bg-canvas text-left text-xs uppercase tracking-wider text-muted border-b border-border">
           <tr>
@@ -637,7 +643,7 @@ function DocenteUnidadTable({
   colors: [string, string, string]
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="border-b border-border bg-canvas px-4 py-2.5">
         <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           Evolucion por unidad
@@ -730,7 +736,7 @@ function InvestigadorUnidadTable({
   labelerVersion: string
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="border-b border-border bg-canvas px-4 py-2.5">
         <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           Evolucion por unidad (primario)
@@ -832,7 +838,7 @@ function TemplateSecondarySection({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="rounded-xl border border-border bg-white overflow-hidden">
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -863,7 +869,7 @@ function EpisodesList({
 }) {
   if (episodes.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-white p-6 text-center text-sm text-muted">
+      <div className="rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-muted">
         {isDocente
           ? "Este alumno no tiene trabajos completados todavia."
           : "El estudiante no tiene episodios registrados en esta comision todavia."}
@@ -874,7 +880,7 @@ function EpisodesList({
   const aprLabels = isDocente ? APPROPRIATION_DOCENTE : APPROPRIATION_INVESTIGADOR
 
   return (
-    <section className="rounded-xl border border-border bg-white overflow-hidden">
+    <section className="rounded-xl border border-border bg-surface overflow-hidden">
       <header className="border-b border-border bg-canvas px-4 py-2.5 flex items-center gap-2">
         <span className="text-xs font-semibold text-ink uppercase tracking-wider">
           {isDocente ? "Trabajos del alumno" : "Episodios del estudiante"}

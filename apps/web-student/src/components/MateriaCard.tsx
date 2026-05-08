@@ -14,6 +14,7 @@
  * Cero side-stripe coloreado, cero icono decorativo. El color vive en el
  * acento del CTA, NO en el border de la card. Borde slate neutro.
  */
+import { ArrowRight } from "lucide-react"
 import type { MateriaInscripta } from "../lib/api"
 
 export interface MateriaCardProps {
@@ -30,8 +31,12 @@ export function MateriaCard({ materia, onEnter }: MateriaCardProps) {
     <article
       data-testid="materia-card"
       data-materia-codigo={materia.codigo}
-      className="rounded-lg border border-border bg-white p-6"
+      className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface p-6 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]"
     >
+      <div
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0 w-1 bg-accent-brand/0 group-hover:bg-accent-brand/60 transition-colors"
+      />
       <p
         className="text-xs font-mono uppercase tracking-wider text-muted mb-2"
         data-testid="materia-card-kicker"
@@ -39,7 +44,7 @@ export function MateriaCard({ materia, onEnter }: MateriaCardProps) {
         {materia.codigo} <span className="text-muted-soft">·</span> {comisionLabel}
       </p>
 
-      <h3 className="text-lg font-semibold text-ink mb-3">
+      <h3 className="text-lg font-semibold text-ink mb-3 leading-tight tracking-tight">
         {materia.nombre}
       </h3>
 
@@ -58,19 +63,10 @@ export function MateriaCard({ materia, onEnter }: MateriaCardProps) {
           type="button"
           data-testid="materia-card-enter"
           onClick={() => onEnter(materia)}
-          className="px-4 py-2 rounded text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2"
-          style={{ backgroundColor: "var(--color-accent-brand)" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-accent-brand-deep)"
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-accent-brand)"
-          }}
+          className="press-shrink inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white bg-accent-brand hover:bg-accent-brand-deep focus:outline-none focus:ring-2 focus:ring-accent-brand focus:ring-offset-2 transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
         >
           Entrar
-          <span aria-hidden="true" className="ml-1.5">
-            →
-          </span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </button>
       </div>
     </article>

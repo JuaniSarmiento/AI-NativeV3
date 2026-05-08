@@ -59,6 +59,7 @@ export function CarrerasPage(): ReactNode {
   return (
     <PageContainer
       title="Carreras"
+      eyebrow="Inicio · Carreras"
       description="Programas academicos del tenant actual."
       helpContent={helpContent.carreras}
     >
@@ -91,7 +92,7 @@ export function CarrerasPage(): ReactNode {
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
+        <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
           {loading ? (
             <StateMessage variant="loading" />
           ) : items.length === 0 ? (
@@ -184,7 +185,7 @@ function CarreraForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
@@ -310,7 +311,7 @@ function CarreraForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"
 
 function Field({
   label,

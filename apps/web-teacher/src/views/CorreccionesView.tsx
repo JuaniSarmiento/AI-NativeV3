@@ -13,8 +13,9 @@
  *     - Boton "Calificar" → POST /api/v1/entregas/{id}/calificar.
  *     - Boton "Devolver" (visible si ya fue calificada) → POST .../return.
  */
-import { PageContainer } from "@platform/ui"
+import { Badge, PageContainer } from "@platform/ui"
 import { Link } from "@tanstack/react-router"
+import { ArrowRight, ChevronLeft, FileCheck, Inbox } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   type CalificacionCreate,
@@ -42,26 +43,11 @@ const ESTADO_LABEL: Record<EntregaEstado, string> = {
   returned: "Devuelta",
 }
 
-const ESTADO_BADGE: Record<
-  EntregaEstado,
-  { bg: string; text: string }
-> = {
-  draft: {
-    bg: "bg-surface-alt",
-    text: "text-muted",
-  },
-  submitted: {
-    bg: "bg-accent-brand-soft",
-    text: "text-accent-brand-deep",
-  },
-  graded: {
-    bg: "bg-success-soft",
-    text: "text-success",
-  },
-  returned: {
-    bg: "bg-warning-soft",
-    text: "text-warning/85",
-  },
+const ESTADO_VARIANT: Record<EntregaEstado, "default" | "info" | "success" | "warning"> = {
+  draft: "default",
+  submitted: "info",
+  graded: "success",
+  returned: "warning",
 }
 
 // ─── Tipos internos ────────────────────────────────────────────────────
@@ -77,7 +63,12 @@ export function CorreccionesView({ comisionId, getToken }: Props) {
 
   if (view.kind === "list") {
     return (
-      <PageContainer title="Correcciones" helpContent={helpContent.correcciones}>
+      <PageContainer
+        title="Correcciones"
+        description="Listado de entregas de la comisión. Filtrá por estado y abrí cada entrega para revisar el código del estudiante y aplicar la rúbrica."
+        eyebrow="Inicio · Correcciones"
+        helpContent={helpContent.correcciones}
+      >
         <EntregasListView
           comisionId={comisionId}
           getToken={getToken}
@@ -90,7 +81,12 @@ export function CorreccionesView({ comisionId, getToken }: Props) {
   }
 
   return (
-    <PageContainer title="Corregir entrega" helpContent={helpContent.correcciones}>
+    <PageContainer
+      title="Corregir entrega"
+      description="Detalle del trabajo del estudiante por ejercicio. Cargá la nota y el feedback para devolverla."
+      eyebrow="Inicio · Correcciones · Detalle"
+      helpContent={helpContent.correcciones}
+    >
       <GradingFormView
         entrega={view.entrega}
         tarea={view.tarea}
@@ -163,142 +159,173 @@ function EntregasListView({ comisionId, getToken, onSelectEntrega }: EntregasLis
 
   if (!comisionId) {
     return (
-      <div className="flex-1 flex items-center justify-center py-12 text-sm text-muted">
-        Selecciona una comision para ver las entregas.
+      <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center animate-fade-in-up">
+        <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+          <Inbox className="h-7 w-7 text-muted" />
+        </div>
+        <p className="text-sm text-muted">Seleccioná una comisión para ver las entregas.</p>
       </div>
     )
   }
 
+  const counts: Record<EntregaEstado | "all", number> = {
+    all: entregas.length,
+    draft: entregas.filter((e) => e.estado === "draft").length,
+    submitted: entregas.filter((e) => e.estado === "submitted").length,
+    graded: entregas.filter((e) => e.estado === "graded").length,
+    returned: entregas.filter((e) => e.estado === "returned").length,
+  }
+
   return (
-    <div className="space-y-4" data-testid="entregas-list-view">
-      {/* Filtro de estado */}
-      <div className="flex items-center gap-3">
-        <label
-          htmlFor="estado-filter"
-          className="text-xs font-mono uppercase tracking-wider text-muted"
-        >
-          Estado
-        </label>
-        <select
-          id="estado-filter"
-          value={estadoFilter}
-          onChange={(e) => setEstadoFilter(e.target.value as EntregaEstado | "")}
-          className="text-sm border border-border rounded px-3 py-1.5 bg-white text-ink focus:outline-none focus:ring-1 focus:ring-[#111111]"
-        >
-          <option value="">Todos</option>
-          {(["draft", "submitted", "graded", "returned"] as EntregaEstado[]).map((e) => (
-            <option key={e} value={e}>
-              {ESTADO_LABEL[e]}
-            </option>
-          ))}
-        </select>
+    <div className="space-y-5" data-testid="entregas-list-view">
+      {/* Filter chips */}
+      <div
+        role="tablist"
+        aria-label="Filtro por estado"
+        className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1 w-fit shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] animate-fade-in-up"
+      >
+        {(["", "draft", "submitted", "graded", "returned"] as const).map((f) => {
+          const label = f === "" ? "Todos" : ESTADO_LABEL[f as EntregaEstado]
+          const key = f === "" ? "all" : (f as EntregaEstado)
+          const active = estadoFilter === f
+          return (
+            <button
+              key={f || "all"}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setEstadoFilter(f)}
+              className={`press-shrink px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                active ? "bg-ink text-white" : "text-muted hover:text-ink hover:bg-surface-alt"
+              }`}
+            >
+              {label}
+              <span
+                className={`ml-1.5 font-mono tabular-nums text-[10px] ${active ? "text-white/70" : "text-muted-soft"}`}
+              >
+                {counts[key]}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div
-            className="inline-block w-5 h-5 border-2 border-t-transparent rounded-full motion-safe:animate-spin"
-            style={{ borderColor: "var(--color-accent-brand)", borderTopColor: "transparent" }}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 animate-fade-in">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton h-32 rounded-xl" />
+          ))}
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
-          {error}
+        <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 animate-fade-in-up">
+          <div className="text-sm font-semibold text-danger">No pudimos cargar las entregas</div>
+          <div className="mt-1.5 font-mono text-xs text-danger/85 break-all">{error}</div>
         </div>
       )}
 
       {!loading && !error && entregas.length === 0 && (
-        <div className="py-12 text-center text-sm text-muted">
-          {estadoFilter
-            ? `No hay entregas con estado "${ESTADO_LABEL[estadoFilter as EntregaEstado]}".`
-            : "Esta comision aun no tiene entregas."}
+        <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center animate-fade-in-up">
+          <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+            <FileCheck className="h-7 w-7 text-muted" />
+          </div>
+          <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
+            {estadoFilter
+              ? `No hay entregas con estado "${ESTADO_LABEL[estadoFilter as EntregaEstado]}".`
+              : "Esta comision aun no tiene entregas registradas."}
+          </p>
         </div>
       )}
 
       {!loading && !error && entregas.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm" data-testid="entregas-table">
-            <thead className="bg-surface-alt">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
-                  Estudiante
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
-                  TP
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
-                  Estado
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-mono uppercase tracking-wider text-muted">
-                  Enviada
-                </th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EAEAEA]">
-              {entregas.map((entrega) => {
-                const tarea = tareasByID[entrega.tarea_practica_id]
-                const badge = ESTADO_BADGE[entrega.estado]
-                return (
-                  <tr
-                    key={entrega.id}
-                    data-testid="entrega-row"
-                    className="hover:bg-canvas transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-muted max-w-[140px] truncate">
-                      {entrega.student_pseudonym.slice(0, 8)}…
-                    </td>
-                    <td className="px-4 py-3 text-ink max-w-[200px]">
+        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" data-testid="entregas-table">
+          {entregas.map((entrega, idx) => {
+            const tarea = tareasByID[entrega.tarea_practica_id]
+            const isSubmitted = entrega.estado === "submitted"
+            return (
+              <li
+                key={entrega.id}
+                data-testid="entrega-row"
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+              >
+                <button
+                  type="button"
+                  data-testid="entrega-drill-btn"
+                  onClick={() => onSelectEntrega(entrega, tarea ?? null)}
+                  className="hover-lift press-shrink group relative w-full overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full text-left shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]"
+                >
+                  <div
+                    aria-hidden="true"
+                    className={`absolute left-0 top-0 bottom-0 w-1 transition-opacity ${
+                      isSubmitted
+                        ? "bg-accent-brand opacity-70 group-hover:opacity-100"
+                        : "bg-border-strong opacity-30 group-hover:opacity-60"
+                    }`}
+                  />
+                  <div className="p-4 flex-1 flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] uppercase tracking-wider text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft">
+                        {entrega.student_pseudonym.slice(0, 8)}…
+                      </span>
+                      <span data-testid={`entrega-estado-${entrega.estado}`}>
+                        <Badge variant={ESTADO_VARIANT[entrega.estado]}>
+                          {ESTADO_LABEL[entrega.estado]}
+                        </Badge>
+                      </span>
+                    </div>
+                    <div className="min-w-0">
                       {tarea ? (
-                        <span className="truncate block">
-                          <span className="text-xs font-mono text-muted mr-1.5">
+                        <>
+                          <div className="text-[11px] font-mono text-muted mb-0.5">
                             {tarea.codigo}
-                          </span>
-                          {tarea.titulo}
-                        </span>
+                          </div>
+                          <h3
+                            className="text-[14px] font-semibold text-ink leading-tight tracking-tight line-clamp-2"
+                            title={tarea.titulo}
+                          >
+                            {tarea.titulo}
+                          </h3>
+                        </>
                       ) : (
                         <span className="font-mono text-xs text-muted">
-                          {entrega.tarea_practica_id.slice(0, 8)}…
+                          TP: {entrega.tarea_practica_id.slice(0, 8)}…
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        data-testid={`entrega-estado-${entrega.estado}`}
-                        className={`text-xs font-mono px-2 py-0.5 rounded ${badge.bg} ${badge.text}`}
-                      >
-                        {ESTADO_LABEL[entrega.estado]}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-border-soft">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-soft">
+                        Enviada
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted">
-                      {entrega.submitted_at
-                        ? new Date(entrega.submitted_at).toLocaleString("es-AR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        data-testid="entrega-drill-btn"
-                        onClick={() => onSelectEntrega(entrega, tarea ?? null)}
-                        className="text-xs font-medium text-ink hover:underline"
-                      >
-                        {entrega.estado === "submitted" ? "Corregir →" : "Ver →"}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <span className="text-xs text-body tabular-nums font-mono">
+                        {entrega.submitted_at
+                          ? new Date(entrega.submitted_at).toLocaleString("es-AR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <footer
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium border-t border-border-soft ${
+                      isSubmitted
+                        ? "text-accent-brand-deep bg-accent-brand-soft/40 group-hover:bg-accent-brand-soft"
+                        : "text-muted group-hover:bg-surface-alt"
+                    } transition-colors`}
+                  >
+                    {isSubmitted ? "Corregir" : "Ver detalle"}
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </footer>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
@@ -346,7 +373,7 @@ function EjercicioPanel({ ej, resolvedEpisodeId, tarea, getToken }: EjercicioPan
       >
         <span
           className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono ${
-            ej.completado ? "bg-green-600 text-white" : "bg-surface-alt text-muted"
+            ej.completado ? "bg-success text-white" : "bg-surface-alt text-muted"
           }`}
         >
           {ej.completado ? "✓" : ej.orden}
@@ -547,14 +574,14 @@ function GradingFormView({
       <button
         type="button"
         onClick={onBack}
-        className="text-xs text-muted hover:text-ink inline-flex items-center gap-1"
+        className="press-shrink text-xs text-muted hover:text-ink inline-flex items-center gap-1.5 transition-colors"
       >
-        <span aria-hidden="true">←</span>
+        <ChevronLeft className="h-3.5 w-3.5" />
         Volver a entregas
       </button>
 
       {/* Cabecera de la entrega */}
-      <div className="rounded-lg border border-border bg-white p-5">
+      <div className="rounded-xl border border-border bg-surface p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] animate-fade-in-up">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs font-mono text-muted mb-1">
@@ -570,17 +597,15 @@ function GradingFormView({
               Estudiante: {entrega.student_pseudonym.slice(0, 12)}…
             </p>
           </div>
-          <span
-            className={`text-xs font-mono px-2 py-0.5 rounded ${ESTADO_BADGE[entrega.estado].bg} ${ESTADO_BADGE[entrega.estado].text}`}
-          >
+          <Badge variant={ESTADO_VARIANT[entrega.estado]}>
             {ESTADO_LABEL[entrega.estado]}
-          </span>
+          </Badge>
         </div>
       </div>
 
       {/* Ejercicios con codigo */}
       {entrega.ejercicio_estados && entrega.ejercicio_estados.length > 0 && (
-        <div className="rounded-lg border border-border bg-white p-5">
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
           <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
             Ejercicios
           </p>
@@ -602,7 +627,7 @@ function GradingFormView({
       )}
 
       {/* Formulario de calificacion */}
-      <div className="rounded-lg border border-border bg-white p-5">
+      <div className="rounded-xl border border-border bg-surface p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
         <p className="text-xs font-mono uppercase tracking-wider text-muted mb-4">
           {yaCalificada && !loadingCalificacion ? "Calificacion" : "Calificar entrega"}
         </p>
@@ -637,7 +662,7 @@ function GradingFormView({
                 onChange={(e) => setNota(e.target.value)}
                 disabled={yaCalificada}
                 data-testid="nota-final-input"
-                className="w-28 border border-border rounded px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-surface-alt disabled:text-muted"
+                className="w-28 border border-border rounded px-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-1 focus:ring-ink disabled:bg-surface-alt disabled:text-muted"
                 placeholder="ej. 7.5"
               />
             </div>
@@ -657,7 +682,7 @@ function GradingFormView({
                 onChange={(e) => setFeedback(e.target.value)}
                 disabled={yaCalificada}
                 data-testid="feedback-input"
-                className="w-full border border-border rounded px-3 py-2 text-sm text-ink bg-white focus:outline-none focus:ring-1 focus:ring-[#111111] disabled:bg-surface-alt disabled:text-muted resize-none"
+                className="w-full border border-border rounded px-3 py-2 text-sm text-ink bg-surface focus:outline-none focus:ring-1 focus:ring-ink disabled:bg-surface-alt disabled:text-muted resize-none"
                 placeholder="Describe los puntos fuertes y de mejora de la entrega..."
               />
             </div>
@@ -711,7 +736,7 @@ function GradingFormView({
                   onClick={() => void handleDevolver()}
                   disabled={devolviendo}
                   data-testid="devolver-btn"
-                  className="px-4 py-2 rounded text-sm font-medium border border-border bg-white text-ink hover:bg-surface-alt disabled:opacity-60"
+                  className="press-shrink px-4 py-2 rounded-md text-sm font-medium border border-border bg-surface text-ink hover:bg-surface-alt disabled:opacity-60 transition-colors"
                 >
                   {devolviendo ? "Devolviendo..." : "Devolver al estudiante"}
                 </button>

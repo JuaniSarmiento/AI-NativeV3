@@ -14,7 +14,8 @@
  * hasta que llegue a un estado terminal (indexed | failed). El polling se cancela
  * en cleanup del useEffect cuando el componente se desmonta.
  */
-import { HelpButton, PageContainer } from "@platform/ui"
+import { Badge, HelpButton, PageContainer } from "@platform/ui"
+import { FileArchive, FileText, FileType, Film, Library, Trash2, Upload } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
 import {
@@ -66,12 +67,20 @@ const TIPO_LABEL: Record<MaterialTipo, string> = {
   video: "Video",
 }
 
-const TIPO_COLOR: Record<MaterialTipo, string> = {
-  pdf: "bg-danger-soft text-danger border-danger/30",
-  markdown: "bg-accent-brand-soft text-accent-brand-deep border-accent-brand/30",
-  code_archive: "bg-green-100 text-green-800 border-green-200",
-  text: "bg-surface-alt text-body border-border-soft",
-  video: "bg-warning-soft text-warning border-warning/30",
+const TIPO_VARIANT: Record<MaterialTipo, "danger" | "info" | "success" | "default" | "warning"> = {
+  pdf: "danger",
+  markdown: "info",
+  code_archive: "success",
+  text: "default",
+  video: "warning",
+}
+
+const TIPO_ICON: Record<MaterialTipo, React.ComponentType<{ className?: string }>> = {
+  pdf: FileText,
+  markdown: FileType,
+  code_archive: FileArchive,
+  text: FileText,
+  video: Film,
 }
 
 const ESTADO_LABEL: Record<MaterialEstado, string> = {
@@ -83,13 +92,13 @@ const ESTADO_LABEL: Record<MaterialEstado, string> = {
   failed: "Error",
 }
 
-const ESTADO_COLOR: Record<MaterialEstado, string> = {
-  uploaded: "bg-surface-alt text-body",
-  extracting: "bg-surface-alt text-body",
-  chunking: "bg-surface-alt text-body",
-  embedding: "bg-surface-alt text-body",
-  indexed: "bg-green-100 text-green-800",
-  failed: "bg-danger-soft text-danger",
+const ESTADO_VARIANT: Record<MaterialEstado, "default" | "success" | "danger"> = {
+  uploaded: "default",
+  extracting: "default",
+  chunking: "default",
+  embedding: "default",
+  indexed: "success",
+  failed: "danger",
 }
 
 function formatBytes(bytes: number): string {
@@ -226,17 +235,18 @@ export function MaterialesView({ comisionId, getToken }: Props) {
     <PageContainer
       title="Materiales del curso"
       description={`Corpus del RAG para el tutor socrático. Comisión: ${comisionLabelText}`}
+      eyebrow={`Inicio · Materiales · ${comisionLabelText}`}
       helpContent={helpContent.materiales}
     >
-      <div className="space-y-6 max-w-6xl">
-        {/* Upload form */}
-        <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
+      <div className="space-y-6">
+        {/* ═══ Upload form ════════════════════════════════════════════════ */}
+        <section className="rounded-xl border border-border bg-surface p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] animate-fade-in-up">
+          <div className="flex items-center gap-2 mb-3">
             <HelpButton
               size="sm"
               title="Subir material"
               content={
-                <div className="space-y-3 text-sidebar-text-muted">
+                <div className="space-y-3 text-body">
                   <p>
                     <strong>Formatos y limites aceptados</strong>:
                   </p>
@@ -261,7 +271,7 @@ export function MaterialesView({ comisionId, getToken }: Props) {
                 </div>
               }
             />
-            <h2 className="text-sm font-medium">Subir material nuevo</h2>
+            <h2 className="text-sm font-semibold text-ink leading-tight">Subir material nuevo</h2>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <input
@@ -270,10 +280,10 @@ export function MaterialesView({ comisionId, getToken }: Props) {
               accept=".pdf,.md,.txt,.zip"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               disabled={uploading}
-              className="text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-border file:bg-surface-alt file:text-body hover:file:bg-surface-alt file:cursor-pointer"
+              className="text-sm text-body file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-border file:bg-surface-alt file:text-body file:font-medium hover:file:bg-surface-alt file:cursor-pointer"
             />
             {file && (
-              <span className="text-xs text-muted">
+              <span className="font-mono text-xs text-muted">
                 {file.name} · {formatBytes(file.size)}
               </span>
             )}
@@ -281,72 +291,82 @@ export function MaterialesView({ comisionId, getToken }: Props) {
               type="button"
               onClick={handleUpload}
               disabled={!file || !materiaId || uploading}
-              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded font-medium"
+              className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded-md font-medium transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
             >
+              <Upload className="h-3.5 w-3.5" />
               {uploading ? "Subiendo..." : "Subir"}
             </button>
           </div>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted leading-relaxed mt-2">
             Formatos aceptados: PDF, Markdown (.md), texto (.txt), ZIP de código. Tamaño máximo: 50
             MB por archivo.
           </p>
           {uploadError && (
-            <div className="p-2 rounded bg-danger-soft text-danger text-xs">{uploadError}</div>
+            <div className="mt-3 rounded-lg border border-danger/30 bg-danger-soft p-2.5 text-xs text-danger">
+              {uploadError}
+            </div>
           )}
-        </div>
+        </section>
 
-        {/* Materials list */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Materiales ({materiales.length})</h2>
-
+        {/* ═══ Materials list ═════════════════════════════════════════════ */}
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[11px] uppercase tracking-[0.12em] font-semibold text-muted">
+              Corpus indexado ({materiales.length})
+            </h2>
             <button
               type="button"
               onClick={refreshList}
               disabled={loading}
-              className="px-3 py-1 text-xs border border-border dark:border-sidebar-bg-edge rounded hover:bg-surface-alt dark:hover:bg-sidebar-bg-edge disabled:opacity-40"
+              className="press-shrink px-3 py-1 text-xs border border-border bg-surface rounded-md hover:bg-surface-alt disabled:opacity-40 text-muted transition-colors"
             >
               {loading ? "Cargando..." : "Refrescar"}
             </button>
           </div>
 
-          {error && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{error}</div>}
-
-          {loading && materiales.length === 0 ? (
-            <div className="p-8 text-center text-muted">Cargando materiales...</div>
-          ) : materiales.length === 0 ? (
-            <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg p-8 text-center text-muted">
-              No hay materiales subidos para esta materia todavía.
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border-soft dark:border-sidebar-bg-edge bg-white dark:bg-sidebar-bg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-surface-alt dark:bg-sidebar-bg-edge/50 border-b border-border-soft dark:border-sidebar-bg-edge">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium">Nombre</th>
-                    <th className="text-left px-4 py-2 font-medium">Tipo</th>
-                    <th className="text-right px-4 py-2 font-medium">Tamaño</th>
-                    <th className="text-left px-4 py-2 font-medium">Estado</th>
-                    <th className="text-right px-4 py-2 font-medium">Chunks</th>
-                    <th className="text-left px-4 py-2 font-medium">Subido</th>
-                    <th className="text-right px-4 py-2 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materiales.map((m) => (
-                    <MaterialRow key={m.id} material={m} onDelete={() => handleDelete(m)} />
-                  ))}
-                </tbody>
-              </table>
+          {error && (
+            <div className="rounded-xl border border-danger/30 bg-danger-soft p-4 animate-fade-in-up">
+              <div className="text-sm font-semibold text-danger">No pudimos cargar el corpus</div>
+              <div className="mt-1.5 font-mono text-xs text-danger/85 break-all">{error}</div>
             </div>
           )}
-        </div>
+
+          {loading && materiales.length === 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 animate-fade-in">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skeleton h-28 rounded-xl" />
+              ))}
+            </div>
+          ) : materiales.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center animate-fade-in-up">
+              <div className="inline-flex items-center justify-center rounded-full bg-surface-alt p-4 mb-4">
+                <Library className="h-7 w-7 text-muted" />
+              </div>
+              <p className="text-sm text-muted leading-relaxed max-w-md mx-auto">
+                Esta materia todavía no tiene materiales indexados. El RAG del tutor responde solo
+                con el contexto de los archivos cargados.
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {materiales.map((m, idx) => (
+                <li
+                  key={m.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+                >
+                  <MaterialCard material={m} onDelete={() => handleDelete(m)} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </PageContainer>
   )
 }
 
-function MaterialRow({
+function MaterialCard({
   material,
   onDelete,
 }: {
@@ -356,56 +376,63 @@ function MaterialRow({
   const tipo = material.tipo
   const estado = material.estado
   const isProcessing = !TERMINAL_STATES.includes(estado)
+  const Icon = TIPO_ICON[tipo]
 
   return (
-    <tr className="border-b border-border-soft dark:border-sidebar-bg-edge/50 last:border-0">
-      <td className="px-4 py-2">
-        <div className="font-medium truncate max-w-xs" title={material.nombre}>
-          {material.nombre}
+    <article className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+      <div className="p-4 flex-1 flex flex-col gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-alt border border-border-soft text-muted">
+            <Icon className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3
+              className="text-sm font-semibold text-ink leading-tight truncate"
+              title={material.nombre}
+            >
+              {material.nombre}
+            </h3>
+            <div className="mt-0.5 text-[11px] text-muted font-mono tabular-nums">
+              {formatBytes(material.tamano_bytes)} · {formatRelative(material.created_at)}
+            </div>
+          </div>
         </div>
+
         {material.error_message && (
           <div
-            className="text-xs text-[var(--color-danger)] mt-0.5 truncate max-w-xs"
+            className="rounded-md border border-danger/20 bg-danger-soft px-2.5 py-1.5 text-[11px] text-danger truncate"
             title={material.error_message}
           >
             {material.error_message}
           </div>
         )}
-      </td>
-      <td className="px-4 py-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${TIPO_COLOR[tipo]}`}
-        >
-          {TIPO_LABEL[tipo]}
-        </span>
-      </td>
-      <td className="px-4 py-2 text-right tabular-nums text-muted">
-        {formatBytes(material.tamano_bytes)}
-      </td>
-      <td className="px-4 py-2">
-        <span
-          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ESTADO_COLOR[estado]} ${
-            isProcessing ? "animate-pulse" : ""
-          }`}
-        >
-          {ESTADO_LABEL[estado]}
-        </span>
-      </td>
-      <td className="px-4 py-2 text-right tabular-nums text-muted">
-        {material.chunks_count ?? "..."}
-      </td>
-      <td className="px-4 py-2 text-xs text-muted" title={material.created_at}>
-        {formatRelative(material.created_at)}
-      </td>
-      <td className="px-4 py-2 text-right">
-        <button
-          type="button"
-          onClick={onDelete}
-          className="px-2 py-1 text-xs text-danger hover:bg-danger-soft rounded"
-        >
-          Eliminar
-        </button>
-      </td>
-    </tr>
+
+        <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-border-soft">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={TIPO_VARIANT[tipo]}>{TIPO_LABEL[tipo]}</Badge>
+            <span className={isProcessing ? "animate-pulse-soft" : ""}>
+              <Badge variant={ESTADO_VARIANT[estado]}>{ESTADO_LABEL[estado]}</Badge>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="font-mono tabular-nums text-xs text-muted"
+              title="Chunks indexados"
+            >
+              {material.chunks_count ?? "…"}
+              <span className="text-muted-soft ml-0.5">chunks</span>
+            </span>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="press-shrink inline-flex items-center gap-1 px-2 py-1 text-[11px] text-danger hover:bg-danger-soft rounded transition-colors"
+              title="Eliminar material"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
   )
 }

@@ -288,7 +288,7 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
               type="button"
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="px-4 py-2 rounded border border-border bg-white text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-60"
+              className="px-4 py-2 rounded border border-border bg-surface text-sm font-medium text-body hover:bg-surface-alt disabled:opacity-60"
             >
               {loadingMore ? "Cargando..." : "Cargar mas"}
             </button>
@@ -311,7 +311,7 @@ function EntregaBadge({ estado }: { estado: EntregaEstado }) {
   const classes: Record<EntregaEstado, string> = {
     draft: "bg-surface-alt text-muted",
     submitted: "bg-accent-brand-soft text-accent-brand-deep",
-    graded: "bg-green-100 text-success",
+    graded: "bg-success-soft text-success",
     returned: "bg-warning-soft text-warning/85",
   }
   return (
@@ -397,7 +397,7 @@ function PendienteCard({
     <article
       data-testid="tp-card"
       data-tp-codigo={tarea.codigo}
-      className="rounded-lg border border-border bg-white p-5"
+      className="rounded-lg border border-border bg-surface p-5"
     >
       <header className="flex items-start gap-3 mb-3">
         <div className="flex-1 min-w-0">
@@ -565,7 +565,7 @@ function ZoneListo({
                 <button
                   type="button"
                   onClick={() => onSelect(t)}
-                  className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-green-100 text-success hover:bg-green-200"
+                  className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-success-soft text-success hover:bg-green-200"
                 >
                   Ver calificacion
                 </button>

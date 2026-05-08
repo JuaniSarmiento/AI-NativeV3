@@ -58,7 +58,7 @@ export function NotesPanel({ episodeId, initialNotes }: NotesPanelProps) {
   }
 
   return (
-    <section className="flex flex-col rounded-lg border border-border-soft bg-white overflow-hidden">
+    <section className="flex flex-col rounded-lg border border-border-soft bg-surface overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

@@ -156,6 +156,7 @@ export function BulkImportPage(): ReactNode {
   return (
     <PageContainer
       title="Importacion masiva"
+      eyebrow="Inicio · Importacion masiva"
       description="Carga un CSV, valida con dry-run y luego confirma la importacion."
       helpContent={helpContent.bulkImport}
     >
@@ -164,13 +165,13 @@ export function BulkImportPage(): ReactNode {
           <button
             type="button"
             onClick={reset}
-            className="rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt"
+            className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-body hover:bg-surface-alt"
           >
             Reiniciar
           </button>
         </div>
 
-        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
           <h3 className="font-medium">1. Entidad</h3>
           <label className="flex flex-col gap-1 max-w-md">
             <span className="text-xs font-medium text-body">Tipo de entidad a importar</span>
@@ -210,7 +211,7 @@ export function BulkImportPage(): ReactNode {
           </div>
         </section>
 
-        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
           <h3 className="font-medium">2. Archivo CSV</h3>
           <input
             type="file"
@@ -227,7 +228,7 @@ export function BulkImportPage(): ReactNode {
           )}
         </section>
 
-        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
           <h3 className="font-medium">3. Validar (dry-run)</h3>
           <p className="text-sm text-muted">
             Sube el archivo y muestra errores sin escribir nada en la base.
@@ -250,7 +251,7 @@ export function BulkImportPage(): ReactNode {
           {dryRun.status === "ok" && <ReportView report={dryRun.report} />}
         </section>
 
-        <section className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+        <section className="rounded-lg border border-border-soft bg-surface p-6 space-y-4">
           <h3 className="font-medium">4. Confirmar importación</h3>
           <p className="text-sm text-muted">Sólo habilitado si el dry-run no mostró errores.</p>
           <button
@@ -372,4 +373,4 @@ function Stat({
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand"

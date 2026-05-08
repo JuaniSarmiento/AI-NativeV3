@@ -35,7 +35,7 @@ from ai_gateway.providers.base import (
     MistralProvider,
     get_provider,
 )
-from ai_gateway.services.byok import resolve_byok_key
+from ai_gateway.services.byok import increment_usage, resolve_byok_key
 from ai_gateway.services.budget_and_cache import BudgetTracker, ResponseCache
 
 logger = logging.getLogger(__name__)
@@ -246,9 +246,26 @@ async def complete(
         {"provider": response.provider},
     )
 
-    # 5. Cache + budget charge
+    # 5. Cache + budget charge + audit usage por key
     await cache.set(internal_req, response)
     new_total = await tracker.charge(caller.tenant_id, req.feature, response.cost_usd)
+
+    # Audit trail: si el resolver encontró una key DB real (no env_fallback),
+    # incrementar contadores en `byok_keys_usage` para auditoría doctoral
+    # de costos por episodio. UPSERT por (key_id, yyyymm). Idempotente bajo
+    # carga concurrente. Best-effort: si falla, NO bloqueamos la respuesta
+    # del LLM al caller (degradación graceful para no perder UX por audit).
+    if resolved is not None and resolved.key_id is not None:
+        try:
+            await increment_usage(
+                tenant_id=caller.tenant_id,
+                key_id=resolved.key_id,
+                tokens_input=response.input_tokens,
+                tokens_output=response.output_tokens,
+                cost_usd=response.cost_usd,
+            )
+        except Exception:
+            logger.exception("byok_increment_usage_failed key_id=%s", resolved.key_id)
 
     # Métricas: tokens consumidos + budget remaining.
     tenant_label = str(caller.tenant_id)

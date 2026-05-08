@@ -719,7 +719,13 @@ export const byokApi = {
     }),
   revoke: (id: string) =>
     request<void>(`/byok/keys/${id}/revoke`, { method: "POST" }),
-  usage: (id: string) => request<ByokKeyUsage[]>(`/byok/keys/${id}/usage`),
+  // El backend devuelve un single object (uso del mes actual o agregado mensual
+  // si se pasa ?yyyymm=). NO es array. Si querés historial multi-mes hay que
+  // hacer múltiples calls con yyyymm distinto (deuda pendiente v1.1).
+  usage: (id: string, yyyymm?: string) => {
+    const qs = yyyymm ? `?yyyymm=${yyyymm}` : ""
+    return request<ByokKeyUsage>(`/byok/keys/${id}/usage${qs}`)
+  },
 }
 
 // ── Comision Docentes ─────────────────────────────────────────────────

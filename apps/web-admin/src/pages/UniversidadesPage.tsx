@@ -1,4 +1,5 @@
 import { HelpButton, PageContainer, StateMessage } from "@platform/ui"
+import { Plus, Trash2 } from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
 import { HttpError, type Universidad, type UniversidadCreate, universidadesApi } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
@@ -48,16 +49,23 @@ export function UniversidadesPage(): ReactNode {
     <PageContainer
       title="Universidades"
       description="Listado global. Crear requiere rol superadmin."
+      eyebrow="Inicio · Universidades"
       helpContent={helpContent.universidades}
     >
       <div className="space-y-6">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3 flex-wrap animate-fade-in-up">
+          <p className="text-xs text-muted leading-relaxed max-w-2xl">
+            Tope de la jerarquía académica. Cada universidad se vincula a un realm de Keycloak para
+            la federación LDAP institucional.
+          </p>
           <button
             type="button"
             onClick={() => setShowForm(!showForm)}
-            className="rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep"
+            className="press-shrink inline-flex items-center gap-1.5 rounded-md bg-accent-brand text-white px-4 py-2 text-sm font-medium hover:bg-accent-brand-deep transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
           >
-            {showForm ? "Cancelar" : "Nueva universidad"}
+            {showForm ? "Cancelar" : (<>
+              <Plus className="h-3.5 w-3.5" /> Nueva universidad
+            </>)}
           </button>
         </div>
 
@@ -71,56 +79,68 @@ export function UniversidadesPage(): ReactNode {
         )}
 
         {error && (
-          <div className="rounded-md border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
+          <div className="animate-fade-in-up rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
             {error}
           </div>
         )}
 
-        <div className="rounded-lg border border-border-soft bg-white overflow-hidden">
-          {loading ? (
-            <StateMessage variant="loading" />
-          ) : items.length === 0 ? (
-            <StateMessage
-              variant="empty"
-              title="Sin universidades"
-              description="No hay universidades registradas todavia."
-            />
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-surface-alt border-b border-border-soft text-left">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Código</th>
-                  <th className="px-4 py-2 font-medium">Nombre</th>
-                  <th className="px-4 py-2 font-medium">Realm Keycloak</th>
-                  <th className="px-4 py-2 font-medium">Creada</th>
-                  <th className="px-4 py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((u) => (
-                  <tr key={u.id} className="border-b border-border-soft">
-                    <td className="px-4 py-2 font-mono text-xs">{u.codigo}</td>
-                    <td className="px-4 py-2">{u.nombre}</td>
-                    <td className="px-4 py-2 font-mono text-xs">{u.keycloak_realm}</td>
-                    <td className="px-4 py-2 text-muted text-xs">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => void handleDelete(u)}
-                        disabled={deletingId === u.id}
-                        className="text-xs text-danger hover:text-danger disabled:opacity-50"
-                      >
-                        {deletingId === u.id ? "Eliminando…" : "Eliminar"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 animate-fade-in">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="skeleton h-28 rounded-xl" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <StateMessage
+            variant="empty"
+            title="Sin universidades"
+            description="No hay universidades registradas todavia."
+          />
+        ) : (
+          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {items.map((u, idx) => (
+              <li
+                key={u.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${Math.min(idx, 6) * 50}ms` }}
+              >
+                <article className="hover-lift group relative overflow-hidden rounded-xl border border-border bg-surface flex flex-col h-full shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+                  <div
+                    aria-hidden="true"
+                    className="absolute left-0 top-0 bottom-0 w-1 bg-accent-brand/0 group-hover:bg-accent-brand/60 transition-colors"
+                  />
+                  <div className="p-4 flex-1 flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[11px] uppercase tracking-wider text-muted px-2 py-0.5 rounded bg-surface-alt border border-border-soft">
+                        {u.codigo}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-muted-soft">
+                        {new Date(u.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-ink leading-tight tracking-tight" title={u.nombre}>
+                      {u.nombre}
+                    </h3>
+                    <div className="text-[11px] font-mono text-muted truncate" title={u.keycloak_realm}>
+                      realm: {u.keycloak_realm}
+                    </div>
+                  </div>
+                  <footer className="flex items-stretch border-t border-border-soft">
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(u)}
+                      disabled={deletingId === u.id}
+                      className="press-shrink flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-danger hover:bg-danger-soft transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {deletingId === u.id ? "Eliminando…" : "Eliminar"}
+                    </button>
+                  </footer>
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </PageContainer>
   )
@@ -154,7 +174,7 @@ function UniversidadForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-border-soft bg-white p-6 space-y-4">
+    <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-6 space-y-4 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] animate-fade-in-up">
       <div className="flex items-center gap-2 mb-2">
         <HelpButton
           size="sm"
@@ -254,7 +274,7 @@ function UniversidadForm({
 }
 
 const inputClass =
-  "w-full rounded-md border border-border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+  "w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-brand transition-colors"
 
 function Field({
   label,
