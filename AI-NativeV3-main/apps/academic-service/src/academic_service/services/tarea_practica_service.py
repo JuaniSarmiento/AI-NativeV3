@@ -84,12 +84,11 @@ class TareaPracticaService:
                 "fecha_fin": data.fecha_fin,
                 "peso": data.peso,
                 "rubrica": data.rubrica,
-                "ejercicios": [
-                    e.model_dump(mode="json") for e in (data.ejercicios or [])
-                ],
                 "estado": "draft",
                 "version": 1,
                 "parent_tarea_id": None,
+                "template_id": data.template_id,
+                "has_drift": False,
                 "created_by": user.id,
                 # ADR-036: trazabilidad de TPs creadas via wizard IA
                 "created_via_ai": data.created_via_ai,
@@ -265,15 +264,6 @@ class TareaPracticaService:
         # No "lavamos" drift creando una versión: si la v-N estaba drifteada,
         # la v-N+1 también lo está. Si el docente quiere "volver al template",
         # usa el endpoint dedicado de resync (scope futuro).
-        # ejercicios: si el patch no los sobreescribe, heredar del parent
-        raw_ejercicios_override = overrides.get("ejercicios")
-        if raw_ejercicios_override is not None:
-            new_ejercicios = [
-                e.model_dump(mode="json") if hasattr(e, "model_dump") else e
-                for e in raw_ejercicios_override
-            ]
-        else:
-            new_ejercicios = list(parent.ejercicios or [])
 
         new_tarea = await self.repo.create(
             {
@@ -288,7 +278,6 @@ class TareaPracticaService:
                 "fecha_fin": overrides.get("fecha_fin", parent.fecha_fin),
                 "peso": overrides.get("peso", parent.peso),
                 "rubrica": overrides.get("rubrica", parent.rubrica),
-                "ejercicios": new_ejercicios,
                 "estado": "draft",
                 "version": parent.version + 1,
                 "parent_tarea_id": parent.id,
@@ -301,6 +290,26 @@ class TareaPracticaService:
                 "unidad_id": parent.unidad_id,
             }
         )
+
+        # ADR-047: clonar la composición de ejercicios del parent al new TP.
+        # Las filas de `tp_ejercicios` apuntan al UUID del Ejercicio (estable),
+        # solo cambian el `tarea_practica_id` y `id` propio. El Ejercicio en
+        # sí NO se clona (sigue siendo el mismo). El patch del versionado NO
+        # permite re-componer ejercicios — eso se hace con los endpoints de
+        # composición sobre el nuevo TP en estado draft.
+        from academic_service.models import TpEjercicio
+
+        for tp_ej in parent.tp_ejercicios:
+            clone = TpEjercicio(
+                id=uuid4(),
+                tenant_id=parent.tenant_id,
+                tarea_practica_id=new_id,
+                ejercicio_id=tp_ej.ejercicio_id,
+                orden=tp_ej.orden,
+                peso_en_tp=tp_ej.peso_en_tp,
+            )
+            self.session.add(clone)
+        await self.session.flush()
 
         audit = AuditLog(
             tenant_id=parent.tenant_id,

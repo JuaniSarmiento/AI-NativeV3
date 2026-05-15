@@ -1,5 +1,25 @@
-"""Eventos del plano académico."""
+"""Eventos y schemas del plano académico."""
 
+from platform_contracts.academic.ejercicio import (
+    AntiPatronSchema,
+    BancoPreguntasSchema,
+    CriterioRubricaSchema,
+    EjercicioCreate,
+    EjercicioRead,
+    EjercicioUpdate,
+    HeuristicaCierreSchema,
+    MisconceptionSchema,
+    PistaSchema,
+    PreguntaSocraticaSchema,
+    PrerequisitosSchema,
+    RubricaEjercicioSchema,
+    TestCaseSchema,
+    TpEjercicioCreate,
+    TpEjercicioRead,
+    TpEjercicioUpdate,
+    TpEjerciciosValidator,
+    TutorRulesSchema,
+)
 from platform_contracts.academic.events import (
     CarreraCreada,
     ComisionCreada,
@@ -7,14 +27,29 @@ from platform_contracts.academic.events import (
     MaterialIngerido,
     UniversidadCreada,
 )
-from platform_contracts.academic.schemas import EjercicioSchema, EjerciciosValidator
 
 __all__ = [
+    "AntiPatronSchema",
+    "BancoPreguntasSchema",
     "CarreraCreada",
     "ComisionCreada",
-    "EjercicioSchema",
-    "EjerciciosValidator",
+    "CriterioRubricaSchema",
+    "EjercicioCreate",
+    "EjercicioRead",
+    "EjercicioUpdate",
     "EstudianteInscripto",
+    "HeuristicaCierreSchema",
     "MaterialIngerido",
+    "MisconceptionSchema",
+    "PistaSchema",
+    "PreguntaSocraticaSchema",
+    "PrerequisitosSchema",
+    "RubricaEjercicioSchema",
+    "TestCaseSchema",
+    "TpEjercicioCreate",
+    "TpEjercicioRead",
+    "TpEjercicioUpdate",
+    "TpEjerciciosValidator",
+    "TutorRulesSchema",
     "UniversidadCreada",
 ]

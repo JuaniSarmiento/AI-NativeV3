@@ -1,21 +1,13 @@
-"""Service de Tarea Práctica Template (ADR-016).
+"""Service de Tarea Práctica Template (refactor 2026-05-12).
 
-Plantilla canónica de TP por `(materia_id, periodo_id)`. Introducida por
-ADR-016 para que una cátedra con múltiples comisiones mantenga una única
-fuente editable del enunciado/rúbrica/peso. Al crear un template, se
-auto-instancian `TareaPractica` en cada comisión de la (materia, periodo).
+La plantilla es un BRIEF pedagógico (consigna + meta) que sirve como prompt
+para que el docente o la IA generen el TP real en cada comisión. Sin fan-out
+automático: crear un template NO crea instancias.
 
-Invariantes críticas (coherentes con `TareaPracticaService`):
-
+Invariantes:
 - Publicados/archivados son **inmutables** — PATCH sobre no-draft → 409.
-- El `problema_id` que viaja por el CTR apunta a la **instancia**, no al
-  template: esta capa nunca toca la cadena criptográfica (ADR-010).
-- Soft delete del template NO borra las instancias (serían evidencia CTR).
-- Detección de colisión de `codigo` contra TPs pre-existentes de las
-  comisiones antes del fan-out: si alguna ya tiene una TP con ese código,
-  abortamos la transacción con 409 listando las comisiones conflictivas,
-  en vez de hacer un fan-out parcial (ADR-016 > Consecuencias > Conflicto
-  codigo con TP huérfanas).
+- Soft delete del template NO toca instancias que lo referencian (`template_id`
+  en `tareas_practicas` solo marca trazabilidad de origen, no dependencia).
 """
 
 from __future__ import annotations
@@ -29,16 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth.dependencies import User
-from academic_service.models import (
-    AuditLog,
-    Comision,
-    TareaPractica,
-    TareaPracticaTemplate,
-)
-from academic_service.repositories import (
-    TareaPracticaRepository,
-    TareaPracticaTemplateRepository,
-)
+from academic_service.models import AuditLog, TareaPractica, TareaPracticaTemplate
+from academic_service.repositories import TareaPracticaTemplateRepository
 from academic_service.schemas.tarea_practica_template import (
     TareaPracticaTemplateCreate,
     TareaPracticaTemplateUpdate,
@@ -48,12 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 class TareaPracticaTemplateService:
-    """CRUD + fan-out + versionado de `TareaPracticaTemplate`."""
+    """CRUD + versionado + export-prompt de `TareaPracticaTemplate`."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.repo = TareaPracticaTemplateRepository()
-        self.tp_repo = TareaPracticaRepository(session)
 
     # ------------------------------------------------------------------
     # Helpers internos
@@ -69,41 +52,6 @@ class TareaPracticaTemplateService:
                 detail="TareaPracticaTemplate no encontrada",
             )
         return obj
-
-    async def _comisiones_ids_for_materia_periodo(
-        self, tenant_id: UUID, materia_id: UUID, periodo_id: UUID
-    ) -> list[UUID]:
-        stmt = select(Comision.id).where(
-            Comision.tenant_id == tenant_id,
-            Comision.materia_id == materia_id,
-            Comision.periodo_id == periodo_id,
-            Comision.deleted_at.is_(None),
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def _comisiones_with_conflicting_codigo(
-        self,
-        tenant_id: UUID,
-        comision_ids: list[UUID],
-        codigo: str,
-    ) -> list[UUID]:
-        """Devuelve las comisiones cuyo set ya contiene una TP con ese `codigo`.
-
-        Filtra `deleted_at IS NULL`: una TP soft-deleted no bloquea. No filtra
-        por `template_id` — CUALQUIER TP con ese `codigo` genera conflicto
-        (ADR-016: conflicto contra TP huérfanas también aborta).
-        """
-        if not comision_ids:
-            return []
-        stmt = select(TareaPractica.comision_id).where(
-            TareaPractica.tenant_id == tenant_id,
-            TareaPractica.comision_id.in_(comision_ids),
-            TareaPractica.codigo == codigo,
-            TareaPractica.deleted_at.is_(None),
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
 
     def _add_audit(
         self,
@@ -125,59 +73,15 @@ class TareaPracticaTemplateService:
             )
         )
 
-    def _add_instance_audit(
-        self,
-        *,
-        tenant_id: UUID,
-        user_id: UUID,
-        tarea_id: UUID,
-        template_id: UUID,
-        comision_id: UUID,
-    ) -> None:
-        self.session.add(
-            AuditLog(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                action="tarea_practica.create_from_template",
-                resource_type="tarea_practica",
-                resource_id=tarea_id,
-                changes={
-                    "tarea_id": str(tarea_id),
-                    "template_id": str(template_id),
-                    "comision_id": str(comision_id),
-                },
-            )
-        )
-
     # ------------------------------------------------------------------
     # CRUD público
     # ------------------------------------------------------------------
 
     async def create(self, data: TareaPracticaTemplateCreate, user: User) -> TareaPracticaTemplate:
-        """Crea template + auto-instancia una TP en cada comisión de la materia+periodo.
-
-        Si alguna comisión ya tiene una `TareaPractica` con el mismo `codigo`,
-        aborta con 409 (sin crear template ni instancias parciales).
+        """Crea un template (brief pedagógico). NO instancia TPs en comisiones —
+        los TPs se crean on-demand por el docente, opcionalmente referenciando
+        este template via `template_id`.
         """
-        comision_ids = await self._comisiones_ids_for_materia_periodo(
-            user.tenant_id, data.materia_id, data.periodo_id
-        )
-
-        # Chequeo de colisión ANTES del INSERT del template. Evita fan-out
-        # parcial y CHECK violations en `uq_tarea_codigo_version`.
-        conflictivas = await self._comisiones_with_conflicting_codigo(
-            user.tenant_id, comision_ids, data.codigo
-        )
-        if conflictivas:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "error": "codigo_conflict",
-                    "comisiones": [str(c) for c in conflictivas],
-                },
-            )
-
-        # 1) Template
         template = await self.repo.create(
             self.session,
             user.tenant_id,
@@ -187,12 +91,8 @@ class TareaPracticaTemplateService:
                 "periodo_id": data.periodo_id,
                 "codigo": data.codigo,
                 "titulo": data.titulo,
-                "enunciado": data.enunciado,
-                "inicial_codigo": data.inicial_codigo,
-                "rubrica": data.rubrica,
+                "consigna": data.consigna,
                 "peso": data.peso,
-                "fecha_inicio": data.fecha_inicio,
-                "fecha_fin": data.fecha_fin,
                 "estado": "draft",
                 "version": 1,
                 "parent_template_id": None,
@@ -200,41 +100,6 @@ class TareaPracticaTemplateService:
             user.id,
         )
 
-        # 2) Fan-out de instancias
-        instances_created = 0
-        for comision_id in comision_ids:
-            new_tp_id = uuid4()
-            await self.tp_repo.create(
-                {
-                    "id": new_tp_id,
-                    "tenant_id": user.tenant_id,
-                    "comision_id": comision_id,
-                    "codigo": data.codigo,
-                    "titulo": data.titulo,
-                    "enunciado": data.enunciado,
-                    "inicial_codigo": data.inicial_codigo,
-                    "fecha_inicio": data.fecha_inicio,
-                    "fecha_fin": data.fecha_fin,
-                    "peso": data.peso,
-                    "rubrica": data.rubrica,
-                    "estado": "draft",
-                    "version": 1,
-                    "parent_tarea_id": None,
-                    "template_id": template.id,
-                    "has_drift": False,
-                    "created_by": user.id,
-                }
-            )
-            self._add_instance_audit(
-                tenant_id=user.tenant_id,
-                user_id=user.id,
-                tarea_id=new_tp_id,
-                template_id=template.id,
-                comision_id=comision_id,
-            )
-            instances_created += 1
-
-        # 3) Audit log del template
         self._add_audit(
             tenant_id=user.tenant_id,
             user_id=user.id,
@@ -244,7 +109,6 @@ class TareaPracticaTemplateService:
                 "template_id": str(template.id),
                 "materia_id": str(data.materia_id),
                 "periodo_id": str(data.periodo_id),
-                "instances_created": instances_created,
             },
         )
         await self.session.flush()
@@ -338,18 +202,13 @@ class TareaPracticaTemplateService:
         template_id: UUID,
         patch: TareaPracticaTemplateUpdate,
         user: User,
-        *,
-        reinstance_non_drifted: bool = False,
     ) -> TareaPracticaTemplate:
-        """Crea v+1 del template. Las instancias sin drift opcionalmente se re-instancian.
-
-        Las instancias con `has_drift=true` NUNCA se re-instancian (el drift
-        bloquea el auto-upgrade; decisión consciente del ADR-016).
+        """Crea v+1 del template (siempre en draft). Hereda campos del padre
+        salvo los que el patch sobreescriba.
         """
         parent = await self._get_template_or_404(template_id, user.tenant_id)
         overrides = patch.model_dump(exclude_unset=True, exclude_none=True)
 
-        # Nueva versión del template (siempre en draft)
         new_template = await self.repo.create(
             self.session,
             user.tenant_id,
@@ -359,60 +218,14 @@ class TareaPracticaTemplateService:
                 "periodo_id": parent.periodo_id,
                 "codigo": parent.codigo,
                 "titulo": overrides.get("titulo", parent.titulo),
-                "enunciado": overrides.get("enunciado", parent.enunciado),
-                "inicial_codigo": overrides.get("inicial_codigo", parent.inicial_codigo),
-                "rubrica": overrides.get("rubrica", parent.rubrica),
+                "consigna": overrides.get("consigna", parent.consigna),
                 "peso": overrides.get("peso", parent.peso),
-                "fecha_inicio": overrides.get("fecha_inicio", parent.fecha_inicio),
-                "fecha_fin": overrides.get("fecha_fin", parent.fecha_fin),
                 "estado": "draft",
                 "version": parent.version + 1,
                 "parent_template_id": parent.id,
             },
             user.id,
         )
-
-        reinstanced_count = 0
-        if reinstance_non_drifted:
-            # Instancias vigentes del template viejo
-            stmt = select(TareaPractica).where(
-                TareaPractica.tenant_id == user.tenant_id,
-                TareaPractica.template_id == parent.id,
-                TareaPractica.deleted_at.is_(None),
-            )
-            result = await self.session.execute(stmt)
-            instances = list(result.scalars().all())
-
-            for inst in instances:
-                if inst.has_drift:
-                    logger.warning(
-                        "Instance %s skipped: has_drift=true",
-                        inst.id,
-                    )
-                    continue
-                new_tp_id = uuid4()
-                await self.tp_repo.create(
-                    {
-                        "id": new_tp_id,
-                        "tenant_id": user.tenant_id,
-                        "comision_id": inst.comision_id,
-                        "codigo": parent.codigo,
-                        "titulo": overrides.get("titulo", inst.titulo),
-                        "enunciado": overrides.get("enunciado", inst.enunciado),
-                        "inicial_codigo": overrides.get("inicial_codigo", inst.inicial_codigo),
-                        "fecha_inicio": overrides.get("fecha_inicio", inst.fecha_inicio),
-                        "fecha_fin": overrides.get("fecha_fin", inst.fecha_fin),
-                        "peso": overrides.get("peso", inst.peso),
-                        "rubrica": overrides.get("rubrica", inst.rubrica),
-                        "estado": "draft",
-                        "version": inst.version + 1,
-                        "parent_tarea_id": inst.id,
-                        "template_id": new_template.id,
-                        "has_drift": False,
-                        "created_by": user.id,
-                    }
-                )
-                reinstanced_count += 1
 
         self._add_audit(
             tenant_id=user.tenant_id,
@@ -422,11 +235,35 @@ class TareaPracticaTemplateService:
             changes={
                 "old_id": str(parent.id),
                 "new_id": str(new_template.id),
-                "reinstanced_count": reinstanced_count,
             },
         )
         await self.session.flush()
         return new_template
+
+    async def get_prompt(self, template_id: UUID, tenant_id: UUID) -> dict[str, Any]:
+        """Devuelve la plantilla formateada como prompt para usar en una IA
+        externa o pasar al wizard interno de generación de TPs.
+        """
+        t = await self._get_template_or_404(template_id, tenant_id)
+        prompt = (
+            f"# {t.titulo}\n\n"
+            f"**Código:** {t.codigo}\n"
+            f"**Peso en la materia:** {t.peso}\n\n"
+            f"## Consigna pedagógica\n\n"
+            f"{t.consigna}\n\n"
+            f"---\n\n"
+            f"Generá un Trabajo Práctico que cumpla la consigna anterior. "
+            f"Devolvé un enunciado claro para el alumno, una lista de "
+            f"ejercicios secuenciales (con título, descripción en markdown, "
+            f"código inicial opcional y peso relativo), y una rúbrica de "
+            f"evaluación con criterios y pesos."
+        )
+        return {
+            "template_id": t.id,
+            "codigo": t.codigo,
+            "titulo": t.titulo,
+            "prompt": prompt,
+        }
 
     async def list_instances(self, template_id: UUID, tenant_id: UUID) -> list[TareaPractica]:
         """Lista las instancias vigentes del template."""

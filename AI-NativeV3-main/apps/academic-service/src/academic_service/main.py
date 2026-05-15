@@ -18,6 +18,7 @@ from academic_service.routes import (
     bulk,
     carreras,
     comisiones,
+    ejercicios,
     facultades,
     health,
     materias,
@@ -62,6 +63,7 @@ app.include_router(comisiones.periodos_router)
 app.include_router(comisiones.comisiones_router)
 app.include_router(tareas_practicas.router)
 app.include_router(tareas_practicas_templates.router)
+app.include_router(ejercicios.router)
 app.include_router(unidades.router)
 app.include_router(bulk.router)
 

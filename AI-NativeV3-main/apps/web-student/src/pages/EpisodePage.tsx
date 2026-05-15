@@ -16,6 +16,7 @@
 import { HelpButton, MarkdownRenderer } from "@platform/ui"
 import { Bot, BookOpen, Code2, LogOut, MessageSquare, Send, Sparkles, User } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels"
 import { CodeEditor } from "../components/CodeEditor"
 import { ReflectionModal } from "../components/ReflectionModal"
 import {
@@ -29,6 +30,7 @@ import {
   emitLecturaEnunciado,
   getEpisodeState,
   getTareaById,
+  listEjerciciosTp,
   markEjercicioCompleted,
   sendMessage,
 } from "../lib/api"
@@ -42,9 +44,10 @@ interface Message {
   ts: number
 }
 
-/** Contexto de ejercicio activo para TPs multi-ejercicio. */
+/** Contexto de ejercicio activo para TPs multi-ejercicio (ADR-047). */
 export interface EjercicioContext {
   entregaId: string
+  ejercicioId: string
   ejercicioOrden: number
 }
 
@@ -57,14 +60,16 @@ export interface EpisodeViewProps {
 }
 
 /**
- * Resuelve el codigo_inicial para Monaco: ejercicio especifico (multi-ej)
- * o TP-level (monolitica). null = usar scaffold default del CodeEditor.
+ * Resuelve el codigo_inicial para Monaco.
+ *
+ * ADR-047: `tarea.ejercicios` ya no viene embebido. Para TPs multi-ejercicio
+ * el código inicial específico del ejercicio se inyecta al system message
+ * del tutor por el backend; el editor del cliente arranca con el scaffold
+ * de la TP (o default). Una versión futura puede pre-cargar el
+ * `inicial_codigo` del ejercicio al sessionStorage cuando se abre el
+ * episodio para que aparezca directo en Monaco.
  */
-function resolveCodigoInicial(tarea: AvailableTarea, ejercicioOrden: number | null): string | null {
-  if (ejercicioOrden != null) {
-    const ej = tarea.ejercicios.find((e) => e.orden === ejercicioOrden)
-    if (ej?.inicial_codigo) return ej.inicial_codigo
-  }
+function resolveCodigoInicial(tarea: AvailableTarea): string | null {
   return tarea.inicial_codigo ?? null
 }
 
@@ -138,7 +143,7 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
         if (state.last_code_snapshot) {
           setCode(state.last_code_snapshot)
         } else {
-          const initialCode = resolveCodigoInicial(t, ejercicioOrden)
+          const initialCode = resolveCodigoInicial(t)
           if (initialCode) setCode(initialCode)
         }
         setMessages(
@@ -256,6 +261,7 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
                 ejercicioContext.entregaId,
                 ejercicioContext.ejercicioOrden,
                 episodeId,
+                ejercicioContext.ejercicioId,
               )
             } catch {
               // Best-effort: no bloquear la navegacion si falla.
@@ -344,11 +350,15 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
         </div>
       )}
 
-      {/* ═══ 3 PANELES: Consigna · Editor · Tutor ═══════════════════════ */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 min-h-0">
+      {/* ═══ 3 PANELES REDIMENSIONABLES: Consigna · Editor · Tutor ═══════ */}
+      <PanelGroup
+        orientation="horizontal"
+        className="flex-1 p-4 min-h-0"
+      >
+        <Panel defaultSize={33} minSize={15} className="flex">
         {/* Panel 1 — Consigna (N1) */}
         <section
-          className="animate-fade-in-up animate-delay-50 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          className="animate-fade-in-up animate-delay-50 flex-1 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
           aria-label="Consigna del problema"
         >
           <PanelHeader
@@ -363,10 +373,16 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
             ejercicioOrden={ejercicioContext?.ejercicioOrden ?? null}
           />
         </section>
+        </Panel>
 
+        <PanelResizeHandle className="group relative w-2 mx-0.5 flex items-center justify-center cursor-col-resize">
+          <span className="block h-12 w-0.5 rounded-full bg-border-soft group-hover:bg-accent-brand group-data-[resize-handle-active]:bg-accent-brand transition-colors" />
+        </PanelResizeHandle>
+
+        <Panel defaultSize={34} minSize={15} className="flex">
         {/* Panel 2 — Editor (N3) */}
         <section
-          className="animate-fade-in-up animate-delay-100 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          className="animate-fade-in-up animate-delay-100 flex-1 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
           aria-label="Editor de código"
         >
           <PanelHeader
@@ -394,10 +410,16 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
             }}
           />
         </section>
+        </Panel>
 
+        <PanelResizeHandle className="group relative w-2 mx-0.5 flex items-center justify-center cursor-col-resize">
+          <span className="block h-12 w-0.5 rounded-full bg-border-soft group-hover:bg-accent-brand group-data-[resize-handle-active]:bg-accent-brand transition-colors" />
+        </PanelResizeHandle>
+
+        <Panel defaultSize={33} minSize={15} className="flex">
         {/* Panel 3 — Tutor (N4) */}
         <section
-          className="animate-fade-in-up animate-delay-150 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
+          className="animate-fade-in-up animate-delay-150 flex-1 flex flex-col rounded-xl border border-border bg-surface overflow-hidden shadow-[0_1px_3px_-1px_rgba(0,0,0,0.04)]"
           aria-label="Tutor socrático"
         >
           <PanelHeader
@@ -533,7 +555,8 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
             </div>
           </div>
         </section>
-      </div>
+        </Panel>
+      </PanelGroup>
 
       <ReflectionModal
         isOpen={reflectionTargetId !== null}
@@ -556,6 +579,7 @@ export function EpisodeView({ episodeId, onExit, ejercicioContext }: EpisodeView
                   ejercicioContext.entregaId,
                   ejercicioContext.ejercicioOrden,
                   episodeId,
+                  ejercicioContext.ejercicioId,
                 )
               } catch {
                 // Best-effort: la TP queda con el ejercicio sin marcar pero
@@ -741,15 +765,46 @@ function EnunciadoPanel({
   // layout 3-cols cada panel ocupa su columna entera.
   const enunciadoRef = useReadingTimeReporter(episodeId, episodeId !== null)
 
+  // ADR-047: si es ejercicio especifico, resolvemos titulo+enunciado via la
+  // tabla intermedia. Para no agregar prop drilling desde MateriaPage,
+  // hacemos un fetch local. Best-effort: si falla, cae a `tarea.enunciado`.
+  const [ejercicioInfo, setEjercicioInfo] = useState<{
+    titulo: string
+    enunciado_md: string
+    total: number
+  } | null>(null)
+  useEffect(() => {
+    if (ejercicioOrden == null) {
+      setEjercicioInfo(null)
+      return
+    }
+    let cancelled = false
+    listEjerciciosTp(tarea.id)
+      .then((pairs) => {
+        if (cancelled) return
+        const target = pairs.find((p) => p.orden === ejercicioOrden)
+        if (target) {
+          setEjercicioInfo({
+            titulo: target.ejercicio.titulo,
+            enunciado_md: target.ejercicio.enunciado_md,
+            total: pairs.length,
+          })
+        }
+      })
+      .catch(() => {
+        /* best-effort */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tarea.id, ejercicioOrden])
+
   let displayContent = tarea.enunciado
   let headerLabel = `${tarea.codigo} (v${tarea.version})`
 
-  if (ejercicioOrden != null && tarea.ejercicios.length > 0) {
-    const ej = tarea.ejercicios.find((e) => e.orden === ejercicioOrden)
-    if (ej) {
-      displayContent = `## ${ej.titulo}\n\n${ej.enunciado_md}`
-      headerLabel = `${tarea.codigo} — Ejercicio ${ejercicioOrden} de ${tarea.ejercicios.length}`
-    }
+  if (ejercicioInfo) {
+    displayContent = `## ${ejercicioInfo.titulo}\n\n${ejercicioInfo.enunciado_md}`
+    headerLabel = `${tarea.codigo} — Ejercicio ${ejercicioOrden} de ${ejercicioInfo.total}`
   }
 
   return (

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth.dependencies import User
@@ -18,7 +19,12 @@ from academic_service.schemas.universidad import UniversidadCreate, UniversidadU
 
 
 class UniversidadService:
-    """Universidades son entidades globales (no multi-tenant).
+    """Cada universidad ES su propio tenant (1:1).
+
+    Por convencion enforzada en `create()`: `universidad.id == tenant_id`.
+    Esto materializa el aislamiento academico: cada universidad tiene su
+    banco de ejercicios, sus comisiones, sus alumnos y sus docentes
+    completamente aislados de las otras universidades.
 
     Solo superadmin puede crearlas. Los docente_admin solo pueden leer/
     editar la propia universidad.
@@ -30,11 +36,20 @@ class UniversidadService:
         self.carreras = CarreraRepository(session)
 
     async def create(self, data: UniversidadCreate, user: User) -> Universidad:
-        # superadmin-only: chequeado en el router con require_permission
+        # superadmin-only: chequeado en el router con require_permission.
+        # Convencion: tenant_id = id. Cada universidad ES su propio tenant.
         new_id = uuid4()
+        # RLS forced exige que el INSERT respete `app.current_tenant`.
+        # Como estamos creando un tenant NUEVO, lo seteamos en la sesion
+        # antes del INSERT (LOCAL = solo dentro de la transaccion).
+        await self.session.execute(
+            text("SELECT set_config('app.current_tenant', :tid, true)"),
+            {"tid": str(new_id)},
+        )
         universidad = await self.repo.create(
             {
                 "id": new_id,
+                "tenant_id": new_id,
                 "nombre": data.nombre,
                 "codigo": data.codigo,
                 "dominio_email": data.dominio_email,
@@ -110,5 +125,51 @@ class UniversidadService:
     async def get(self, id_: UUID) -> Universidad:
         return await self.repo.get_or_404(id_)
 
-    async def list(self, limit: int = 50, cursor: UUID | None = None) -> list[Universidad]:
+    async def list(
+        self, limit: int = 50, cursor: UUID | None = None, user: User | None = None
+    ) -> list[Universidad]:
+        """Lista universidades.
+
+        Por defecto la RLS filtra al tenant del caller. Pero superadmin necesita
+        ver TODAS las universidades (para el selector dinamico del web-admin),
+        asi que en ese caso desactivamos row_security localmente para la sesion.
+
+        Nota: en dev conectamos como `postgres` (superuser de Postgres) que puede
+        bypassear RLS. En produccion, `academic_user` no podra hacer esto y
+        habria que migrar a una policy RLS adicional `superadmin_can_view_all`.
+        """
+        if user is not None and "superadmin" in user.roles:
+            # Activa la policy `superadmin_view_all` para esta transaccion.
+            await self.session.execute(
+                text("SELECT set_config('app.user_roles', :r, true)"),
+                {"r": ",".join(user.roles)},
+            )
         return await self.repo.list(limit=limit, cursor=cursor)
+
+    async def list_mine(self, user: User, limit: int = 50) -> list[Universidad]:
+        """Lista universidades donde el caller tiene rol activo.
+
+        - Superadmin → TODAS (equivalente a `list()` con policy `superadmin_view_all`).
+        - Docente → universidades con `usuarios_comision.user_id = caller.id` activa.
+        - Estudiante → universidades con `inscripciones.student_pseudonym = caller.id`
+          y `inscripciones.estado = 'activa'`.
+
+        Reemplaza la policy laxa `authenticated_can_list`. La policy nueva
+        `user_can_view_own_unis` se apoya en la funcion SECURITY DEFINER
+        `universidades_for_user(uuid)` (migration 20260515_0002), que bypassa
+        RLS de las tablas intermedias pero filtra explicitamente por
+        `user_id` / `student_pseudonym`. Solo seteamos `app.current_user_id`
+        para que la policy fire.
+        """
+        if "superadmin" in user.roles:
+            return await self.list(limit=limit, user=user)
+
+        # Activa la policy `user_can_view_own_unis` para esta transaccion.
+        await self.session.execute(
+            text("SELECT set_config('app.current_user_id', :uid, true)"),
+            {"uid": str(user.id)},
+        )
+        # Limit alto + cursor None: queremos todas las unis del caller (suelen
+        # ser <10). La policy se encarga de filtrar; el repo solo aplica
+        # `deleted_at IS NULL`.
+        return await self.repo.list(limit=limit, cursor=None)

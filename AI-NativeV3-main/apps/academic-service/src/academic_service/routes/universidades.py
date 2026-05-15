@@ -43,10 +43,30 @@ async def list_universidades(
     db: AsyncSession = Depends(get_db),
 ) -> ListResponse[UniversidadOut]:
     svc = UniversidadService(db)
-    objs = await svc.list(limit=limit, cursor=cursor)
+    objs = await svc.list(limit=limit, cursor=cursor, user=user)
     items = [UniversidadOut.model_validate(o) for o in objs]
     next_cursor = str(objs[-1].id) if len(objs) == limit else None
     return ListResponse(data=items, meta=ListMeta(cursor_next=next_cursor))
+
+
+@router.get("/mine", response_model=ListResponse[UniversidadOut])
+async def list_mine_universidades(
+    limit: int = Query(50, ge=1, le=200),
+    user: User = Depends(require_permission("universidad", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ListResponse[UniversidadOut]:
+    """Lista universidades donde el caller tiene rol activo.
+
+    Reemplaza la policy laxa `authenticated_can_list` (cualquier user
+    autenticado podia listar TODAS las unis). Ahora:
+    - superadmin → TODAS (idem `GET /universidades`).
+    - docente → solo donde tiene `usuarios_comision` activa.
+    - estudiante → solo donde tiene `inscripciones` con `estado='activa'`.
+    """
+    svc = UniversidadService(db)
+    objs = await svc.list_mine(user=user, limit=limit)
+    items = [UniversidadOut.model_validate(o) for o in objs]
+    return ListResponse(data=items, meta=ListMeta(cursor_next=None))
 
 
 @router.get("/{universidad_id}", response_model=UniversidadOut)

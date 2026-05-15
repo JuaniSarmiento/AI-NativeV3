@@ -24,15 +24,8 @@ interface AggregatedStats {
   timeseries: { date: string; counts: Record<Appropriation, number> }[]
 }
 
-/** Headers dev con identidad mock. En F5 se reemplaza por JWT. */
-function devHeaders(): Record<string, string> {
-  return {
-    "X-User-Id": "10000000-0000-0000-0000-000000000001",
-    "X-Tenant-Id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-    "X-User-Email": "docente@uni-demo.edu",
-    "X-User-Roles": "docente_admin",
-  }
-}
+// Headers X-* los inyecta el proxy de Vite + el monkey-patch de `main.tsx`.
+// No mas mock-headers hardcoded acá.
 
 export function ClasificacionesPage(): ReactNode {
   const [comisionId, setComisionId] = useState<string | null>(null)
@@ -52,7 +45,6 @@ export function ClasificacionesPage(): ReactNode {
 
     fetch(
       `/api/v1/classifications/aggregated?comision_id=${comisionId}&period_days=${periodDays}`,
-      { headers: devHeaders() },
     )
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)

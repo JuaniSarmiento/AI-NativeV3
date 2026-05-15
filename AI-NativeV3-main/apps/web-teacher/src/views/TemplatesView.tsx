@@ -1,23 +1,21 @@
 /**
- * Vista de Plantillas de TP (ADR-016).
+ * Vista de Plantillas de TP (refactor 2026-05-12).
  *
- * Permite a la cátedra (docente) gestionar TP-templates canónicos por
- * (materia, periodo). Al crear un template, el backend fan-out-ea
- * instancias en TODAS las comisiones de esa materia+periodo (auto-seed).
- * Editar una instancia en su comision dispara `has_drift=true`; crear
- * una nueva version del template con `reinstance_non_drifted=true`
- * propaga el cambio a las comisiones sin drift.
+ * Permite a la cátedra gestionar BRIEFS pedagógicos por (materia, período).
+ * Un brief es una consigna corta de qué debe cubrir el TP — sirve como
+ * prompt para que el docente o el wizard de IA generen el TP real en
+ * cada comisión. NO hay fan-out automático.
  *
  * Workflow operativo:
  *  1. Seleccionar contexto academico (Univ -> ... -> Materia + Periodo)
- *  2. Lista de templates existentes; crear uno nuevo
- *  3. Publicar / archivar / nueva version
- *  4. Ver instancias (cuales estan drifted, cuales siguen al template)
+ *  2. Lista de plantillas; crear una nueva (código + título + consigna + peso)
+ *  3. Publicar / archivar / nueva versión
+ *  4. Exportar como prompt para usar en una IA externa o en el wizard interno
  *
  * Patron de estados de modal: `ModalState` discriminated union — mutex
  * estricto para evitar doble modal. Mismo patron que `TareasPracticasView`.
  */
-import { Badge, HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
+import { Badge, HelpButton, Modal, PageContainer } from "@platform/ui"
 import {
   Archive,
   Eye,
@@ -67,18 +65,6 @@ type ModalState =
   | { kind: "view"; template: TareaPracticaTemplate }
   | { kind: "instances"; template: TareaPracticaTemplate }
   | { kind: "new-version"; template: TareaPracticaTemplate }
-
-function isoToLocalInput(iso: string | null): string {
-  if (!iso) return ""
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function localInputToIso(local: string): string | null {
-  if (!local) return null
-  return new Date(local).toISOString()
-}
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso)
@@ -162,7 +148,7 @@ export function TemplatesView({ getToken }: Props) {
   return (
     <PageContainer
       title="Plantillas de Trabajos Prácticos"
-      description="Gestión de templates canónicos a nivel cátedra (materia + periodo). Las plantillas se instancian automáticamente en todas las comisiones de la misma materia y periodo."
+      description="Briefs pedagógicos a nivel cátedra (materia + período). Definen QUÉ debe cubrir el TP sin escribir el enunciado completo. Sirven como prompt para que el docente o el wizard de IA generen el TP en cada comisión."
       eyebrow="Inicio · Plantillas (cátedra)"
       helpContent={helpContent.templates}
     >
@@ -270,12 +256,8 @@ export function TemplatesView({ getToken }: Props) {
                 periodo_id: ctx.periodoId,
                 codigo: values.codigo,
                 titulo: values.titulo,
-                enunciado: values.enunciado,
+                consigna: values.consigna,
                 peso: values.peso,
-                fecha_inicio: values.fecha_inicio,
-                fecha_fin: values.fecha_fin,
-                rubrica: values.rubrica,
-                inicial_codigo: values.inicial_codigo,
               }
               await tareasPracticasTemplatesApi.create(body, getToken)
               closeModal()
@@ -295,12 +277,8 @@ export function TemplatesView({ getToken }: Props) {
             onSubmit={async (values) => {
               const patch: TareaPracticaTemplateUpdate = {
                 titulo: values.titulo,
-                enunciado: values.enunciado,
+                consigna: values.consigna,
                 peso: values.peso,
-                fecha_inicio: values.fecha_inicio,
-                fecha_fin: values.fecha_fin,
-                rubrica: values.rubrica,
-                inicial_codigo: values.inicial_codigo,
               }
               await tareasPracticasTemplatesApi.update(modal.template.id, patch, getToken)
               closeModal()
@@ -324,7 +302,7 @@ export function TemplatesView({ getToken }: Props) {
 
         {/* Modal: ver detalle plantilla */}
         {modal.kind === "view" && (
-          <TemplateViewModal template={modal.template} onClose={closeModal} />
+          <TemplateViewModal template={modal.template} getToken={getToken} onClose={closeModal} />
         )}
 
         {/* Modal: ver instancias */}
@@ -490,12 +468,8 @@ function TemplateCard({
 interface FormValues {
   codigo: string
   titulo: string
-  enunciado: string
-  fecha_inicio: string | null
-  fecha_fin: string | null
+  consigna: string
   peso: string
-  rubrica: Record<string, unknown> | null
-  inicial_codigo: string | null
 }
 
 function TemplateFormModal({
@@ -515,51 +489,21 @@ function TemplateFormModal({
 }) {
   const [codigo, setCodigo] = useState(initial?.codigo ?? "")
   const [titulo, setTitulo] = useState(initial?.titulo ?? "")
-  const [enunciado, setEnunciado] = useState(initial?.enunciado ?? "")
-  const [fechaInicio, setFechaInicio] = useState(isoToLocalInput(initial?.fecha_inicio ?? null))
-  const [fechaFin, setFechaFin] = useState(isoToLocalInput(initial?.fecha_fin ?? null))
+  const [consigna, setConsigna] = useState(initial?.consigna ?? "")
   const [peso, setPeso] = useState(initial?.peso ?? "1.0")
-  const [inicialCodigo, setInicialCodigo] = useState(initial?.inicial_codigo ?? "")
-  const [rubricaRaw, setRubricaRaw] = useState(
-    initial?.rubrica ? JSON.stringify(initial.rubrica, null, 2) : "",
-  )
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
-
-    if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-      setFormError("La fecha de fin debe ser posterior a la fecha de inicio.")
-      return
-    }
-
-    let rubrica: Record<string, unknown> | null = null
-    if (rubricaRaw.trim()) {
-      try {
-        const parsed = JSON.parse(rubricaRaw)
-        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-          throw new Error("La rubrica debe ser un objeto JSON (no array ni primitivo).")
-        }
-        rubrica = parsed as Record<string, unknown>
-      } catch (err) {
-        setFormError(`Rubrica invalida: ${String(err)}`)
-        return
-      }
-    }
-
     setSubmitting(true)
     try {
       await onSubmit({
         codigo: codigo.trim(),
         titulo: titulo.trim(),
-        enunciado,
-        fecha_inicio: localInputToIso(fechaInicio),
-        fecha_fin: localInputToIso(fechaFin),
+        consigna: consigna.trim(),
         peso: peso.trim(),
-        rubrica,
-        inicial_codigo: inicialCodigo.trim() || null,
       })
     } catch (err) {
       setFormError(String(err))
@@ -574,42 +518,35 @@ function TemplateFormModal({
         <div className="flex items-center gap-2 mb-2">
           <HelpButton
             size="sm"
-            title="Formulario de plantilla de TP"
+            title="Plantilla pedagógica (brief)"
             content={
               <div className="space-y-3 text-sidebar-text-muted">
                 <p>
-                  <strong>Completa los campos</strong> para crear o editar la plantilla. Las
-                  plantillas son fuente canónica a nivel cátedra: al guardarlas, el sistema crea
-                  automáticamente una instancia en cada comision de la materia y periodo elegidos.
+                  La plantilla es un <strong>brief pedagógico</strong>: una consigna corta de qué
+                  debe cubrir el TP. NO se copia automáticamente a las comisiones — sirve como
+                  prompt para que el docente o la IA generen los TPs en cada comisión.
                 </p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>
-                    <strong>Codigo:</strong> Identificador corto (ej. TP1, TP-RECURSION).
-                    Obligatorio. Inmutable una vez creada la plantilla.
+                    <strong>Código:</strong> Identificador corto (ej. TP1). Inmutable una vez
+                    creada.
                   </li>
                   <li>
-                    <strong>Titulo:</strong> Nombre descriptivo del TP. Obligatorio.
+                    <strong>Título:</strong> Nombre descriptivo del TP.
                   </li>
                   <li>
-                    <strong>Enunciado (markdown):</strong> Descripcion completa. Soporta markdown,
-                    listas, codigo. Obligatorio.
+                    <strong>Consigna:</strong> Directiva pedagógica — qué temas, qué profundidad,
+                    qué tipo de ejercicios debería contener el TP. Pensala como un PROMPT.
                   </li>
                   <li>
-                    <strong>Peso:</strong> Ponderacion entre 0 y 1.
-                  </li>
-                  <li>
-                    <strong>Fechas:</strong> Opcionales. Definen la ventana en que los estudiantes
-                    abren episodios. Se heredan a cada instancia.
-                  </li>
-                  <li>
-                    <strong>Codigo inicial:</strong> Codigo base que aparece en el editor del
-                    estudiante al abrir el TP. Opcional.
-                  </li>
-                  <li>
-                    <strong>Rubrica (JSON):</strong> Criterios de evaluacion como objeto JSON.
-                    Opcional.
+                    <strong>Peso:</strong> Ponderación entre 0 y 1.
                   </li>
                 </ul>
+                <p>
+                  Cuando la guardés, podés <strong>exportarla como prompt</strong> (botón en la
+                  vista) o <strong>usarla como entrada del wizard de IA</strong> para generar los
+                  ejercicios en cada comisión.
+                </p>
               </div>
             }
           />
@@ -618,7 +555,7 @@ function TemplateFormModal({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs font-medium text-muted mb-1">Codigo</span>
+            <span className="block text-xs font-medium text-muted mb-1">Código</span>
             <input
               type="text"
               value={codigo}
@@ -645,79 +582,32 @@ function TemplateFormModal({
         </div>
 
         <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">Titulo</span>
+          <span className="block text-xs font-medium text-muted mb-1">Título</span>
           <input
             type="text"
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             required
-            placeholder="Ej: Recursion y divide & conquer"
+            placeholder="Ej: Recursión y divide & conquer"
             className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
           />
         </label>
 
         <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">Enunciado (markdown)</span>
+          <span className="block text-xs font-medium text-muted mb-1">
+            Consigna pedagógica
+          </span>
           <textarea
-            value={enunciado}
-            onChange={(e) => setEnunciado(e.target.value)}
+            value={consigna}
+            onChange={(e) => setConsigna(e.target.value)}
             required
-            rows={12}
-            placeholder="Escribir en markdown..."
-            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
+            rows={10}
+            placeholder="Qué debe cubrir el TP: temas, profundidad, tipo de ejercicios, restricciones. Sirve como prompt para el docente o la IA."
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
           />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs font-medium text-muted mb-1">
-              Fecha de inicio (opcional)
-            </span>
-            <input
-              type="datetime-local"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs font-medium text-muted mb-1">
-              Fecha de fin (opcional)
-            </span>
-            <input
-              type="datetime-local"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
-            />
-          </label>
-        </div>
-
-        <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">
-            Codigo inicial (opcional)
-          </span>
-          <textarea
-            value={inicialCodigo}
-            onChange={(e) => setInicialCodigo(e.target.value)}
-            rows={4}
-            placeholder="Codigo base que ve el estudiante al abrir el TP"
-            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
-          />
-        </label>
-
-        <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">
-            Rubrica (JSON, opcional)
-          </span>
-          <textarea
-            value={rubricaRaw}
-            onChange={(e) => setRubricaRaw(e.target.value)}
-            rows={5}
-            placeholder='{"criterios": [...]}'
-            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
-          />
-          <p className="text-xs text-muted mt-1">Se valida que sea JSON valido antes de enviar.</p>
+          <p className="text-xs text-muted mt-1">
+            Pensala como un prompt: describí QUÉ tiene que enseñar el TP, no el enunciado completo.
+          </p>
         </label>
 
         {formError && (
@@ -759,9 +649,8 @@ function NewVersionModal({
   onClose: () => void
   onDone: () => Promise<void>
 }) {
-  const [reinstance, setReinstance] = useState(true)
   const [titulo, setTitulo] = useState(template.titulo)
-  const [enunciado, setEnunciado] = useState(template.enunciado)
+  const [consigna, setConsigna] = useState(template.consigna)
   const [peso, setPeso] = useState(template.peso)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -773,14 +662,7 @@ function NewVersionModal({
     try {
       await tareasPracticasTemplatesApi.newVersion(
         template.id,
-        {
-          patch: {
-            titulo,
-            enunciado,
-            peso,
-          },
-          reinstance_non_drifted: reinstance,
-        },
+        { patch: { titulo, consigna, peso } },
         getToken,
       )
       await onDone()
@@ -795,30 +677,29 @@ function NewVersionModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`Nueva version desde ${template.codigo} v${template.version}`}
+      title={`Nueva versión desde ${template.codigo} v${template.version}`}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <HelpButton
             size="sm"
-            title="Crear nueva version de plantilla"
+            title="Crear nueva versión de plantilla"
             content={
               <div className="space-y-3 text-sidebar-text-muted">
                 <p>
-                  Crea una nueva version del template (v+1) en estado borrador. Si marcas
-                  "Re-instanciar en comisiones sin drift", cada instancia que siga al template
-                  actual recibe tambien una nueva version. Las instancias con drift quedan apuntando
-                  al template viejo.
+                  Crea una nueva versión (v+1) en estado borrador. La versión anterior queda
+                  archivable y los TPs ya creados que referencian la versión vieja preservan su
+                  link — la trazabilidad histórica no se rompe.
                 </p>
               </div>
             }
           />
-          <span className="text-sm text-muted">Ayuda sobre nueva version</span>
+          <span className="text-sm text-muted">Ayuda sobre nueva versión</span>
         </div>
 
         <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">Titulo</span>
+          <span className="block text-xs font-medium text-muted mb-1">Título</span>
           <input
             type="text"
             value={titulo}
@@ -828,13 +709,13 @@ function NewVersionModal({
           />
         </label>
         <label className="block">
-          <span className="block text-xs font-medium text-muted mb-1">Enunciado (markdown)</span>
+          <span className="block text-xs font-medium text-muted mb-1">Consigna pedagógica</span>
           <textarea
-            value={enunciado}
-            onChange={(e) => setEnunciado(e.target.value)}
+            value={consigna}
+            onChange={(e) => setConsigna(e.target.value)}
             required
             rows={10}
-            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface font-mono"
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface"
           />
         </label>
         <label className="block">
@@ -849,21 +730,6 @@ function NewVersionModal({
             required
             className="w-full px-2 py-1.5 text-sm border border-border rounded bg-surface tabular-nums"
           />
-        </label>
-
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={reinstance}
-            onChange={(e) => setReinstance(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span className="text-body">
-            Re-instanciar en comisiones sin drift.{" "}
-            <span className="text-muted text-xs">
-              Las comisiones con `has_drift=true` no se tocan.
-            </span>
-          </span>
         </label>
 
         {err && <div className="p-2 rounded bg-danger-soft text-danger text-xs">{err}</div>}
@@ -882,7 +748,7 @@ function NewVersionModal({
             disabled={submitting}
             className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border-strong text-white rounded font-medium"
           >
-            {submitting ? "Creando..." : "Crear nueva version"}
+            {submitting ? "Creando..." : "Crear nueva versión"}
           </button>
         </div>
       </form>
@@ -894,11 +760,42 @@ function NewVersionModal({
 
 function TemplateViewModal({
   template,
+  getToken,
   onClose,
 }: {
   template: TareaPracticaTemplate
+  getToken: () => Promise<string | null>
   onClose: () => void
 }) {
+  const [promptText, setPromptText] = useState<string | null>(null)
+  const [loadingPrompt, setLoadingPrompt] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [promptErr, setPromptErr] = useState<string | null>(null)
+
+  const handleExportPrompt = async () => {
+    setLoadingPrompt(true)
+    setPromptErr(null)
+    try {
+      const r = await tareasPracticasTemplatesApi.exportPrompt(template.id, getToken)
+      setPromptText(r.prompt)
+    } catch (e) {
+      setPromptErr(String(e))
+    } finally {
+      setLoadingPrompt(false)
+    }
+  }
+
+  const handleCopy = async () => {
+    if (!promptText) return
+    try {
+      await navigator.clipboard.writeText(promptText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // navigator.clipboard requires HTTPS in prod — falla silenciosa en dev http.
+    }
+  }
+
   return (
     <Modal
       isOpen={true}
@@ -913,32 +810,48 @@ function TemplateViewModal({
             v{template.version}
             {template.parent_template_id && " · derivada"}
           </span>
+          <span className="text-xs text-muted">Peso: {template.peso}</span>
         </div>
 
         <div>
-          <div className="text-xs font-medium text-muted mb-1">Enunciado</div>
-          <div className="p-3 rounded bg-surface-alt max-h-96 overflow-y-auto">
-            <MarkdownRenderer content={template.enunciado} />
+          <div className="text-xs font-medium text-muted mb-1">Consigna pedagógica</div>
+          <div className="p-3 rounded bg-surface-alt max-h-96 overflow-y-auto whitespace-pre-wrap text-sm">
+            {template.consigna}
           </div>
         </div>
 
-        {template.inicial_codigo && (
-          <div>
-            <div className="text-xs font-medium text-muted mb-1">Codigo inicial</div>
-            <pre className="p-3 rounded bg-surface-alt text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {template.inicial_codigo}
-            </pre>
-          </div>
-        )}
-
-        {template.rubrica && (
-          <div>
-            <div className="text-xs font-medium text-muted mb-1">Rubrica</div>
-            <pre className="p-3 rounded bg-surface-alt text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {JSON.stringify(template.rubrica, null, 2)}
-            </pre>
-          </div>
-        )}
+        {/* Exportar como prompt */}
+        <div className="border-t border-border-soft pt-3">
+          {promptText === null ? (
+            <button
+              type="button"
+              onClick={handleExportPrompt}
+              disabled={loadingPrompt}
+              className="px-3 py-1.5 text-sm border border-accent-brand text-accent-brand hover:bg-accent-brand hover:text-white rounded disabled:opacity-40"
+            >
+              {loadingPrompt ? "Generando..." : "Exportar como prompt"}
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted">Prompt para IA</span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="px-2 py-1 text-xs border border-border rounded hover:bg-surface-alt"
+                >
+                  {copied ? "Copiado ✓" : "Copiar al portapapeles"}
+                </button>
+              </div>
+              <pre className="p-3 rounded bg-surface-alt text-xs whitespace-pre-wrap max-h-72 overflow-y-auto border border-border-soft">
+                {promptText}
+              </pre>
+            </div>
+          )}
+          {promptErr && (
+            <div className="mt-2 p-2 rounded bg-danger-soft text-danger text-xs">{promptErr}</div>
+          )}
+        </div>
 
         <div className="flex justify-end pt-2 border-t border-border-soft">
           <button
@@ -973,7 +886,7 @@ function InstancesModal({
     tareasPracticasTemplatesApi
       .instances(template.id, getToken)
       .then((r) => {
-        if (!cancelled) setInstances(r.instances)
+        if (!cancelled) setInstances(r)
       })
       .catch((e) => {
         if (!cancelled) setErr(String(e))
@@ -989,24 +902,18 @@ function InstancesModal({
         <div className="flex items-center gap-2 mb-2">
           <HelpButton
             size="sm"
-            title="Instancias del template en comisiones"
+            title="TPs derivados de esta plantilla"
             content={
               <div className="space-y-3 text-sidebar-text-muted">
                 <p>
-                  Lista las `TareaPractica` que este template creo en cada comision de la materia y
-                  periodo. Cada instancia mantiene su `problema_id` estable para el CTR.
+                  Lista los <strong>TPs creados manualmente</strong> que referencian esta plantilla
+                  via <code>template_id</code>. Es la trazabilidad: "qué TPs nacieron inspirados por
+                  este brief".
                 </p>
-                <ul className="list-disc pl-5 space-y-2">
-                  <li>
-                    <strong>Sin drift:</strong> La instancia sigue al template. Si se crea una nueva
-                    version con `reinstance_non_drifted=true`, la instancia recibe la nueva version
-                    automáticamente.
-                  </li>
-                  <li>
-                    <strong>Drift:</strong> El docente de la comision edito la instancia. El link al
-                    template se preserva pero la auto-actualizacion se desactiva.
-                  </li>
-                </ul>
+                <p>
+                  Como ya no hay fan-out automático, esta lista arranca vacía y se llena a medida
+                  que los docentes crean TPs eligiendo esta plantilla como prompt.
+                </p>
               </div>
             }
           />
@@ -1018,8 +925,8 @@ function InstancesModal({
           <div className="p-6 text-center text-muted text-sm">Cargando instancias...</div>
         ) : instances.length === 0 ? (
           <div className="p-6 text-center text-muted text-sm">
-            Sin instancias registradas. Puede pasar si no hay comisiones creadas en esta materia y
-            periodo todavia, o si el template fallo al fan-out-ear.
+            Sin TPs derivados. Cuando un docente cree un TP en su comisión usando esta plantilla
+            como guía, aparecerá acá.
           </div>
         ) : (
           <div className="rounded border border-border-soft overflow-hidden">

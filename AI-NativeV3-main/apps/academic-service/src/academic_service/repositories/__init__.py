@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from academic_service.models import (
     Carrera,
     Comision,
+    Ejercicio,
     Facultad,
     Inscripcion,
     Materia,
@@ -18,6 +19,7 @@ from academic_service.models import (
     PlanEstudios,
     TareaPractica,
     TareaPracticaTemplate,
+    TpEjercicio,
     Unidad,
     Universidad,
     UsuarioComision,
@@ -70,6 +72,70 @@ class UnidadRepository(BaseRepository[Unidad]):
     model = Unidad
 
 
+class EjercicioRepository(BaseRepository[Ejercicio]):
+    """CRUD del banco de ejercicios reusables (ADR-047)."""
+
+    model = Ejercicio
+
+
+class TpEjercicioRepository:
+    """Asociaciones N:M entre TareaPractica y Ejercicio (ADR-047).
+
+    No hereda de BaseRepository porque la tabla NO tiene `deleted_at`
+    (soft-delete no aplica — la asociación se borra hard cuando el
+    docente saca el ejercicio de una TP, y CASCADE-deletea con la TP).
+    """
+
+    model = TpEjercicio
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def list_by_tp(self, tarea_practica_id: UUID) -> list[TpEjercicio]:
+        stmt = (
+            select(TpEjercicio)
+            .where(TpEjercicio.tarea_practica_id == tarea_practica_id)
+            .order_by(TpEjercicio.orden)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_pair(
+        self, tarea_practica_id: UUID, ejercicio_id: UUID
+    ) -> TpEjercicio | None:
+        stmt = select(TpEjercicio).where(
+            TpEjercicio.tarea_practica_id == tarea_practica_id,
+            TpEjercicio.ejercicio_id == ejercicio_id,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create(
+        self,
+        tenant_id: UUID,
+        tarea_practica_id: UUID,
+        ejercicio_id: UUID,
+        orden: int,
+        peso_en_tp: Any,
+    ) -> TpEjercicio:
+        obj = TpEjercicio(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            tarea_practica_id=tarea_practica_id,
+            ejercicio_id=ejercicio_id,
+            orden=orden,
+            peso_en_tp=peso_en_tp,
+        )
+        self.session.add(obj)
+        await self.session.flush()
+        await self.session.refresh(obj)
+        return obj
+
+    async def delete(self, obj: TpEjercicio) -> None:
+        await self.session.delete(obj)
+        await self.session.flush()
+
+
 class TareaPracticaTemplateRepository:
     """Repositorio de plantillas canónicas de TP (ADR-016).
 
@@ -96,12 +162,8 @@ class TareaPracticaTemplateRepository:
             "periodo_id": data["periodo_id"],
             "codigo": data["codigo"],
             "titulo": data["titulo"],
-            "enunciado": data["enunciado"],
-            "inicial_codigo": data.get("inicial_codigo"),
-            "rubrica": data.get("rubrica"),
+            "consigna": data["consigna"],
             "peso": data["peso"],
-            "fecha_inicio": data.get("fecha_inicio"),
-            "fecha_fin": data.get("fecha_fin"),
             "estado": data.get("estado", "draft"),
             "version": data.get("version", 1),
             "parent_template_id": data.get("parent_template_id"),

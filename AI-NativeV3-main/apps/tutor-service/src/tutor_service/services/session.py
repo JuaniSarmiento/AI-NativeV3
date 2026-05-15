@@ -48,7 +48,13 @@ class SessionState:
     # lo invocan `open_episode` y `next_seq`). Sirve al worker de abandono
     # para detectar sesiones inactivas y emitir EpisodioAbandonado(reason=timeout).
     last_activity_at: float = field(default_factory=time.time)
-    # tp-entregas-correccion: orden del ejercicio dentro de la TP (None = monolítica).
+    # ADR-047: UUID del Ejercicio reusable del banco standalone (None = TP
+    # monolítica sin ejercicio asociado). Es la identidad permanente del
+    # ejercicio que el estudiante está resolviendo.
+    ejercicio_id: UUID | None = None
+    # Orden del ejercicio dentro de la TP (denormalizado desde tp_ejercicios).
+    # Necesario para validación de secuencialidad y para el payload del CTR
+    # hasta que ADR-049 sume `ejercicio_id` al payload (Batch 6).
     ejercicio_orden: int | None = None
     # tutor-context-rag-rubrica: rubrica formateada para inyectar al LLM. Se
     # resuelve al abrir el episodio y se cachea aqui (best-effort; None = no
@@ -69,6 +75,7 @@ class SessionManager:
             return None
         data = json.loads(raw)
         materia_raw = data.get("materia_id")
+        ejercicio_raw = data.get("ejercicio_id")
         return SessionState(
             episode_id=UUID(data["episode_id"]),
             tenant_id=UUID(data["tenant_id"]),
@@ -88,6 +95,9 @@ class SessionManager:
             # — fallback a time.time() para que sesiones legacy NO disparen
             # abandono inmediato en el primer pase del worker.
             last_activity_at=data.get("last_activity_at", time.time()),
+            # ADR-047: sesiones legacy no tienen ejercicio_id.
+            ejercicio_id=UUID(ejercicio_raw) if ejercicio_raw else None,
+            ejercicio_orden=data.get("ejercicio_orden"),
             # tutor-context-rag-rubrica: sesiones legacy no tienen rubrica_context.
             rubrica_context=data.get("rubrica_context"),
         )
@@ -112,6 +122,8 @@ class SessionManager:
             "model": state.model,
             "materia_id": str(state.materia_id) if state.materia_id else None,
             "last_activity_at": state.last_activity_at,
+            "ejercicio_id": str(state.ejercicio_id) if state.ejercicio_id else None,
+            "ejercicio_orden": state.ejercicio_orden,
             "rubrica_context": state.rubrica_context,
         }
         await self.redis.setex(self._key(state.episode_id), SESSION_TTL, json.dumps(data))

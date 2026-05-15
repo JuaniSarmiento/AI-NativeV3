@@ -45,14 +45,11 @@ async function request<T>(
   if (getToken) {
     const token = await getToken()
     if (token) headers.set("Authorization", `Bearer ${token}`)
-  } else {
-    // Modo dev: inyectar headers X-* del admin de prueba.
-    // Deben coincidir con los que inyecta el proxy de Vite (vite.config.ts).
-    headers.set("X-User-Id", "33333333-3333-3333-3333-333333333333")
-    headers.set("X-Tenant-Id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-    headers.set("X-User-Email", "admin@demo-uni.edu")
-    headers.set("X-User-Roles", "docente_admin,superadmin")
   }
+  // En dev, los headers X-User-Id / X-Tenant-Id / X-User-Email / X-User-Roles
+  // los inyecta el proxy de Vite (`vite.config.ts`). El tenant se resuelve
+  // dinamicamente desde el `x-selected-tenant` que el monkey-patch de
+  // `main.tsx` agrega leyendo `localStorage.selectedTenantId`.
 
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers })
 
@@ -532,13 +529,8 @@ async function multipartUpload<T>(
   if (getToken) {
     const token = await getToken()
     if (token) headers.set("Authorization", `Bearer ${token}`)
-  } else {
-    // Modo dev: idénticos headers X-* que `request()`.
-    headers.set("X-User-Id", "33333333-3333-3333-3333-333333333333")
-    headers.set("X-Tenant-Id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-    headers.set("X-User-Email", "admin@demo-uni.edu")
-    headers.set("X-User-Roles", "docente_admin,superadmin")
   }
+  // En dev, headers X-* los inyecta el proxy de Vite (ver request() arriba).
 
   const body = new FormData()
   body.append("file", file)

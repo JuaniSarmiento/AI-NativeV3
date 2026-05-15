@@ -26,11 +26,14 @@ import { ExerciseListView } from "../components/ExerciseListView"
 import { GradeDetailView } from "../components/GradeDetailView"
 import { OpeningStage } from "../components/OpeningStage"
 import { TareaSelector } from "../components/TareaSelector"
+import { UnidadSelector } from "../components/UnidadSelector"
 import {
   type AvailableTarea,
   type Entrega,
   type MateriaInscripta,
+  fetchConfigHashes,
   getTareaById,
+  listEjerciciosTp,
   listMisMaterias,
   openEpisode,
 } from "../lib/api"
@@ -42,6 +45,7 @@ export interface ActiveExerciseContext {
   materia_id: string
   tarea_id: string
   entrega_id: string
+  ejercicio_id: string
   ejercicio_orden: number
 }
 
@@ -56,16 +60,23 @@ export const Route = createFileRoute("/materia/$id")({
 
 /** Estado de la navegacion dentro de la pagina de materia. */
 type MateriaPageView =
-  | { kind: "selector" }
+  | { kind: "unidades" }
+  | { kind: "selector"; unidadId: string | null | undefined }
   | { kind: "exercise-list"; tarea: AvailableTarea }
   | { kind: "grade-detail"; tarea: AvailableTarea; entrega: Entrega }
-  | { kind: "opening"; tarea: AvailableTarea; ejercicioOrden: number | null; error: string | null }
+  | {
+      kind: "opening"
+      tarea: AvailableTarea
+      ejercicioId: string | null
+      ejercicioOrden: number | null
+      error: string | null
+    }
 
 function MateriaPage() {
   const { id } = useParams({ from: "/materia/$id" })
   const { returnToExercise } = Route.useSearch()
   const navigate = useNavigate()
-  const [view, setView] = useState<MateriaPageView>({ kind: "selector" })
+  const [view, setView] = useState<MateriaPageView>({ kind: "unidades" })
 
   const { data: materias, isLoading, error } = useQuery({
     queryKey: ["mis-materias"],
@@ -125,26 +136,43 @@ function MateriaPage() {
    */
   async function openEpisodeAndNavigate(
     tarea: AvailableTarea,
-    ejercicioOrden: number | null,
+    ejercicio: { id: string; orden: number } | null,
     entregaId?: string,
   ) {
-    setView({ kind: "opening", tarea, ejercicioOrden, error: null })
+    setView({
+      kind: "opening",
+      tarea,
+      ejercicioId: ejercicio?.id ?? null,
+      ejercicioOrden: ejercicio?.orden ?? null,
+      error: null,
+    })
     try {
+      // Bootstrap F9: resolver hashes vigentes desde el backend. Si falla,
+      // caemos al fallback hardcoded del piloto para no bloquear apertura.
+      let cursoHash = "c".repeat(64)
+      let classifierHash = "d".repeat(64)
+      try {
+        const hashes = await fetchConfigHashes(materia!.comision_id)
+        cursoHash = hashes.curso_config_hash
+        classifierHash = hashes.classifier_config_hash
+      } catch (e) {
+        console.warn("fetchConfigHashes fallo, usando fallback hardcoded:", e)
+      }
       const res = await openEpisode({
         comision_id: materia!.comision_id,
         problema_id: tarea.id,
-        // Hashes hardcoded del piloto. F9 real los provee el bootstrap.
-        curso_config_hash: "c".repeat(64),
-        classifier_config_hash: "d".repeat(64),
-        ...(ejercicioOrden != null ? { ejercicio_orden: ejercicioOrden } : {}),
+        curso_config_hash: cursoHash,
+        classifier_config_hash: classifierHash,
+        ...(ejercicio != null ? { ejercicio_id: ejercicio.id } : {}),
       })
       // Persistir contexto si es un ejercicio de TP multi-ejercicio
-      if (ejercicioOrden != null && entregaId) {
+      if (ejercicio != null && entregaId) {
         const ctx: ActiveExerciseContext = {
           materia_id: id,
           tarea_id: tarea.id,
           entrega_id: entregaId,
-          ejercicio_orden: ejercicioOrden,
+          ejercicio_id: ejercicio.id,
+          ejercicio_orden: ejercicio.orden,
         }
         window.sessionStorage.setItem(ACTIVE_EXERCISE_CONTEXT_KEY, JSON.stringify(ctx))
       }
@@ -153,7 +181,8 @@ function MateriaPage() {
       setView({
         kind: "opening",
         tarea,
-        ejercicioOrden,
+        ejercicioId: ejercicio?.id ?? null,
+        ejercicioOrden: ejercicio?.orden ?? null,
         error: `Error abriendo episodio: ${e}`,
       })
     }
@@ -161,15 +190,24 @@ function MateriaPage() {
 
   /**
    * Callback del TareaSelector.
-   * - TP monolitica (sin ejercicios): abre episodio directamente.
-   * - TP multi-ejercicio: muestra ExerciseListView.
+   * - TP sin ejercicios asociados (tabla intermedia vacía): abre episodio monolítico.
+   * - TP con ejercicios: muestra ExerciseListView.
+   *
+   * El check ahora es un roundtrip a `/tareas-practicas/{id}/ejercicios` porque
+   * `AvailableTarea` ya no trae el array embebido (ADR-047 — los ejercicios
+   * viven en la tabla intermedia tp_ejercicios).
    */
-  function handleSelectTarea(tarea: AvailableTarea) {
-    const esMultiEjercicio = (tarea.ejercicios ?? []).length > 0
-    if (esMultiEjercicio) {
-      setView({ kind: "exercise-list", tarea })
-    } else {
-      void openEpisodeAndNavigate(tarea, null)
+  async function handleSelectTarea(tarea: AvailableTarea) {
+    try {
+      const pairs = await listEjerciciosTp(tarea.id)
+      if (pairs.length > 0) {
+        setView({ kind: "exercise-list", tarea })
+      } else {
+        await openEpisodeAndNavigate(tarea, null)
+      }
+    } catch {
+      // Fallback: si falla el check, intentar abrir como monolítica.
+      await openEpisodeAndNavigate(tarea, null)
     }
   }
 
@@ -185,10 +223,25 @@ function MateriaPage() {
         </div>
       )}
 
+      {currentView.kind === "unidades" && (
+        <div className="flex-1 overflow-y-auto px-6 py-8">
+          <div className="max-w-3xl mx-auto">
+            <UnidadSelector
+              comisionId={materia.comision_id}
+              onSelect={(unidadId) =>
+                setView({ kind: "selector", unidadId: unidadId ?? null })
+              }
+            />
+          </div>
+        </div>
+      )}
+
       {currentView.kind === "selector" && (
         <TareaSelector
           comisionId={materia.comision_id}
           onSelect={handleSelectTarea}
+          unidadId={currentView.unidadId}
+          onBack={() => setView({ kind: "unidades" })}
         />
       )}
 
@@ -196,13 +249,13 @@ function MateriaPage() {
         <ExerciseListView
           tarea={currentView.tarea}
           comisionId={materia.comision_id}
-          onSelectEjercicio={(tarea, ejercicioOrden, entregaId) => {
-            void openEpisodeAndNavigate(tarea, ejercicioOrden, entregaId)
+          onSelectEjercicio={(tarea, ejercicio, entregaId) => {
+            void openEpisodeAndNavigate(tarea, ejercicio, entregaId)
           }}
           onViewGrade={(entrega) =>
             setView({ kind: "grade-detail", tarea: currentView.tarea, entrega })
           }
-          onBack={() => setView({ kind: "selector" })}
+          onBack={() => setView({ kind: "unidades" })}
         />
       )}
 
@@ -223,18 +276,19 @@ function MateriaPage() {
             // El error ya esta visible en el banner rojo de arriba.
           }}
           onRetry={() => {
-            void openEpisodeAndNavigate(
-              currentView.tarea,
-              currentView.ejercicioOrden,
-            )
+            const ej =
+              currentView.ejercicioId && currentView.ejercicioOrden != null
+                ? { id: currentView.ejercicioId, orden: currentView.ejercicioOrden }
+                : null
+            void openEpisodeAndNavigate(currentView.tarea, ej)
           }}
           onCancel={() => {
             // Si veniamos de un ejercicio dentro de TP multi, volvemos a
             // la lista de ejercicios; si no, al selector general.
-            if (currentView.ejercicioOrden != null) {
+            if (currentView.ejercicioId != null) {
               setView({ kind: "exercise-list", tarea: currentView.tarea })
             } else {
-              setView({ kind: "selector" })
+              setView({ kind: "unidades" })
             }
           }}
         />

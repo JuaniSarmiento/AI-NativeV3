@@ -491,6 +491,52 @@ export const helpContent: HelpContentMap = {
     </div>
   ),
 
+  ejercicios: (
+    <div className="space-y-4 text-sidebar-text-muted">
+      <p className="text-lg font-medium text-[var(--text-inverse)]">Banco de Ejercicios</p>
+      <p>
+        Biblioteca reusable del tenant. Cada ejercicio es una entidad de primera clase con UUID
+        propio y schema pedagogico completo PID-UTN. Puede aparecer en N Trabajos Practicos
+        distintos sin duplicacion.
+      </p>
+      <ul className="list-disc list-inside space-y-2 ml-4">
+        <li>
+          <strong>Crear con IA:</strong> describis el ejercicio en lenguaje natural, eligis unidad
+          y dificultad, y el wizard genera un borrador completo con enunciado, tests, rubrica,
+          banco socratico N1-N4, misconceptions, anti-patrones y heuristica de cierre. Revisas,
+          editas y guardas.
+        </li>
+        <li>
+          <strong>Crear manual:</strong> form completo con secciones colapsables (datos basicos,
+          tests, rubrica, pedagogia). Los campos pedagogicos avanzados se editan como JSON
+          tipado.
+        </li>
+        <li>
+          <strong>Filtros:</strong> por unidad tematica (secuenciales, condicionales, repetitivas,
+          mixtos), dificultad (basica, intermedia, avanzada) y origen (IA o manual).
+        </li>
+        <li>
+          <strong>Editar:</strong> el ejercicio se actualiza globalmente. Cuidado: si el ejercicio
+          esta referenciado por TPs publicadas, las ediciones se propagan retroactivamente
+          (deuda diferida ADR-047).
+        </li>
+        <li>
+          <strong>Eliminar:</strong> soft delete. Los TPs que lo referencian siguen apuntando a
+          esta version (el ejercicio sobrevive en DB con `deleted_at`).
+        </li>
+      </ul>
+      <div className="bg-sidebar-bg-edge p-4 rounded-lg mt-4">
+        <p className="text-accent-brand font-medium">Diferencia con TPs:</p>
+        <p className="text-sm mt-1">
+          El ejercicio es el ESTIMULO pedagogico (enunciado + tests + reglas socraticas). El TP es
+          una COMPOSICION de ejercicios para una comision (orden + peso + fechas). Un mismo
+          ejercicio puede aparecer en TPs de comisiones distintas — la trazabilidad cognitiva por
+          ejercicio (ADR-049) lo aprovecha en el analisis longitudinal.
+        </p>
+      </div>
+    </div>
+  ),
+
   unidades: (
     <div className="space-y-4 text-sidebar-text-muted">
       <p className="text-lg font-medium text-[var(--text-inverse)]">Unidades de Trazabilidad</p>

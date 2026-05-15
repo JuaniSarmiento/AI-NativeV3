@@ -614,9 +614,9 @@ async def seed_academic(academic_url: str) -> dict[UUID, list[UUID]]:
                     text(
                         "INSERT INTO tareas_practicas_templates ("
                         "id, tenant_id, materia_id, periodo_id, codigo, titulo, "
-                        "enunciado, peso, estado, version, created_by"
+                        "consigna, peso, estado, version, created_by"
                         ") VALUES ("
-                        ":id, :t, :m, :p, :codigo, :titulo, :enunciado, :peso, "
+                        ":id, :t, :m, :p, :codigo, :titulo, :consigna, :peso, "
                         "'published', 1, :cb"
                         ")"
                     ),
@@ -627,7 +627,7 @@ async def seed_academic(academic_url: str) -> dict[UUID, list[UUID]]:
                         "p": str(PERIODO_ID),
                         "codigo": tpl["codigo"],
                         "titulo": tpl["titulo"],
-                        "enunciado": tpl["enunciado"],
+                        "consigna": tpl["enunciado"],
                         "peso": tpl["peso"],
                         "cb": str(DOCENTE_USER_ID),
                     },

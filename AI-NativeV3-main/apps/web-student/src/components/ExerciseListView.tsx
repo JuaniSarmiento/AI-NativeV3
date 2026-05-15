@@ -19,14 +19,20 @@ import {
   type AvailableTarea,
   type Entrega,
   type EntregaEstado,
+  type TpEjercicio,
   entregasApi,
+  listEjerciciosTp,
 } from "../lib/api"
 
 export interface ExerciseListViewProps {
   tarea: AvailableTarea
   comisionId: string
   /** entregaId se pasa para que el caller pueda persistir el contexto de ejercicio. */
-  onSelectEjercicio: (tarea: AvailableTarea, ejercicioOrden: number, entregaId: string) => void
+  onSelectEjercicio: (
+    tarea: AvailableTarea,
+    ejercicio: { id: string; orden: number },
+    entregaId: string,
+  ) => void
   onViewGrade: (entrega: Entrega) => void
   onBack: () => void
 }
@@ -65,20 +71,28 @@ export function ExerciseListView({
   onBack,
 }: ExerciseListViewProps) {
   const [entrega, setEntrega] = useState<Entrega | null>(null)
+  const [pairs, setPairs] = useState<TpEjercicio[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Crear/recuperar entrega al montar
+  // ADR-047: cargar entrega + composicion de ejercicios (tabla intermedia)
+  // en paralelo. tarea.ejercicios ya no viene embebido — lo resolvemos via
+  // GET /tareas-practicas/{id}/ejercicios.
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    entregasApi
-      .createOrGet({ tarea_practica_id: tarea.id, comision_id: comisionId })
-      .then((e) => {
-        if (!cancelled) setEntrega(e)
+    Promise.all([
+      entregasApi.createOrGet({ tarea_practica_id: tarea.id, comision_id: comisionId }),
+      listEjerciciosTp(tarea.id),
+    ])
+      .then(([e, p]) => {
+        if (!cancelled) {
+          setEntrega(e)
+          setPairs(p)
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(String(e))
@@ -109,7 +123,15 @@ export function ExerciseListView({
     }
   }
 
-  const ejercicios = tarea.ejercicios ?? []
+  // Vista normalizada: orden + titulo + peso(decimal) + ejercicio_id permanente.
+  const ejercicios = [...pairs]
+    .sort((a, b) => a.orden - b.orden)
+    .map((p) => ({
+      ejercicio_id: p.ejercicio_id,
+      orden: p.orden,
+      titulo: p.ejercicio.titulo,
+      peso: Number.parseFloat(p.peso_en_tp),
+    }))
   const ejercicioEstados = entrega?.ejercicio_estados ?? []
   const completados = ejercicioEstados.filter((e) => e.completado).length
   const totalEjercicios = ejercicios.length
@@ -312,7 +334,13 @@ export function ExerciseListView({
                   {canStart && (
                     <button
                       type="button"
-                      onClick={() => onSelectEjercicio(tarea, ejercicio.orden, entrega!.id)}
+                      onClick={() =>
+                        onSelectEjercicio(
+                          tarea,
+                          { id: ejercicio.ejercicio_id, orden: ejercicio.orden },
+                          entrega!.id,
+                        )
+                      }
                       data-testid={`ejercicio-start-${ejercicio.orden}`}
                       className="shrink-0 px-3 py-1.5 rounded text-xs font-medium text-white"
                       style={{ backgroundColor: "var(--color-accent-brand)" }}

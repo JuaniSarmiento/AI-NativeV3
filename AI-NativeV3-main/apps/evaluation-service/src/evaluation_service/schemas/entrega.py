@@ -11,8 +11,19 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class EjercicioEstadoSchema(BaseModel):
-    """Estado de un ejercicio dentro de una Entrega."""
+    """Estado de un ejercicio dentro de una Entrega.
 
+    ADR-047: `ejercicio_id` es la identidad permanente del Ejercicio
+    reusable del banco standalone. `orden` es la posición denormalizada
+    al momento de la entrega (snapshot inmutable). Si el ejercicio
+    cambia de orden en una nueva versión de TP, este estado sigue
+    apuntando al ejercicio correcto por UUID.
+
+    Entregas legacy creadas antes del refactor pueden tener `ejercicio_id=None`
+    — el match cae al `orden` como fallback.
+    """
+
+    ejercicio_id: UUID | None = None
     orden: int
     episode_id: UUID | None = None
     completado: bool = False
@@ -55,8 +66,17 @@ class CriterioCalificacion(BaseModel):
 
 
 class MarkEjercicioBody(BaseModel):
+    """Body del PATCH /entregas/{id}/ejercicio/{orden} (ADR-047).
+
+    `ejercicio_id` es opcional para compat con frontends pre-refactor —
+    si viene, se persiste en el dict de `ejercicio_estados` y el match
+    al ejercicio existente lo prefiere por sobre el `orden` (más robusto
+    ante reordenamientos de TP).
+    """
+
     completado: bool = True
     episode_id: UUID | None = None
+    ejercicio_id: UUID | None = None
 
 
 class CalificacionCreate(BaseModel):

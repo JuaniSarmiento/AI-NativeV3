@@ -36,12 +36,21 @@ export default defineConfig({
         target: process.env.VITE_API_URL || "http://127.0.0.1:8000",
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
             // Dev-only: el api-gateway no tiene JWT validator (Keycloak
             // sin realm). Inyectamos X-* para que dev_trust_headers acepte.
             proxyReq.removeHeader("authorization")
             proxyReq.setHeader("x-user-id", "33333333-3333-3333-3333-333333333333")
-            proxyReq.setHeader("x-tenant-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+            // Tenant dinámico: si el cliente manda `x-selected-tenant`
+            // (escrito por el selector de universidad del admin), usamos eso.
+            // Fallback al tenant UTN cuando no hay selección (primer arranque
+            // o usuario fuera del selector).
+            const clientTenant = req.headers["x-selected-tenant"]
+            const tenantId =
+              typeof clientTenant === "string" && clientTenant.length === 36
+                ? clientTenant
+                : "7a7a143c-31f8-461b-be08-d86ac36b41a3"
+            proxyReq.setHeader("x-tenant-id", tenantId)
             proxyReq.setHeader("x-user-email", "admin@demo-uni.edu")
             proxyReq.setHeader("x-user-roles", "docente_admin,superadmin")
           })

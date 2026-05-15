@@ -28,3 +28,4 @@ active:
     classifier: v1.0.0
     reflection: v1.0.0
     tp_generator: v1.0.0
+    ejercicio_generator: v1.0.0

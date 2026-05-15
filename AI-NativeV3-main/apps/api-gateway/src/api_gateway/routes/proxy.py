@@ -36,6 +36,7 @@ ROUTE_MAP: dict[str, str] = {
     "/api/v1/comisiones": settings.academic_service_url,
     "/api/v1/periodos": settings.academic_service_url,
     "/api/v1/tareas-practicas": settings.academic_service_url,
+    "/api/v1/ejercicios": settings.academic_service_url,
     "/api/v1/unidades": settings.academic_service_url,
     "/api/v1/bulk": settings.academic_service_url,
     # /api/v1/imports REMOVED — ADR-030 deprecation. Usar /api/v1/bulk/inscripciones
@@ -45,6 +46,10 @@ ROUTE_MAP: dict[str, str] = {
     "/api/v1/episodes": settings.tutor_service_url,
     "/api/v1/classify_episode": settings.classifier_service_url,
     "/api/v1/classifications": settings.classifier_service_url,
+    # Bootstrap F9: el web-student consulta /api/v1/classifier/config-hash
+    # (metadata pública sin auth) para resolver el classifier_config_hash
+    # vigente antes de abrir un episodio.
+    "/api/v1/classifier": settings.classifier_service_url,
     "/api/v1/analytics": settings.analytics_service_url,
     # ADR-031 (D.4): alias publicos del CTR (verify cadena criptografica +
     # read del episodio para auditoria docente). Bajo prefix /api/v1/audit

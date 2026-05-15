@@ -109,11 +109,13 @@ class TutorCore:
         curso_config_hash: str,
         classifier_config_hash: str,
         model: str | None = None,
-        ejercicio_orden: int | None = None,
+        ejercicio_id: UUID | None = None,
     ) -> UUID:
         """Crea un nuevo episodio y emite EpisodioAbierto al CTR.
 
         Args:
+            ejercicio_id: UUID del Ejercicio reusable del banco (ADR-047).
+              None = TP monolítica sin ejercicio específico.
             model: override del modelo para este episodio (F6 feature flags).
               Si None, usa self.default_model.
 
@@ -128,9 +130,45 @@ class TutorCore:
                 comision_id=comision_id,
             )
 
-        # 0b. tp-entregas-correccion (Task 6.3): validar secuencialidad de ejercicios.
-        # Si se pide abrir ejercicio N>1, validar que el ejercicio N-1 esté completado.
-        # Falla soft: si el evaluation-service no responde, se permite abrir el episodio.
+        # 0b. ADR-047: resolver el Ejercicio standalone por UUID + su `orden`
+        # denormalizado dentro de la TP via `tp_ejercicios`. Necesitamos el
+        # `orden` para validación de secuencialidad y para el payload del CTR
+        # (hasta que ADR-049/Batch 6 sume `ejercicio_id` al payload).
+        ejercicio_data: dict | None = None
+        ejercicio_orden: int | None = None
+        if ejercicio_id is not None and self.academic is not None:
+            try:
+                ejercicio_data = await self.academic.get_ejercicio_by_id(
+                    ejercicio_id=ejercicio_id,
+                    tenant_id=tenant_id,
+                    caller_id=TUTOR_SERVICE_USER_ID,
+                )
+            except Exception:
+                logger.warning(
+                    "get_ejercicio_by_id failed for ejercicio=%s; continuing without "
+                    "pedagogical context",
+                    ejercicio_id,
+                    exc_info=True,
+                )
+            try:
+                ejercicio_orden = await self.academic.resolve_ejercicio_orden_in_tp(
+                    tarea_id=problema_id,
+                    ejercicio_id=ejercicio_id,
+                    tenant_id=tenant_id,
+                    caller_id=TUTOR_SERVICE_USER_ID,
+                )
+            except Exception:
+                logger.warning(
+                    "resolve_ejercicio_orden_in_tp failed for tarea=%s ejercicio=%s",
+                    problema_id,
+                    ejercicio_id,
+                    exc_info=True,
+                )
+
+        # 0c. tp-entregas-correccion (Task 6.3): validar secuencialidad.
+        # Si el ejercicio resuelto tiene orden N>1, el ejercicio N-1 debe
+        # estar completado. Falla soft: si el evaluation-service no responde,
+        # se permite abrir el episodio.
         if ejercicio_orden is not None and ejercicio_orden > 1:
             await self._validate_ejercicio_secuencialidad(
                 problema_id=problema_id,
@@ -169,78 +207,27 @@ class TutorCore:
                     exc_info=True,
                 )
 
-        # tutor-context-rag-rubrica: resolver rubrica de la TP (o del ejercicio
-        # especifico) y cachearla en SessionState. Best-effort: si falla, el
-        # episodio se abre sin contexto de rubrica (no bloquea).
+        # 3. ADR-048: construir el contexto pedagógico del ejercicio para
+        # inyectar al system message del LLM. El bloque agrega: enunciado +
+        # código inicial + reglas del tutor + rúbrica + banco socrático N1-N4
+        # + misconceptions + respuesta-pista + heurística de cierre + anti-
+        # patrones. Si no hay ejercicio_data, system_messages queda con solo
+        # el prompt base del governance-service.
+        system_messages: list[dict[str, str]] = [
+            {"role": "system", "content": prompt.content}
+        ]
         rubrica_context: str | None = None
-        if self.academic is not None:
-            try:
-                tp_full = await self.academic.get_tarea_practica_full(
-                    tarea_id=problema_id,
-                    tenant_id=tenant_id,
-                    caller_id=TUTOR_SERVICE_USER_ID,
-                )
-                if tp_full is not None:
-                    if ejercicio_orden is not None:
-                        # Buscar la rubrica del ejercicio especifico dentro del array
-                        ejercicios_raw = tp_full.get("ejercicios") or []
-                        ejercicio_data: dict | None = None
-                        for ej in ejercicios_raw:
-                            if isinstance(ej, dict) and ej.get("orden") == ejercicio_orden:
-                                ejercicio_data = ej
-                                break
-                        if ejercicio_data is not None:
-                            rubrica_raw = ejercicio_data.get("rubrica") or tp_full.get("rubrica")
-                            ejercicio_titulo = ejercicio_data.get("titulo")
-                        else:
-                            rubrica_raw = tp_full.get("rubrica")
-                            ejercicio_titulo = None
-                    else:
-                        rubrica_raw = tp_full.get("rubrica")
-                        ejercicio_titulo = None
-                    formatted = self._format_rubric_context(rubrica_raw, ejercicio_titulo)
-                    rubrica_context = formatted if formatted else None
-            except Exception:
-                logger.warning(
-                    "get_tarea_practica_full failed for rubrica resolution tarea=%s; "
-                    "continuing without rubrica context",
-                    problema_id,
-                    exc_info=True,
-                )
-
-        # tp-entregas-correccion (D3/Task 6.2): si ejercicio_orden está seteado,
-        # resolver el enunciado/codigo_inicial/test_cases del ejercicio especifico
-        # para inyectarlos en el system message (contexto del tutor).
-        system_messages = [{"role": "system", "content": prompt.content}]
-        if ejercicio_orden is not None and self.academic is not None:
-            try:
-                ejercicio = await self.academic.get_ejercicio(
-                    tarea_id=problema_id,
-                    ejercicio_orden=ejercicio_orden,
-                    tenant_id=tenant_id,
-                    caller_id=TUTOR_SERVICE_USER_ID,
-                )
-                if ejercicio is not None:
-                    ej_context = (
-                        f"\n\n[Ejercicio {ejercicio.get('orden')} de la TP]\n"
-                        f"**{ejercicio.get('titulo', '')}**\n\n"
-                        f"{ejercicio.get('enunciado_md', '')}"
-                    )
-                    if ejercicio.get("inicial_codigo"):
-                        ej_context += (
-                            f"\n\nCodigo inicial:\n```python\n"
-                            f"{ejercicio['inicial_codigo']}\n```"
-                        )
-                    system_messages = [
-                        {"role": "system", "content": prompt.content + ej_context}
-                    ]
-            except Exception:
-                logger.warning(
-                    "get_ejercicio failed for tarea=%s orden=%d; using monolithic context",
-                    problema_id,
-                    ejercicio_orden,
-                    exc_info=True,
-                )
+        if ejercicio_data is not None:
+            ej_context = self._build_ejercicio_context(ejercicio_data, ejercicio_orden)
+            system_messages = [
+                {"role": "system", "content": prompt.content + ej_context}
+            ]
+            # Cachear la rúbrica formateada para que el reflection-flow o el
+            # interact() puedan usarla si necesitan.
+            rubrica_raw = ejercicio_data.get("rubrica")
+            ejercicio_titulo = ejercicio_data.get("titulo")
+            formatted = self._format_rubric_context(rubrica_raw, ejercicio_titulo)
+            rubrica_context = formatted if formatted else None
 
         # 3. Crear session state en Redis
         state = SessionState(
@@ -256,6 +243,7 @@ class TutorCore:
             curso_config_hash=curso_config_hash,
             model=model or self.default_model,
             materia_id=materia_id,
+            ejercicio_id=ejercicio_id,
             ejercicio_orden=ejercicio_orden,
             rubrica_context=rubrica_context,
         )
@@ -278,8 +266,15 @@ class TutorCore:
             "curso_config_hash": curso_config_hash,
             "model": state.model,
         }
-        # tp-entregas-correccion: vincular episodio con ejercicio especifico (D3)
-        if ejercicio_orden is not None:
+        # ADR-049: vincular episodio con el Ejercicio reusable por UUID +
+        # orden denormalizado. Consistencia: ambos None o ambos no-None.
+        assert (ejercicio_id is None) == (ejercicio_orden is None), (
+            f"ejercicio_id y ejercicio_orden deben ser ambos None o ambos "
+            f"no-None (got ejercicio_id={ejercicio_id}, "
+            f"ejercicio_orden={ejercicio_orden})"
+        )
+        if ejercicio_id is not None:
+            episodio_abierto_payload["ejercicio_id"] = str(ejercicio_id)
             episodio_abierto_payload["ejercicio_orden"] = ejercicio_orden
 
         event = self._build_event(
@@ -1248,3 +1243,163 @@ class TutorCore:
 
         # Si no se pudo extraer ningun criterio con nombre, no emitir nada
         return "\n".join(lines) if len(lines) > 1 else ""
+
+    def _build_ejercicio_context(
+        self,
+        ejercicio: dict,
+        orden: int | None = None,
+    ) -> str:
+        """Compone el bloque pedagógico del Ejercicio para el system message.
+
+        ADR-048: inyecta en orden:
+          1. Datos del ejercicio (título, enunciado, código inicial).
+          2. `tutor_rules.instrucciones_adicionales` (si existe).
+          3. Mapa privado de navegación: rúbrica + heurística de cierre +
+             prerrequisitos.
+          4. Banco socrático N1-N4 (preguntas + señales ✓/✗).
+          5. Misconceptions anticipadas + pregunta diagnóstica.
+          6. Respuesta-pista por nivel (anti-soluciones).
+          7. Anti-patrones específicos del ejercicio.
+
+        El LLM recibe estos bloques como REFERENCIAS de navegación. El
+        prompt base ya le indica el comportamiento socrático general; los
+        bloques de acá son las particularidades de este ejercicio.
+
+        Returns:
+            String para concatenar al `prompt.content` base del tutor.
+            Si `ejercicio` no tiene los campos esperados, devuelve el
+            bloque mínimo (título + enunciado).
+        """
+        parts: list[str] = []
+
+        # Bloque 1 — datos del ejercicio
+        orden_label = f" {orden}" if orden is not None else ""
+        titulo = ejercicio.get("titulo") or "(sin título)"
+        enunciado = ejercicio.get("enunciado_md") or ""
+        parts.append(
+            f"\n\n[Ejercicio{orden_label}]\n**{titulo}**\n\n{enunciado}"
+        )
+        if ejercicio.get("inicial_codigo"):
+            parts.append(
+                f"\n\nCódigo inicial:\n```python\n{ejercicio['inicial_codigo']}\n```"
+            )
+
+        # Bloque 2 — reglas operativas del tutor para este ejercicio
+        tutor_rules = ejercicio.get("tutor_rules") or {}
+        if isinstance(tutor_rules, dict):
+            instrucciones = tutor_rules.get("instrucciones_adicionales")
+            if instrucciones:
+                parts.append(f"\n\n## Reglas específicas del tutor\n{instrucciones}")
+
+        # Bloque 3 — mapa privado de navegación
+        nav: list[str] = []
+        rubrica_fmt = self._format_rubric_context(
+            ejercicio.get("rubrica"), titulo if titulo else None
+        )
+        if rubrica_fmt:
+            nav.append(rubrica_fmt)
+        heuristica = ejercicio.get("heuristica_cierre") or {}
+        if isinstance(heuristica, dict) and heuristica.get("heuristica"):
+            nav.append(
+                f"Heurística de cierre del episodio: {heuristica['heuristica']}"
+            )
+        prereqs = ejercicio.get("prerequisitos") or {}
+        if isinstance(prereqs, dict):
+            sint = prereqs.get("sintacticos") or []
+            conc = prereqs.get("conceptuales") or []
+            if sint:
+                nav.append(f"Prerrequisitos sintácticos: {', '.join(sint)}")
+            if conc:
+                nav.append(f"Prerrequisitos conceptuales: {', '.join(conc)}")
+        if nav:
+            parts.append(
+                "\n\n## Mapa privado de navegación (NO revelar al estudiante)\n"
+                + "\n".join(nav)
+            )
+
+        # Bloque 4 — banco socrático N1-N4
+        banco = ejercicio.get("banco_preguntas") or {}
+        if isinstance(banco, dict):
+            banco_lines: list[str] = []
+            for nivel_key in ("n1", "n2", "n3", "n4"):
+                preguntas = banco.get(nivel_key) or []
+                if not isinstance(preguntas, list) or not preguntas:
+                    continue
+                banco_lines.append(f"\n### {nivel_key.upper()}")
+                for p in preguntas:
+                    if not isinstance(p, dict):
+                        continue
+                    texto = p.get("texto")
+                    if not texto:
+                        continue
+                    senal_ok = p.get("senal_comprension", "")
+                    senal_alerta = p.get("senal_alerta", "")
+                    banco_lines.append(
+                        f"- **Pregunta**: {texto}\n"
+                        f"  - ✓ Señal de comprensión: {senal_ok}\n"
+                        f"  - ✗ Señal de alerta: {senal_alerta}"
+                    )
+            if banco_lines:
+                parts.append(
+                    "\n\n## Banco socrático del ejercicio (orientativo)\n"
+                    + "\n".join(banco_lines)
+                )
+
+        # Bloque 5 — misconceptions anticipadas
+        misconceptions = ejercicio.get("misconceptions") or []
+        if isinstance(misconceptions, list) and misconceptions:
+            mis_lines: list[str] = []
+            for m in misconceptions:
+                if not isinstance(m, dict):
+                    continue
+                desc = m.get("descripcion")
+                preg = m.get("pregunta_diagnostica")
+                if desc and preg:
+                    prob = m.get("probabilidad_estimada")
+                    prob_label = f" (prob ~{prob})" if prob is not None else ""
+                    mis_lines.append(f"- {desc}{prob_label}\n  - Pregunta diagnóstica: {preg}")
+            if mis_lines:
+                parts.append(
+                    "\n\n## Misconceptions anticipadas\n" + "\n".join(mis_lines)
+                )
+
+        # Bloque 6 — respuesta-pista (anti-soluciones)
+        pistas = ejercicio.get("respuesta_pista") or []
+        if isinstance(pistas, list) and pistas:
+            pista_lines: list[str] = []
+            for p in pistas:
+                if not isinstance(p, dict):
+                    continue
+                nivel = p.get("nivel")
+                texto = p.get("pista")
+                if texto:
+                    pista_lines.append(f"- N{nivel}: {texto}")
+            if pista_lines:
+                parts.append(
+                    "\n\n## Respuesta-pista por nivel (anti-soluciones — NO entregar código)\n"
+                    + "\n".join(pista_lines)
+                )
+
+        # Bloque 7 — anti-patrones del ejercicio
+        anti = ejercicio.get("anti_patrones") or []
+        if isinstance(anti, list) and anti:
+            anti_lines: list[str] = []
+            for a in anti:
+                if not isinstance(a, dict):
+                    continue
+                patron = a.get("patron")
+                desc = a.get("descripcion", "")
+                orientacion = a.get("mensaje_orientacion", "")
+                if patron:
+                    anti_lines.append(
+                        f"- **NO hacer**: {patron}\n"
+                        f"  - {desc}\n"
+                        f"  - En su lugar: {orientacion}"
+                    )
+            if anti_lines:
+                parts.append(
+                    "\n\n## Anti-patrones específicos del ejercicio\n"
+                    + "\n".join(anti_lines)
+                )
+
+        return "".join(parts)

@@ -18,6 +18,7 @@ import { Route as MaterialesRouteImport } from './routes/materiales'
 import { Route as KappaRouteImport } from './routes/kappa'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as EpisodeNLevelRouteImport } from './routes/episode-n-level'
+import { Route as EjerciciosRouteImport } from './routes/ejercicios'
 import { Route as CorreccionesRouteImport } from './routes/correcciones'
 import { Route as CohortAdversarialRouteImport } from './routes/cohort-adversarial'
 import { Route as IndexRouteImport } from './routes/index'
@@ -67,6 +68,11 @@ const EpisodeNLevelRoute = EpisodeNLevelRouteImport.update({
   path: '/episode-n-level',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EjerciciosRoute = EjerciciosRouteImport.update({
+  id: '/ejercicios',
+  path: '/ejercicios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CorreccionesRoute = CorreccionesRouteImport.update({
   id: '/correcciones',
   path: '/correcciones',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
   '/correcciones': typeof CorreccionesRoute
+  '/ejercicios': typeof EjerciciosRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
   '/correcciones': typeof CorreccionesRoute
+  '/ejercicios': typeof EjerciciosRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cohort-adversarial': typeof CohortAdversarialRoute
   '/correcciones': typeof CorreccionesRoute
+  '/ejercicios': typeof EjerciciosRoute
   '/episode-n-level': typeof EpisodeNLevelRoute
   '/export': typeof ExportRoute
   '/kappa': typeof KappaRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cohort-adversarial'
     | '/correcciones'
+    | '/ejercicios'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cohort-adversarial'
     | '/correcciones'
+    | '/ejercicios'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cohort-adversarial'
     | '/correcciones'
+    | '/ejercicios'
     | '/episode-n-level'
     | '/export'
     | '/kappa'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CohortAdversarialRoute: typeof CohortAdversarialRoute
   CorreccionesRoute: typeof CorreccionesRoute
+  EjerciciosRoute: typeof EjerciciosRoute
   EpisodeNLevelRoute: typeof EpisodeNLevelRoute
   ExportRoute: typeof ExportRoute
   KappaRoute: typeof KappaRoute
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EpisodeNLevelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ejercicios': {
+      id: '/ejercicios'
+      path: '/ejercicios'
+      fullPath: '/ejercicios'
+      preLoaderRoute: typeof EjerciciosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/correcciones': {
       id: '/correcciones'
       path: '/correcciones'
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CohortAdversarialRoute: CohortAdversarialRoute,
   CorreccionesRoute: CorreccionesRoute,
+  EjerciciosRoute: EjerciciosRoute,
   EpisodeNLevelRoute: EpisodeNLevelRoute,
   ExportRoute: ExportRoute,
   KappaRoute: KappaRoute,

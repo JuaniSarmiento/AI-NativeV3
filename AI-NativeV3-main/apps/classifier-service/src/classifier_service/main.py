@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(health.config_router)
 app.include_router(classify_ep.router)
 
 

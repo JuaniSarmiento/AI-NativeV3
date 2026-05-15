@@ -30,6 +30,7 @@ class UniversidadOut(UniversidadBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    tenant_id: UUID
     config: dict[str, Any]
     created_at: datetime
     deleted_at: datetime | None = None

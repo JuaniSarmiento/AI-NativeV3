@@ -15,6 +15,7 @@
  */
 import { AuditFooter, HelpButton } from "@platform/ui"
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router"
+import { TenantSelector } from "../components/TenantSelector"
 import { helpContent } from "../utils/helpContent"
 
 export interface RouterContext {
@@ -41,6 +42,7 @@ function RootLayout() {
           </h1>
         </div>
         <div className="flex items-center gap-3">
+          <TenantSelector />
           <HelpButton title="Tutor Socratico" content={helpContent.episode} />
         </div>
       </header>

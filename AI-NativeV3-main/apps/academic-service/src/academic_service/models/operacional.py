@@ -29,6 +29,7 @@ from academic_service.models.base import (
     TenantMixin,
     TimestampMixin,
     fk_uuid,
+    utc_now,
     uuid_pk,
 )
 
@@ -267,14 +268,6 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
         JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
     )
 
-    # tp-entregas-correccion: ejercicios secuenciales dentro de una TP.
-    # Array JSONB ordenado por `orden`. Cada elemento:
-    #   {orden, titulo, enunciado_md, inicial_codigo, test_cases, peso}
-    # NULL o vacío = TP monolítica (comportamiento legacy). Backwards-compatible.
-    ejercicios: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
-    )
-
     # ADR-036 (Sec 11): TRUE si la TP fue creada via el wizard de generacion
     # asistida por IA y el docente la edito-y-publico. Trazabilidad academica
     # para defensa doctoral (que TPs del piloto involucraron IA en su autoria).
@@ -296,6 +289,11 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
 
     template: Mapped[TareaPracticaTemplate | None] = relationship(back_populates="instances")
     unidad: Mapped[Unidad | None] = relationship(back_populates="tareas_practicas")
+    tp_ejercicios: Mapped[list[TpEjercicio]] = relationship(
+        back_populates="tarea_practica",
+        cascade="all, delete-orphan",
+        order_by="TpEjercicio.orden",
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -325,20 +323,18 @@ class TareaPractica(Base, TenantMixin, TimestampMixin):
 
 
 class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
-    """Plantilla canónica de Trabajo Práctico por (Materia, Período).
+    """Plantilla pedagógica (brief) de Trabajo Práctico por (Materia, Período).
 
-    Introducida por ADR-016 para que una cátedra con múltiples comisiones
-    pueda mantener una fuente única editable del enunciado/rúbrica/peso.
-    Al crear un template, el service auto-instancia una `TareaPractica`
-    por cada comisión de esa (materia, periodo) con `template_id` apuntando
-    a esta fila y `has_drift=false`.
+    Refactor 2026-05-12: la plantilla deja de ser una copia parcial del TP
+    y pasa a ser una directiva (consigna) que sirve como prompt para que el
+    docente — o el wizard de generación con IA — arme el TP en cada comisión.
 
-    Versionado inmutable análogo a `TareaPractica`: publicados no se editan,
-    se versionan con `parent_template_id` apuntando a la fila previa.
+    Sin fan-out automático: crear una plantilla NO crea instancias. Los TPs
+    se crean on-demand por comisión; al crearlos pueden referenciar la
+    plantilla via `template_id` como trazabilidad (qué consigna inspiró el TP).
 
-    El CTR NO toca esta tabla: `Episode.problema_id` sigue apuntando a la
-    instancia (`TareaPractica`), no al template — la cadena criptográfica
-    queda intacta (ADR-010, RN-034, RN-036).
+    Versionado inmutable: publicados no se editan, se versionan con
+    `parent_template_id` apuntando a la fila previa.
     """
 
     __tablename__ = "tareas_practicas_templates"
@@ -349,13 +345,11 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
 
     codigo: Mapped[str] = mapped_column(String(20), nullable=False)
     titulo: Mapped[str] = mapped_column(String(200), nullable=False)
-    enunciado: Mapped[str] = mapped_column(Text, nullable=False)
-    inicial_codigo: Mapped[str | None] = mapped_column(Text, nullable=True)
-    rubrica: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # `consigna`: directiva pedagógica de qué debe cubrir el TP. NO es el
+    # enunciado que ve el alumno — es el prompt para que el docente / la IA
+    # generen el enunciado real y los ejercicios en la instancia.
+    consigna: Mapped[str] = mapped_column(Text, nullable=False)
     peso: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False, default=Decimal("1.0"))
-
-    fecha_inicio: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    fecha_fin: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     estado: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
@@ -364,12 +358,6 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
         ForeignKey("tareas_practicas_templates.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
-    )
-
-    # ADR-034 (Sec 9 epic ai-native-completion): test cases del template,
-    # heredados por las instancias auto-creadas en cada comision.
-    test_cases: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
     )
 
     created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
@@ -401,5 +389,150 @@ class TareaPracticaTemplate(Base, TenantMixin, TimestampMixin):
         CheckConstraint(
             "version >= 1",
             name="ck_template_version",
+        ),
+    )
+
+
+class Ejercicio(Base, TenantMixin, TimestampMixin):
+    """Ejercicio reusable de primera clase (ADR-047 + ADR-048).
+
+    Entidad independiente con UUID propio. Puede referenciarse desde
+    múltiples TPs via la tabla intermedia `tp_ejercicios`. El set
+    completo de campos pedagógicos PID-UTN lo hace autosuficiente para
+    que el tutor-service inyecte todo el contexto socrático al system
+    message del LLM (ver ADR-049 para la propagación del `ejercicio_id`
+    al CTR).
+
+    Campos pedagógicos como JSONB tipados (validados por Pydantic en la
+    boundary, ver `packages/contracts/.../academic/ejercicio.py`):
+    - `tutor_rules`: reglas operativas específicas del ejercicio.
+    - `banco_preguntas`: banco socrático estratificado por fase N1-N4.
+    - `misconceptions`: confusiones anticipadas con pregunta diagnóstica.
+    - `respuesta_pista`: anti-soluciones por nivel.
+    - `heuristica_cierre`: condiciones de cierre del episodio.
+    - `anti_patrones`: lo que el tutor NO debe hacer en este ejercicio.
+
+    Patrón JSONB alineado con ADR-034 (test_cases en TP): tipado en
+    Pydantic, persistido como dict semi-estructurado para baja
+    queryability cross-row.
+    """
+
+    __tablename__ = "ejercicios"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+
+    # ── Identificación ─────────────────────────────────────────
+    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
+    enunciado_md: Mapped[str] = mapped_column(Text, nullable=False)
+    inicial_codigo: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Clasificación pedagógica ───────────────────────────────
+    # 'secuenciales' | 'condicionales' | 'repetitivas' | 'mixtos'
+    unidad_tematica: Mapped[str] = mapped_column(String(30), nullable=False)
+    # 'basica' | 'intermedia' | 'avanzada' | NULL
+    dificultad: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    prerequisitos: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb")
+    )
+
+    # ── Tests ejecutables (mismo formato que ADR-034) ─────────
+    test_cases: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+    )
+
+    # ── Evaluación ────────────────────────────────────────────
+    rubrica: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+    # ── Pedagogía PID-UTN (ADR-048) ───────────────────────────
+    tutor_rules: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    banco_preguntas: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    misconceptions: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+    )
+    respuesta_pista: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+    )
+    heuristica_cierre: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    anti_patrones: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb")
+    )
+
+    # ── Autoría ───────────────────────────────────────────────
+    created_by: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    created_via_ai: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+
+    tp_ejercicios: Mapped[list[TpEjercicio]] = relationship(back_populates="ejercicio")
+
+    __table_args__ = (
+        CheckConstraint(
+            "unidad_tematica IN ('secuenciales', 'condicionales', 'repetitivas', 'mixtos')",
+            name="ck_ejercicios_unidad_tematica",
+        ),
+        CheckConstraint(
+            "dificultad IS NULL OR dificultad IN ('basica', 'intermedia', 'avanzada')",
+            name="ck_ejercicios_dificultad",
+        ),
+    )
+
+
+class TpEjercicio(Base, TenantMixin):
+    """Asociación N:M entre TareaPractica y Ejercicio (ADR-047).
+
+    El `orden` y `peso_en_tp` son propios de la relación, no del
+    Ejercicio en sí: el mismo Ejercicio puede aparecer con distinto
+    orden/peso en TPs distintas.
+
+    No usa TimestampMixin completo — solo `created_at` (sin soft-delete).
+    El ciclo de vida de la relación está acoplado al de la TP: si la
+    TP se borra hard, los `tp_ejercicios` se cascade-deletan (los
+    Ejercicios sobreviven, son entidades independientes).
+    """
+
+    __tablename__ = "tp_ejercicios"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    tarea_practica_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tareas_practicas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ejercicio_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("ejercicios.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    orden: Mapped[int] = mapped_column(Integer, nullable=False)
+    peso_en_tp: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    tarea_practica: Mapped[TareaPractica] = relationship(back_populates="tp_ejercicios")
+    ejercicio: Mapped[Ejercicio] = relationship(back_populates="tp_ejercicios")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "tarea_practica_id",
+            "ejercicio_id",
+            name="uq_tp_ejercicio_pair",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "tarea_practica_id",
+            "orden",
+            name="uq_tp_ejercicio_orden",
+        ),
+        CheckConstraint(
+            "peso_en_tp > 0 AND peso_en_tp <= 1",
+            name="ck_tp_ejercicios_peso",
+        ),
+        CheckConstraint(
+            "orden >= 1",
+            name="ck_tp_ejercicios_orden",
         ),
     )

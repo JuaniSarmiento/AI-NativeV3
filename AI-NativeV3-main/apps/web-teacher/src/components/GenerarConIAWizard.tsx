@@ -12,8 +12,10 @@ import {
   type DificultadIA,
   type EjercicioGenerado,
   type GenerateTPResponse,
+  type TareaPracticaTemplate,
   generateTPWithAI,
   listMyComisiones,
+  tareasPracticasTemplatesApi,
 } from "../lib/api"
 
 interface Props {
@@ -21,7 +23,7 @@ interface Props {
   comisionId: string
   getToken: () => Promise<string | null>
   onClose: () => void
-  onUseResult: (ejercicios: EjercicioGenerado[]) => void
+  onUseResult: (ejercicios: EjercicioGenerado[], templateId?: string | null) => void
 }
 
 type Step = "prompt" | "preview"
@@ -29,16 +31,22 @@ type Step = "prompt" | "preview"
 export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUseResult }: Props) {
   const [step, setStep] = useState<Step>("prompt")
   const [materiaId, setMateriaId] = useState<string | null>(null)
+  const [periodoId, setPeriodoId] = useState<string | null>(null)
 
   const [descripcion, setDescripcion] = useState("")
   const [numEjercicios, setNumEjercicios] = useState(3)
   const [dificultad, setDificultad] = useState<DificultadIA | null>(null)
   const [contexto, setContexto] = useState("")
 
+  const [templates, setTemplates] = useState<TareaPracticaTemplate[]>([])
+  const [templateId, setTemplateId] = useState<string | null>(null)
+
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [result, setResult] = useState<GenerateTPResponse | null>(null)
   const [ejercicios, setEjercicios] = useState<EjercicioGenerado[]>([])
+
+  const selectedTemplate = templates.find((t) => t.id === templateId) ?? null
 
   const handleClose = useCallback(() => {
     setStep("prompt")
@@ -46,6 +54,7 @@ export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUs
     setNumEjercicios(3)
     setDificultad(null)
     setContexto("")
+    setTemplateId(null)
     setGenerateError(null)
     setResult(null)
     setEjercicios([])
@@ -60,14 +69,45 @@ export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUs
         if (cancelled) return
         const found = res.items.find((c) => c.id === comisionId)
         setMateriaId(found?.materia_id ?? null)
+        setPeriodoId(found?.periodo_id ?? null)
       })
       .catch(() => {
-        if (!cancelled) setMateriaId(null)
+        if (!cancelled) {
+          setMateriaId(null)
+          setPeriodoId(null)
+        }
       })
     return () => {
       cancelled = true
     }
   }, [isOpen, comisionId, getToken])
+
+  // Cargar plantillas disponibles para (materia, periodo) — selector opcional.
+  useEffect(() => {
+    if (!isOpen || !materiaId || !periodoId) return
+    let cancelled = false
+    tareasPracticasTemplatesApi
+      .list({ materia_id: materiaId, periodo_id: periodoId }, getToken)
+      .then((res) => {
+        if (!cancelled) setTemplates(res.filter((t) => t.estado !== "archived"))
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, materiaId, periodoId, getToken])
+
+  const handleSelectTemplate = (id: string | null) => {
+    setTemplateId(id)
+    if (id) {
+      const t = templates.find((x) => x.id === id)
+      if (t && !descripcion.trim()) {
+        setDescripcion(t.consigna)
+      }
+    }
+  }
 
   const handleGenerar = async () => {
     if (!materiaId) {
@@ -89,6 +129,7 @@ export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUs
           ...(dificultad ? { dificultad } : {}),
           ...(contexto.trim() ? { contexto: contexto.trim() } : {}),
           comision_id: comisionId,
+          ...(templateId ? { template_id: templateId } : {}),
         },
         getToken,
       )
@@ -104,8 +145,9 @@ export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUs
 
   const handleUsar = () => {
     if (!ejercicios.length) return
+    const tplId = templateId
     handleClose()
-    onUseResult(ejercicios)
+    onUseResult(ejercicios, tplId)
   }
 
   const updateEjercicio = (index: number, updates: Partial<EjercicioGenerado>) => {
@@ -134,10 +176,14 @@ export function GenerarConIAWizard({ isOpen, comisionId, getToken, onClose, onUs
           generating={generating}
           error={generateError}
           materiaResolved={Boolean(materiaId)}
+          templates={templates}
+          templateId={templateId}
+          selectedTemplate={selectedTemplate}
           onDescripcionChange={setDescripcion}
           onNumEjerciciosChange={setNumEjercicios}
           onDificultadChange={setDificultad}
           onContextoChange={setContexto}
+          onTemplateChange={handleSelectTemplate}
           onGenerar={handleGenerar}
           onClose={handleClose}
         />
@@ -164,10 +210,14 @@ interface PromptStepProps {
   generating: boolean
   error: string | null
   materiaResolved: boolean
+  templates: TareaPracticaTemplate[]
+  templateId: string | null
+  selectedTemplate: TareaPracticaTemplate | null
   onDescripcionChange: (v: string) => void
   onNumEjerciciosChange: (v: number) => void
   onDificultadChange: (v: DificultadIA | null) => void
   onContextoChange: (v: string) => void
+  onTemplateChange: (id: string | null) => void
   onGenerar: () => void
   onClose: () => void
 }
@@ -180,10 +230,14 @@ function PromptStep({
   generating,
   error,
   materiaResolved,
+  templates,
+  templateId,
+  selectedTemplate,
   onDescripcionChange,
   onNumEjerciciosChange,
   onDificultadChange,
   onContextoChange,
+  onTemplateChange,
   onGenerar,
   onClose,
 }: PromptStepProps) {
@@ -199,6 +253,41 @@ function PromptStep({
         Describe el trabajo practico. La IA generara los ejercicios con enunciado, codigo inicial,
         rubrica y casos de prueba. Despues podes editar cada uno.
       </p>
+
+      {templates.length > 0 && (
+        <div className="rounded-lg border border-border bg-surface-alt/40 p-3 space-y-2">
+          <label className="block text-xs font-medium text-ink">
+            Usar plantilla de la cátedra
+            <span className="text-muted font-normal ml-1">(opcional)</span>
+          </label>
+          <select
+            value={templateId ?? ""}
+            onChange={(e) => onTemplateChange(e.target.value || null)}
+            className="w-full px-2 py-1.5 text-sm border border-border rounded bg-white"
+          >
+            <option value="">— Sin plantilla (descripción libre) —</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.codigo} · {t.titulo} (v{t.version}, {t.estado})
+              </option>
+            ))}
+          </select>
+          {selectedTemplate && (
+            <div className="rounded bg-white border border-border-soft p-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
+                Consigna pedagógica de la plantilla
+              </div>
+              <p className="text-xs whitespace-pre-wrap text-body">
+                {selectedTemplate.consigna}
+              </p>
+              <p className="text-[11px] text-muted mt-2">
+                Se pasa al LLM como contexto y se asocia el TP resultante a esta plantilla
+                via <code>template_id</code> para trazabilidad.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-medium text-ink mb-1.5">

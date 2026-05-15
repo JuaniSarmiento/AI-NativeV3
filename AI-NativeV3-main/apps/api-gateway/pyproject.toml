@@ -19,6 +19,7 @@ dependencies = [
     "platform-contracts",
     "httpx>=0.27",
     "pyjwt[crypto]>=2.9",
+    "slowapi>=0.1.9",
 ]
 
 [dependency-groups]

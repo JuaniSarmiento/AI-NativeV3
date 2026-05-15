@@ -48,15 +48,30 @@ class EpisodioAbiertoPayload(BaseModel):
     problema_id: UUID
     comision_id: UUID
     curso_config_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
-    # tp-entregas-correccion: orden del ejercicio dentro de la TP.
-    # None = TP monolítica (backwards-compatible). int >= 1 = ejercicio N.
+    # ADR-047 + ADR-049: identidad permanente del Ejercicio reusable del
+    # banco standalone. None = TP monolítica (sin ejercicio específico).
+    # Cuando hay ejercicio_id, `ejercicio_orden` debe estar seteado y vice
+    # versa (assert de consistencia en el productor del tutor-service).
+    ejercicio_id: UUID | None = Field(
+        default=None,
+        description=(
+            "UUID del Ejercicio reusable del banco standalone. "
+            "Identidad permanente del ejercicio, independiente de su posición "
+            "dentro de la TP. Permite agrupar episodios por ejercicio entre "
+            "cohortes (unidad analítica de la tesis)."
+        ),
+    )
+    # Orden del ejercicio dentro de la TP (denormalizado desde tp_ejercicios
+    # al momento del episodio — snapshot inmutable). Mantenido junto a
+    # `ejercicio_id` para preservar la lógica de secuencialidad y para
+    # queries analíticas sin JOIN (ADR-049).
     ejercicio_orden: int | None = Field(
         default=None,
         ge=1,
         description=(
-            "Orden del ejercicio dentro de la TP (1-based). "
-            "None para TPs monolíticas (comportamiento legacy). "
-            "Permite vincular el episodio con el ejercicio especifico en el CTR."
+            "Orden del ejercicio dentro de la TP al momento del episodio "
+            "(1-based). Denormalizado desde tp_ejercicios. "
+            "None para TPs monolíticas."
         ),
     )
 

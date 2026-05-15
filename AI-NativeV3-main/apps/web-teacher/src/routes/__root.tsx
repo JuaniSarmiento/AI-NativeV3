@@ -19,6 +19,7 @@ import {
 } from "@tanstack/react-router"
 import {
   BarChart3,
+  BookOpen,
   CheckSquare,
   ClipboardList,
   Download,
@@ -33,6 +34,7 @@ import {
 } from "lucide-react"
 import { useCallback } from "react"
 import { ComisionSelectorRouted } from "../components/ComisionSelectorRouted"
+import { TenantSelector } from "../components/TenantSelector"
 import { ViewModeToggle } from "../components/ViewModeToggle"
 
 export interface RouterContext {
@@ -50,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "/templates", label: "Plantillas", icon: FileCode2 },
       { id: "/unidades", label: "Unidades", icon: Group },
+      { id: "/ejercicios", label: "Banco de ejercicios", icon: BookOpen },
       { id: "/tareas-practicas", label: "Trabajos Prácticos", icon: ClipboardList },
       { id: "/materiales", label: "Materiales", icon: FolderOpen },
       { id: "/correcciones", label: "Correcciones", icon: CheckSquare },
@@ -120,6 +123,8 @@ function RootLayout() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <ViewModeToggle />
+          <span className="w-px h-5 bg-border" aria-hidden="true" />
+          <TenantSelector />
           <span className="w-px h-5 bg-border" aria-hidden="true" />
           <ComisionSelectorRouted />
         </div>

@@ -22,6 +22,13 @@ from academic_service.schemas.tarea_practica import (
     TareaPracticaVersionRef,
 )
 from academic_service.services.tarea_practica_service import TareaPracticaService
+from academic_service.services.tp_ejercicio_service import TpEjercicioService
+from platform_contracts.academic.ejercicio import (
+    EjercicioRead,
+    TpEjercicioCreate,
+    TpEjercicioRead,
+    TpEjercicioUpdate,
+)
 
 router = APIRouter(prefix="/api/v1/tareas-practicas", tags=["tareas-practicas"])
 
@@ -192,6 +199,10 @@ class TPGenerateRequest(BaseModel):
     dificultad: Literal["basica", "intermedia", "avanzada"] | None = None
     contexto: str | None = Field(default=None, max_length=2000)
     comision_id: UUID | None = None
+    # Si el wizard se abrió desde una plantilla, la pasamos para prefijar la
+    # consigna pedagógica al mensaje del LLM. Trazabilidad solamente; el TP
+    # resultante puede asociarse al template via `template_id` en el POST final.
+    template_id: UUID | None = None
 
 
 class EjercicioGenerado(BaseModel):
@@ -268,8 +279,29 @@ async def generate_tarea_practica(
         req.descripcion_nl, req.materia_id, user.tenant_id, req.comision_id,
     )
 
+    # 2c. Si el wizard viene desde una plantilla, sumar la consigna como
+    # contexto pedagógico al user message (la consigna define el QUÉ; la
+    # descripcion del docente define el detalle).
+    consigna_plantilla: str | None = None
+    if req.template_id is not None:
+        from academic_service.models.operacional import TareaPracticaTemplate
+
+        stmt_t = select(TareaPracticaTemplate).where(
+            TareaPracticaTemplate.id == req.template_id,
+            TareaPracticaTemplate.tenant_id == user.tenant_id,
+            TareaPracticaTemplate.deleted_at.is_(None),
+        )
+        template_obj = (await db.execute(stmt_t)).scalar_one_or_none()
+        if template_obj is not None:
+            consigna_plantilla = template_obj.consigna
+
     # 3. Construir mensajes para LLM
-    user_message_parts = [f"Descripcion: {req.descripcion_nl}"]
+    user_message_parts: list[str] = []
+    if consigna_plantilla:
+        user_message_parts.append(
+            f"Consigna pedagógica de la cátedra (plantilla):\n{consigna_plantilla}"
+        )
+    user_message_parts.append(f"Descripcion: {req.descripcion_nl}")
     user_message_parts.append(f"num_ejercicios: {req.num_ejercicios}")
     if req.dificultad:
         user_message_parts.append(f"Dificultad: {req.dificultad}")
@@ -479,26 +511,123 @@ async def get_tarea_practica_test_cases(
     }
 
 
-@router.get("/{tarea_id}/ejercicios")
+@router.get("/{tarea_id}/ejercicios", response_model=list[TpEjercicioRead])
 async def get_tarea_practica_ejercicios(
     tarea_id: UUID,
     user: User = Depends(require_permission("tarea_practica", "read")),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    """Devuelve los ejercicios de una TP (tp-entregas-correccion).
+) -> list[TpEjercicioRead]:
+    """Lista los ejercicios asociados a una TP, ordenados por `orden`.
 
-    Lista ordenada por `orden`. Array vacío = TP monolítica (sin ejercicios).
-    Accesible para todos los roles con `tarea_practica:read`.
+    ADR-047: lee de la tabla intermedia `tp_ejercicios` JOIN `ejercicios`
+    (cada item incluye el Ejercicio embebido). Lista vacía = TP monolítica.
     """
-    svc = TareaPracticaService(db)
-    obj = await svc.get(tarea_id)
-    ejercicios = list(obj.ejercicios or [])
-    return {
-        "tarea_id": str(tarea_id),
-        "ejercicios": sorted(ejercicios, key=lambda e: e.get("orden", 0)),
-        "count": len(ejercicios),
-        "tiene_ejercicios": len(ejercicios) > 0,
-    }
+    svc = TpEjercicioService(db)
+    pairs = await svc.list_by_tp(tarea_id)
+    return [
+        TpEjercicioRead(
+            id=pair.id,
+            tarea_practica_id=pair.tarea_practica_id,
+            ejercicio_id=pair.ejercicio_id,
+            orden=pair.orden,
+            peso_en_tp=pair.peso_en_tp,
+            ejercicio=EjercicioRead.model_validate(ej),
+        )
+        for pair, ej in pairs
+    ]
+
+
+@router.post(
+    "/{tarea_id}/ejercicios",
+    response_model=TpEjercicioRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_ejercicio_to_tarea_practica(
+    tarea_id: UUID,
+    data: TpEjercicioCreate,
+    user: User = Depends(require_permission("tarea_practica", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> TpEjercicioRead:
+    """Asocia un Ejercicio existente del banco a esta TP (ADR-047).
+
+    Solo permitido en TPs con `estado='draft'`. Requiere `orden` único
+    dentro de la TP y `peso_en_tp` en `(0, 1]`. Para reordenar o cambiar
+    pesos sin quitar el ejercicio, usar PATCH.
+    """
+    svc = TpEjercicioService(db)
+    pair = await svc.add_ejercicio(
+        tarea_practica_id=tarea_id,
+        ejercicio_id=data.ejercicio_id,
+        orden=data.orden,
+        peso_en_tp=data.peso_en_tp,
+        user=user,
+    )
+    ej = await svc.ejercicio_repo.get_or_404(pair.ejercicio_id)
+    return TpEjercicioRead(
+        id=pair.id,
+        tarea_practica_id=pair.tarea_practica_id,
+        ejercicio_id=pair.ejercicio_id,
+        orden=pair.orden,
+        peso_en_tp=pair.peso_en_tp,
+        ejercicio=EjercicioRead.model_validate(ej),
+    )
+
+
+@router.patch(
+    "/{tarea_id}/ejercicios/{ejercicio_id}",
+    response_model=TpEjercicioRead,
+)
+async def update_tp_ejercicio_pair(
+    tarea_id: UUID,
+    ejercicio_id: UUID,
+    data: TpEjercicioUpdate,
+    user: User = Depends(require_permission("tarea_practica", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> TpEjercicioRead:
+    """Cambia `orden` y/o `peso_en_tp` de un ejercicio dentro de la TP.
+
+    Solo permitido en TPs con `estado='draft'`. No cambia el `ejercicio_id`
+    (para eso, quitar el viejo y agregar el nuevo).
+    """
+    svc = TpEjercicioService(db)
+    pair = await svc.update_pair(
+        tarea_practica_id=tarea_id,
+        ejercicio_id=ejercicio_id,
+        orden=data.orden,
+        peso_en_tp=data.peso_en_tp,
+        user=user,
+    )
+    ej = await svc.ejercicio_repo.get_or_404(pair.ejercicio_id)
+    return TpEjercicioRead(
+        id=pair.id,
+        tarea_practica_id=pair.tarea_practica_id,
+        ejercicio_id=pair.ejercicio_id,
+        orden=pair.orden,
+        peso_en_tp=pair.peso_en_tp,
+        ejercicio=EjercicioRead.model_validate(ej),
+    )
+
+
+@router.delete(
+    "/{tarea_id}/ejercicios/{ejercicio_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_ejercicio_from_tarea_practica(
+    tarea_id: UUID,
+    ejercicio_id: UUID,
+    user: User = Depends(require_permission("tarea_practica", "update")),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Quita un Ejercicio de la TP. El Ejercicio sobrevive en el banco.
+
+    Solo permitido en TPs con `estado='draft'`.
+    """
+    svc = TpEjercicioService(db)
+    await svc.remove_ejercicio(
+        tarea_practica_id=tarea_id,
+        ejercicio_id=ejercicio_id,
+        user=user,
+    )
 
 
 @router.get("/{tarea_id}/versions", response_model=list[TareaPracticaVersionRef])

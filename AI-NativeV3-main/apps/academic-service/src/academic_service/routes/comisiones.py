@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth import User, get_db, require_permission
+from academic_service.config import settings
 from academic_service.schemas import (
     ComisionCreate,
     ComisionOut,
     ComisionUpdate,
+    ConfigHashesOut,
     InscripcionCreateIndividual,
     InscripcionOut,
     ListMeta,
@@ -23,6 +29,14 @@ from academic_service.schemas import (
     UsuarioComisionOut,
 )
 from academic_service.services import ComisionService, PeriodoService
+
+logger = logging.getLogger(__name__)
+
+# Fallback hardcoded del piloto cuando el classifier-service no responde.
+# Mantiene compatibilidad con el comportamiento legacy del frontend
+# (que mandaba "d"*64 antes de F9). Documentado como degradación
+# best-effort en el response del endpoint.
+_CLASSIFIER_HASH_FALLBACK = "d" * 64
 
 periodos_router = APIRouter(prefix="/api/v1/periodos", tags=["periodos"])
 comisiones_router = APIRouter(prefix="/api/v1/comisiones", tags=["comisiones"])
@@ -139,6 +153,80 @@ async def get_comision(
     svc = ComisionService(db)
     obj = await svc.get(comision_id)
     return ComisionOut.model_validate(obj)
+
+
+@comisiones_router.get("/{comision_id}/config-hashes", response_model=ConfigHashesOut)
+async def get_config_hashes(
+    comision_id: UUID,
+    user: User = Depends(require_permission("comision", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> ConfigHashesOut:
+    """Bootstrap mínimo F9 — hashes vigentes para abrir un episodio.
+
+    Reemplaza los hashes hardcoded del piloto (`"c"*64` / `"d"*64`) que
+    el web-student venía enviando al `POST /api/v1/episodes`. Hoy ese
+    contrato sigue exigiéndolos en el request body, así que este
+    endpoint los provee desde una fuente derivada.
+
+    - `curso_config_hash`: SHA-256 del JSON canónico de la config
+      mínima de la comisión (`comision_id`, `materia_id`, `periodo_id`,
+      `tenant_id`, `version`). Determinista por comisión hoy. Misma
+      fórmula JSON canónica que CTR/classifier (`sort_keys=True`,
+      `ensure_ascii=False`, `separators=(",", ":")`).
+    - `classifier_config_hash`: lo que el classifier-service usa al
+      clasificar (`compute_classifier_config_hash`). Si el classifier
+      no responde, degrada al fallback `"d"*64` con warning — no
+      bloquea la apertura del episodio.
+
+    RLS filtra por tenant automáticamente vía `tenant_session`.
+    """
+    svc = ComisionService(db)
+    comision = await svc.get(comision_id)
+
+    # curso_config_hash — JSON canónico igual a la fórmula del CTR/classifier.
+    payload = {
+        "comision_id": str(comision.id),
+        "materia_id": str(comision.materia_id),
+        "periodo_id": str(comision.periodo_id),
+        "tenant_id": str(comision.tenant_id),
+        "version": "1.0.0",
+    }
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    curso_config_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    # classifier_config_hash — pedir al servicio dueño de la fórmula.
+    classifier_hash = _CLASSIFIER_HASH_FALLBACK
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                f"{settings.classifier_service_url}/api/v1/classifier/config-hash"
+            )
+            r.raise_for_status()
+            data = r.json()
+            value = data.get("classifier_config_hash")
+            if isinstance(value, str) and len(value) == 64:
+                classifier_hash = value
+            else:
+                logger.warning(
+                    "classifier-service devolvio payload inesperado",
+                    extra={"payload": data},
+                )
+    except Exception as exc:  # noqa: BLE001 — best-effort: fallback hardcoded.
+        logger.warning(
+            "classifier-service no respondio config-hash; usando fallback",
+            extra={"error": str(exc), "comision_id": str(comision_id)},
+        )
+
+    return ConfigHashesOut(
+        comision_id=comision.id,
+        curso_config_hash=curso_config_hash,
+        classifier_config_hash=classifier_hash,
+    )
 
 
 @comisiones_router.patch("/{comision_id}", response_model=ComisionOut)

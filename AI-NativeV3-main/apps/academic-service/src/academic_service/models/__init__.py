@@ -14,10 +14,12 @@ from academic_service.models.institucional import (
 )
 from academic_service.models.operacional import (
     Comision,
+    Ejercicio,
     Inscripcion,
     Periodo,
     TareaPractica,
     TareaPracticaTemplate,
+    TpEjercicio,
     Unidad,
     UsuarioComision,
 )
@@ -30,6 +32,7 @@ __all__ = [
     "Carrera",
     "CasbinRule",
     "Comision",
+    "Ejercicio",
     "Facultad",
     "Inscripcion",
     "Materia",
@@ -39,9 +42,8 @@ __all__ = [
     "TareaPractica",
     "TareaPracticaTemplate",
     "TenantMixin",
-    # Operacional (cont.)
-    "Unidad",
     "TimestampMixin",
+    "TpEjercicio",
     "Unidad",
     # Institucional
     "Universidad",

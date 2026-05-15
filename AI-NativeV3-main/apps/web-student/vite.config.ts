@@ -37,19 +37,26 @@ export default defineConfig({
         target: process.env.VITE_API_URL || "http://127.0.0.1:8000",
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            // Dev-only: el api-gateway no tiene JWT validator (Keycloak
-            // sin realm). Inyectamos X-* para que dev_trust_headers acepte.
+          proxy.on("proxyReq", (proxyReq, req) => {
+            // Dev: respetar headers del cliente (ModHeader/Requestly)
+            // o usar defaults si el browser no los manda.
             proxyReq.removeHeader("authorization")
-            // UUID del estudiante 1 de la comision A-Manana (seed-3-comisiones.py).
-            // Para loguearte como otro estudiante, cambia este UUID:
-            //   A-Manana: b1b1b1b1-000{1..6}-... (6 estudiantes)
-            //   B-Tarde:  b2b2b2b2-000{1..6}-...
-            //   C-Noche:  b3b3b3b3-000{1..6}-...
-            proxyReq.setHeader("x-user-id", "b1b1b1b1-0001-0001-0001-000000000001")
-            proxyReq.setHeader("x-tenant-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-            proxyReq.setHeader("x-user-email", "estudiante@demo-uni.edu")
-            proxyReq.setHeader("x-user-roles", "estudiante,classifier_worker")
+            const setDefault = (name: string, fallback: string) => {
+              if (!proxyReq.getHeader(name)) proxyReq.setHeader(name, fallback)
+            }
+            setDefault("x-user-id", "e19354fb-c05a-4535-a0bf-a7d3ea09692d") // alumno01
+            // Tenant dinámico: si el cliente manda `x-selected-tenant`
+            // (escrito por el TenantSelector via monkey-patch en main.tsx),
+            // usamos eso. Fallback a la Universidad Final E2E.
+            const clientTenant = req.headers["x-selected-tenant"]
+            const tenantFallback = "d6269f07-022f-4181-a24d-db7e16e655ae"
+            const tenantId =
+              typeof clientTenant === "string" && clientTenant.length === 36
+                ? clientTenant
+                : tenantFallback
+            proxyReq.setHeader("x-tenant-id", tenantId)
+            setDefault("x-user-email", "alumno01@demo-uni.edu")
+            setDefault("x-user-roles", "estudiante,classifier_worker")
           })
         },
       },

@@ -25,6 +25,7 @@ from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from academic_service.auth.dependencies import User
@@ -83,7 +84,22 @@ class UnidadService:
             changes={"after": data.model_dump(mode="json")},
         )
         self.session.add(audit)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError as e:
+            await self.session.rollback()
+            msg = str(e.orig) if e.orig else str(e)
+            if "uq_unidad_orden" in msg:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Ya existe una Unidad con orden={data.orden} en esta comisión",
+                ) from e
+            if "uq_unidad_nombre" in msg:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Ya existe una Unidad con nombre '{data.nombre}' en esta comisión",
+                ) from e
+            raise
         await self.session.refresh(unidad)
         return unidad
 

@@ -172,18 +172,57 @@ class AcademicClient:
         resp.raise_for_status()
         return resp.json()
 
-    async def get_ejercicio(
+    async def get_ejercicio_by_id(
         self,
-        tarea_id: UUID,
-        ejercicio_orden: int,
+        ejercicio_id: UUID,
         tenant_id: UUID,
         caller_id: UUID,
     ) -> dict | None:
-        """Obtiene un ejercicio especifico de una TP (tp-entregas-correccion).
+        """Obtiene un Ejercicio del banco standalone por UUID (ADR-047).
+
+        Consume `GET /api/v1/ejercicios/{id}` y devuelve el dict completo
+        con todos los campos pedagógicos (banco_preguntas, misconceptions,
+        respuesta_pista, heuristica_cierre, anti_patrones, tutor_rules,
+        rubrica, prerequisitos, etc.).
 
         Returns:
-            Dict con {orden, titulo, enunciado_md, inicial_codigo, test_cases, peso}
-            o None si la TP no existe o el ejercicio con ese orden no existe.
+            Dict con todos los campos del Ejercicio o None si 404.
+        """
+        headers = {
+            "X-User-Id": str(caller_id),
+            "X-Tenant-Id": str(tenant_id),
+            "X-User-Email": "tutor-service@platform.internal",
+            "X-User-Roles": "tutor_service",
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.get(
+                f"{self.base_url}/api/v1/ejercicios/{ejercicio_id}",
+                headers=headers,
+            )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_tp_ejercicios(
+        self,
+        tarea_id: UUID,
+        tenant_id: UUID,
+        caller_id: UUID,
+    ) -> list[dict]:
+        """Lista los ejercicios asociados a una TP via tp_ejercicios (ADR-047).
+
+        Consume `GET /api/v1/tareas-practicas/{tarea_id}/ejercicios` que
+        devuelve list[TpEjercicioRead] ordenado por `orden`. Cada item
+        tiene `{id, tarea_practica_id, ejercicio_id, orden, peso_en_tp,
+        ejercicio: EjercicioRead}`.
+
+        Returns:
+            Lista de pairs (puede ser vacía si la TP no tiene ejercicios).
+            Lista vacía también si la TP no existe (HTTP 404 raises).
+
+        Raises:
+            httpx.HTTPStatusError: en caso de 4xx/5xx no manejados.
         """
         headers = {
             "X-User-Id": str(caller_id),
@@ -196,14 +235,37 @@ class AcademicClient:
                 f"{self.base_url}/api/v1/tareas-practicas/{tarea_id}/ejercicios",
                 headers=headers,
             )
-        if resp.status_code == 404:
-            return None
         resp.raise_for_status()
         data = resp.json()
-        ejercicios = data.get("ejercicios", [])
-        for ej in ejercicios:
-            if ej.get("orden") == ejercicio_orden:
-                return ej
+        # El endpoint devuelve directamente la lista (no envuelta en ListResponse).
+        return data if isinstance(data, list) else []
+
+    async def resolve_ejercicio_orden_in_tp(
+        self,
+        tarea_id: UUID,
+        ejercicio_id: UUID,
+        tenant_id: UUID,
+        caller_id: UUID,
+    ) -> int | None:
+        """Resuelve el `orden` denormalizado de un Ejercicio dentro de una TP.
+
+        Necesario porque:
+        - El CTR todavía emite `ejercicio_orden` (ADR-049 lo cambiará al
+          sumar `ejercicio_id` al payload — Batch 6).
+        - La validación de secuencialidad opera por orden.
+
+        Returns:
+            El `orden` del par (tarea_id, ejercicio_id) en tp_ejercicios,
+            o None si el ejercicio no está asociado a esta TP.
+        """
+        pairs = await self.get_tp_ejercicios(
+            tarea_id=tarea_id,
+            tenant_id=tenant_id,
+            caller_id=caller_id,
+        )
+        for pair in pairs:
+            if str(pair.get("ejercicio_id")) == str(ejercicio_id):
+                return pair.get("orden")
         return None
 
 

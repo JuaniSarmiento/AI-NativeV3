@@ -91,9 +91,11 @@ class OpenEpisodeRequest(BaseModel):
     problema_id: UUID
     curso_config_hash: str = Field(min_length=64, max_length=64)
     classifier_config_hash: str = Field(min_length=64, max_length=64)
-    # tp-entregas-correccion (D3): orden del ejercicio dentro de la TP.
-    # None = TP monolítica (comportamiento legacy).
-    ejercicio_orden: int | None = Field(default=None, ge=1)
+    # ADR-047: UUID del Ejercicio del banco standalone que el estudiante
+    # va a resolver. None = TP monolítica (sin ejercicio específico). El
+    # `ejercicio_orden` denormalizado se resuelve internamente en el
+    # tutor_core via la tabla intermedia tp_ejercicios.
+    ejercicio_id: UUID | None = None
 
 
 class OpenEpisodeResponse(BaseModel):
@@ -170,7 +172,7 @@ async def open_episode(
         curso_config_hash=req.curso_config_hash,
         classifier_config_hash=req.classifier_config_hash,
         model=model,
-        ejercicio_orden=req.ejercicio_orden,
+        ejercicio_id=req.ejercicio_id,
     )
     return OpenEpisodeResponse(episode_id=episode_id)
 

@@ -12,8 +12,11 @@ export interface OpenEpisodeRequest {
   problema_id: string
   curso_config_hash: string
   classifier_config_hash: string
-  /** Orden del ejercicio dentro de la TP (1-based). Solo en TPs multi-ejercicio. */
-  ejercicio_orden?: number | null
+  /**
+   * UUID del Ejercicio reusable del banco standalone (ADR-047).
+   * None / undefined = TP monolítica sin ejercicio específico.
+   */
+  ejercicio_id?: string | null
 }
 
 export interface OpenEpisodeResponse {
@@ -55,6 +58,34 @@ export async function openEpisode(
     body: JSON.stringify(req),
   })
   if (!r.ok) throw new Error(`open episode failed: ${r.status}`)
+  return r.json()
+}
+
+export interface ConfigHashes {
+  comision_id: string
+  curso_config_hash: string
+  classifier_config_hash: string
+}
+
+/**
+ * Bootstrap minimo F9: resolver los hashes vigentes para abrir un episodio.
+ *
+ * Reemplaza los hashes hardcoded del piloto ("c"*64 / "d"*64). El endpoint
+ * los deriva deterministicamente de la config de la comision (curso) y de
+ * `compute_classifier_config_hash` del classifier-service.
+ *
+ * Si falla, el caller deberia caer al fallback hardcoded para no bloquear
+ * la apertura del episodio (best-effort).
+ */
+export async function fetchConfigHashes(
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<ConfigHashes> {
+  const r = await fetch(`/api/v1/comisiones/${comisionId}/config-hashes`, {
+    method: "GET",
+    headers: await authHeaders(getToken),
+  })
+  if (!r.ok) throw new Error(`fetch config-hashes failed: ${r.status}`)
   return r.json()
 }
 
@@ -154,13 +185,23 @@ export async function getEpisodeState(
   episodeId: string,
   getToken?: TokenGetter,
 ): Promise<EpisodeStateResponse> {
-  const r = await fetch(`/api/v1/episodes/${episodeId}`, {
-    headers: await authHeaders(getToken),
-  })
-  if (!r.ok) {
-    throw new EpisodeStateError(r.status, `get episode state failed: ${r.status}`)
+  // Retry con backoff exponencial sobre 404. El POST /episodes vuelve apenas
+  // hace XADD al stream Redis; el worker ctr-service drena async y persiste
+  // en Postgres con ~1s de delay. Si pedimos el GET justo después del POST,
+  // pegamos contra esa ventana y recibimos 404 aunque el episodio exista.
+  // Para los demás status codes (401/403/500) tiramos al toque sin retry.
+  const delays = [0, 200, 400, 800, 1600]
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i] > 0) await new Promise((resolve) => setTimeout(resolve, delays[i]))
+    const r = await fetch(`/api/v1/episodes/${episodeId}`, {
+      headers: await authHeaders(getToken),
+    })
+    if (r.ok) return (await r.json()) as EpisodeStateResponse
+    if (r.status !== 404 || i === delays.length - 1) {
+      throw new EpisodeStateError(r.status, `get episode state failed: ${r.status}`)
+    }
   }
-  return (await r.json()) as EpisodeStateResponse
+  throw new EpisodeStateError(404, "get episode state failed: 404 after retries")
 }
 
 export async function* sendMessage(
@@ -378,17 +419,31 @@ export interface AvailableTarea {
    * Si el docente no la define, viene null y el editor cae a su default.
    */
   inicial_codigo: string | null
-  /**
-   * Lista de ejercicios de la TP. Array vacio = TP monolitica (flujo legacy).
-   * Array con elementos = TP multi-ejercicio: muestra ExerciseListView.
-   */
-  ejercicios: Array<{
-    orden: number
-    titulo: string
-    enunciado_md: string
-    inicial_codigo: string | null
-    peso: number
-  }>
+  /** Unidad temática a la que pertenece la TP (null si está sin asignar). */
+  unidad_id: string | null
+}
+
+// ── Unidades temáticas (navegación intermedia materia → unidad → TP) ─
+
+export interface Unidad {
+  id: string
+  comision_id: string
+  nombre: string
+  descripcion: string | null
+  orden: number
+}
+
+export async function listUnidades(
+  comisionId: string,
+  getToken?: TokenGetter,
+): Promise<Unidad[]> {
+  const r = await fetch(
+    `/api/v1/unidades?comision_id=${encodeURIComponent(comisionId)}`,
+    { headers: await authHeaders(getToken) },
+  )
+  if (!r.ok) throw new Error(`list unidades failed: ${r.status}`)
+  const body = (await r.json()) as { data: Unidad[] }
+  return body.data
 }
 
 /**
@@ -612,23 +667,40 @@ export const materiasApi = {
 // ── Entregas y Ejercicios (tp-entregas-correccion) ────────────────────
 
 /**
- * Un ejercicio individual dentro de una TP multi-ejercicio.
- * Viene del endpoint GET /api/v1/tareas-practicas/{id}/ejercicios.
+ * Ejercicio del banco standalone (ADR-047 + ADR-048).
+ * El shape completo incluye campos pedagógicos PID-UTN pero el alumno solo
+ * consume el subset visible (titulo, enunciado, codigo inicial, tests publicos).
  */
 export interface Ejercicio {
-  orden: number
+  id: string
   titulo: string
   enunciado_md: string
   inicial_codigo: string | null
+  unidad_tematica: "secuenciales" | "condicionales" | "repetitivas" | "mixtos"
+  dificultad: "basica" | "intermedia" | "avanzada" | null
   test_cases: unknown[]
-  peso: number
 }
 
 /**
- * Estado de un ejercicio dentro de una entrega.
- * Viene del campo `ejercicio_estados` en la entrega.
+ * Asociación TP ↔ Ejercicio devuelta por GET /tareas-practicas/{id}/ejercicios.
+ * Incluye el `Ejercicio` embebido para que la UI no necesite un roundtrip más.
+ */
+export interface TpEjercicio {
+  id: string
+  tarea_practica_id: string
+  ejercicio_id: string
+  orden: number
+  peso_en_tp: string
+  ejercicio: Ejercicio
+}
+
+/**
+ * Estado de un ejercicio dentro de una entrega (ADR-047).
+ * `ejercicio_id` es la identidad permanente; `orden` se preserva como
+ * snapshot del momento de la entrega.
  */
 export interface EjercicioEstado {
+  ejercicio_id: string | null
   orden: number
   completado: boolean
   episode_id: string | null
@@ -708,28 +780,20 @@ export async function submitEntrega(
 }
 
 /**
- * Trae los ejercicios de una TP. Necesario para mostrar la lista con
- * enunciados y codigo inicial.
+ * Trae los ejercicios asociados a una TP (ADR-047).
  *
- * Backend devuelve estructura `{tarea_id, ejercicios, count, tiene_ejercicios}`,
- * NO un array plano. Sin desempaquetar `ejercicios`, los componentes que hacen
- * `.map()` rompen con TypeError.
+ * Backend devuelve `TpEjercicio[]` ordenado por `orden`, cada item con el
+ * `Ejercicio` embebido. Sin esto la UI tendría que pedir ejercicio por ejercicio.
  */
 export async function listEjerciciosTp(
   tareaId: string,
   getToken?: TokenGetter,
-): Promise<Ejercicio[]> {
+): Promise<TpEjercicio[]> {
   const r = await fetch(`/api/v1/tareas-practicas/${tareaId}/ejercicios`, {
     headers: await authHeaders(getToken),
   })
   if (!r.ok) throw new Error(`list ejercicios failed: ${r.status}`)
-  const body = (await r.json()) as {
-    tarea_id: string
-    ejercicios: Ejercicio[]
-    count: number
-    tiene_ejercicios: boolean
-  }
-  return body.ejercicios
+  return (await r.json()) as TpEjercicio[]
 }
 
 /**
@@ -770,20 +834,29 @@ export async function getEntregaForTp(
 }
 
 /**
- * Marca un ejercicio como completado dentro de una entrega.
+ * Marca un ejercicio como completado dentro de una entrega (ADR-047).
  * Llamado despues de cerrar el episodio del ejercicio correspondiente.
  * PATCH /api/v1/entregas/{id}/ejercicio/{orden}
+ *
+ * Pasa `ejercicio_id` en el body para que el backend matchee por UUID
+ * (mas robusto que orden ante reordenamientos futuros). El `orden` en el
+ * path param queda por compat con el shape del endpoint.
  */
 export async function markEjercicioCompleted(
   entregaId: string,
   orden: number,
   episodeId: string,
+  ejercicioId: string,
   getToken?: TokenGetter,
 ): Promise<Entrega> {
   const r = await fetch(`/api/v1/entregas/${entregaId}/ejercicio/${orden}`, {
     method: "PATCH",
     headers: await authHeaders(getToken),
-    body: JSON.stringify({ completado: true, episode_id: episodeId }),
+    body: JSON.stringify({
+      completado: true,
+      episode_id: episodeId,
+      ejercicio_id: ejercicioId,
+    }),
   })
   if (!r.ok) throw new Error(`mark ejercicio completed failed: ${r.status}`)
   return (await r.json()) as Entrega

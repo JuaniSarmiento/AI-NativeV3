@@ -90,3 +90,25 @@ class ComisionOut(ComisionBase):
     curso_config_hash: str | None = None
     created_at: datetime
     deleted_at: datetime | None = None
+
+
+class ConfigHashesOut(BaseModel):
+    """Bootstrap mínimo F9: hashes vigentes para abrir un episodio.
+
+    El frontend del estudiante consulta este endpoint antes de pegarle a
+    `POST /api/v1/episodes`. Reemplaza los hashes hardcoded de piloto
+    ("c"*64 / "d"*64) por valores derivados deterministicamente de la
+    config de la comisión y del classifier-service.
+
+    - `curso_config_hash`: SHA-256 canónico de un dict mínimo
+      (comision_id, materia_id, periodo_id, tenant_id, version). Es
+      determinista por comisión hoy; en piloto-2 podría incluir rúbrica
+      del curso u otros campos.
+    - `classifier_config_hash`: el hash que el classifier-service usa al
+      clasificar (`compute_classifier_config_hash`). Si el classifier no
+      responde, el handler degrada al fallback "d"*64 (con warning).
+    """
+
+    comision_id: UUID
+    curso_config_hash: str
+    classifier_config_hash: str

@@ -31,10 +31,20 @@ import {
   listStudentEpisodes,
   tareasPracticasApi,
 } from "../lib/api"
+import { STUDENT_PSEUDONYM_DEV } from "../lib/dev-user"
 
 export interface TareaSelectorProps {
   comisionId: string
   onSelect: (tarea: AvailableTarea) => void
+  /**
+   * Filtro opcional por unidad temática.
+   * - `undefined`: sin filtro, muestra todas las TPs (comportamiento legacy).
+   * - `null`: muestra solo las TPs sin unidad asignada ("huérfanas").
+   * - `string`: muestra solo las TPs de esa unidad.
+   */
+  unidadId?: string | null
+  /** Callback opcional para volver al selector de unidades. */
+  onBack?: () => void
 }
 
 interface Zones {
@@ -92,7 +102,7 @@ function byDeadlineDesc(a: AvailableTarea, b: AvailableTarea): number {
   return -byDeadlineAsc(a, b)
 }
 
-export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
+export function TareaSelector({ comisionId, onSelect, unidadId, onBack }: TareaSelectorProps) {
   const [tareas, setTareas] = useState<AvailableTarea[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -158,15 +168,11 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
   // (analytics down, dev mode sin classifier), seguimos sin la zona Continuar.
   useEffect(() => {
     let cancelled = false
-    // Resolvemos student_pseudonym desde la cookie/proxy del dev mode.
-    // En dev, el proxy de Vite inyecta `x-user-id`. No lo tenemos aca; el
-    // backend ya lo lee de los headers y filtra por el. Pasamos un sentinel
-    // que el endpoint NO va a usar (filtra por header X-User-Id).
-    // TODO: cuando exista AuthContext con el sub claim, pasarlo explicito.
-    // Por ahora pegamos al endpoint con el UUID hardcoded del seed para que
-    // funcione en dev. En prod, el JWT trae el sub.
-    const studentPseudonym = "b1b1b1b1-0001-0001-0001-000000000001"
-    listStudentEpisodes(studentPseudonym, comisionId)
+    // El backend filtra por X-User-Id, no por este path param — pero el
+    // contrato pide UUID valido. En dev usamos STUDENT_PSEUDONYM_DEV
+    // (mismo UUID que el vite.config inyecta como X-User-Id). En prod, el
+    // sub del JWT proveera el verdadero `student_pseudonym`.
+    listStudentEpisodes(STUDENT_PSEUDONYM_DEV, comisionId)
       .then((res) => {
         if (cancelled) return
         setEpisodes(res.episodes)
@@ -194,9 +200,15 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
     }
   }
 
+  const filteredTareas = useMemo(() => {
+    if (unidadId === undefined) return tareas
+    if (unidadId === null) return tareas.filter((t) => t.unidad_id === null)
+    return tareas.filter((t) => t.unidad_id === unidadId)
+  }, [tareas, unidadId])
+
   const zones = useMemo(
-    () => partitionTareas(tareas, episodes, entregasByTareaId),
-    [tareas, episodes, entregasByTareaId],
+    () => partitionTareas(filteredTareas, episodes, entregasByTareaId),
+    [filteredTareas, episodes, entregasByTareaId],
   )
 
   if (loading) {
@@ -220,12 +232,23 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
     )
   }
 
-  if (tareas.length === 0) {
+  if (filteredTareas.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="max-w-md text-center px-6">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-4 text-sm text-blue-600 hover:underline"
+            >
+              ← Volver a unidades
+            </button>
+          )}
           <p className="text-base font-medium text-body mb-2">
-            Tu comision todavia no tiene TPs publicadas.
+            {unidadId !== undefined
+              ? "Esta unidad todavía no tiene trabajos prácticos."
+              : "Tu comision todavia no tiene TPs publicadas."}
           </p>
           <p className="text-sm text-muted">
             Tu docente las publica desde el panel de gestion.
@@ -238,6 +261,15 @@ export function TareaSelector({ comisionId, onSelect }: TareaSelectorProps) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-3xl mx-auto">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-3 text-sm text-blue-600 hover:underline"
+          >
+            ← Volver a unidades
+          </button>
+        )}
         <p className="text-xs font-mono uppercase tracking-wider text-muted mb-2">
           Trabajos practicos
         </p>

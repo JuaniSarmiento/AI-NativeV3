@@ -21,6 +21,8 @@
 import { Badge, HelpButton, MarkdownRenderer, Modal, PageContainer } from "@platform/ui"
 import {
   Archive,
+  ArrowDown,
+  ArrowUp,
   Eye,
   FileText,
   GitBranch,
@@ -28,20 +30,23 @@ import {
   Pencil,
   Plus,
   Send,
-  Sparkles,
   Trash2,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { useComisionLabel } from "../components/ComisionSelector"
-import { GenerarConIAWizard } from "../components/GenerarConIAWizard"
 import {
-  type EjercicioGenerado,
-  type EjercicioInput,
+  type Ejercicio,
   type TareaEstado,
   type TareaPractica,
+  type TareaPracticaTemplate,
   type TareaPracticaUpdate,
   type TareaPracticaVersionRef,
+  type TpEjercicio,
+  listEjercicios,
+  listMyComisiones,
   tareasPracticasApi,
+  tareasPracticasTemplatesApi,
+  tpEjerciciosApi,
 } from "../lib/api"
 import { helpContent } from "../utils/helpContent"
 
@@ -67,17 +72,12 @@ type EstadoFilter = "all" | TareaEstado
 // Enum para máquina de estados de modales — reemplaza los 5 bools independientes.
 type ModalState =
   | { kind: "closed" }
-  | { kind: "create"; prefill?: AIPrefill }
+  | { kind: "create" }
   | { kind: "edit"; tarea: TareaPractica }
   | { kind: "view"; tarea: TareaPractica }
   | { kind: "versioning"; tarea: TareaPractica }
   | { kind: "versions-list"; tarea: TareaPractica }
-  | { kind: "generar-ia" }
-
-interface AIPrefill {
-  enunciado: string
-  rubrica: Record<string, unknown> | null
-}
+  | { kind: "composicion"; tarea: TareaPractica }
 
 // ADR-016 — badge "derivado de plantilla": muestra que la instancia fue
 // creada por fan-out desde un `TareaPracticaTemplate`. Clickeable para
@@ -278,14 +278,6 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
             </button>
             <button
               type="button"
-              onClick={() => setModal({ kind: "generar-ia" })}
-              className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm border border-border bg-surface hover:bg-surface-alt text-ink rounded-md font-medium transition-colors"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-accent-brand-deep" />
-              Generar con IA
-            </button>
-            <button
-              type="button"
               onClick={() => setModal({ kind: "create" })}
               className="press-shrink inline-flex items-center gap-1.5 px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors shadow-[0_1px_2px_0_rgba(24,95,165,0.25)]"
             >
@@ -330,14 +322,6 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setModal({ kind: "generar-ia" })}
-                className="press-shrink inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs border border-border bg-surface hover:bg-surface-alt text-ink rounded-md font-medium transition-colors"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-accent-brand-deep" />
-                Generar con IA
-              </button>
-              <button
-                type="button"
                 onClick={() => setModal({ kind: "create" })}
                 className="press-shrink inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors"
               >
@@ -366,49 +350,26 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                   onNewVersion={() => setModal({ kind: "versioning", tarea: t })}
                   onDelete={() => handleDelete(t)}
                   onShowVersions={() => setModal({ kind: "versions-list", tarea: t })}
+                  onComposicion={() => setModal({ kind: "composicion", tarea: t })}
                 />
               </li>
             ))}
           </ul>
         )}
 
-        {/* Wizard: generar TP con IA */}
-        <GenerarConIAWizard
-          isOpen={modal.kind === "generar-ia"}
+        {/* Modal: crear nuevo TP */}
+        <TareaFormModal
+          isOpen={modal.kind === "create"}
+          title="Nuevo trabajo practico"
+          initial={null}
           comisionId={comisionId}
           getToken={getToken}
           onClose={closeModal}
-          onUseResult={async (ejerciciosIA: EjercicioGenerado[]) => {
-            const enunciado = ejerciciosIA
-              .map((ej, i) => `## Ejercicio ${i + 1}: ${ej.titulo}\n\n${ej.enunciado}`)
-              .join("\n\n---\n\n")
-            const titulo =
-              ejerciciosIA.length === 1
-                ? ejerciciosIA[0]!.titulo
-                : `TP: ${ejerciciosIA[0]!.titulo} (+${ejerciciosIA.length - 1} mas)`
-            const codigo = `IA-${Date.now().toString(36).slice(-4).toUpperCase()}`
-            const apiEjercicios: EjercicioInput[] = ejerciciosIA.map((ej, i) => {
-              const n = ejerciciosIA.length
-              const basePeso = Math.floor((1.0 / n) * 1000) / 1000
-              const isLast = i === n - 1
-              const ejPeso = isLast ? (1.0 - basePeso * (n - 1)).toFixed(3) : basePeso.toFixed(3)
-              return {
-                orden: i + 1,
-                titulo: ej.titulo,
-                enunciado_md: ej.enunciado,
-                inicial_codigo: ej.inicial_codigo || null,
-                peso: ejPeso,
-              }
-            })
+          onSubmit={async (values) => {
             await tareasPracticasApi.create(
               {
+                ...values,
                 comision_id: comisionId,
-                codigo,
-                titulo,
-                enunciado,
-                rubrica: { ejercicios: ejerciciosIA },
-                ejercicios: apiEjercicios,
-                created_via_ai: true,
               },
               getToken,
             )
@@ -417,26 +378,14 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
           }}
         />
 
-        {/* Modal: crear nuevo TP */}
-        <TareaFormModal
-          isOpen={modal.kind === "create"}
-          title="Nuevo trabajo practico"
-          initial={null}
-          {...(modal.kind === "create" && modal.prefill ? { prefill: modal.prefill } : {})}
-          onClose={closeModal}
-          onSubmit={async (values) => {
-            await tareasPracticasApi.create(
-              {
-                ...values,
-                comision_id: comisionId,
-                ejercicios: values.ejercicios,
-              },
-              getToken,
-            )
-            closeModal()
-            await refreshList()
-          }}
-        />
+        {/* Modal: composicion de ejercicios (ADR-047) */}
+        {modal.kind === "composicion" && (
+          <ComposicionModal
+            tarea={modal.tarea}
+            getToken={getToken}
+            onClose={closeModal}
+          />
+        )}
 
         {/* Modal: editar TP (draft solamente) */}
         {modal.kind === "edit" && (
@@ -455,7 +404,6 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                 fecha_fin: values.fecha_fin,
                 peso: values.peso,
                 rubrica: values.rubrica,
-                ejercicios: values.ejercicios,
               }
               await tareasPracticasApi.update(modal.tarea.id, patch, getToken)
               closeModal()
@@ -481,7 +429,6 @@ export function TareasPracticasView({ comisionId, getToken }: Props) {
                 fecha_fin: values.fecha_fin,
                 peso: values.peso,
                 rubrica: values.rubrica,
-                ejercicios: values.ejercicios,
               }
               await tareasPracticasApi.newVersion(modal.tarea.id, patch, getToken)
               closeModal()
@@ -521,6 +468,7 @@ function TareaCard({
   onNewVersion,
   onDelete,
   onShowVersions,
+  onComposicion,
 }: {
   tarea: TareaPractica
   onView: () => void
@@ -530,6 +478,7 @@ function TareaCard({
   onNewVersion: () => void
   onDelete: () => void
   onShowVersions: () => void
+  onComposicion: () => void
 }) {
   const estado = tarea.estado
   const accentByEstado: Record<TareaEstado, string> = {
@@ -588,6 +537,15 @@ function TareaCard({
 
       {/* Footer con acciones */}
       <footer className="flex items-stretch border-t border-border-soft">
+        <button
+          type="button"
+          onClick={onComposicion}
+          className="press-shrink flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-medium text-muted hover:bg-surface-alt hover:text-ink transition-colors"
+          title="Gestionar ejercicios del TP"
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Composicion
+        </button>
         <button
           type="button"
           onClick={onShowVersions}
@@ -714,7 +672,6 @@ function ActionButton({
 }
 
 // ── Form modal (create / edit / new-version) ──────────────────────────
-
 interface FormValues {
   codigo: string
   titulo: string
@@ -723,85 +680,39 @@ interface FormValues {
   fecha_fin: string | null
   peso: string
   rubrica: Record<string, unknown> | null
-  ejercicios: EjercicioInput[]
-}
-
-interface EjercicioEdit {
-  titulo: string
-  enunciado: string
-  inicial_codigo: string
-  rubrica: Record<string, unknown>
-  rubricaRaw: string
-}
-
-function parseEjercicios(
-  tpEjercicios: TareaPractica["ejercicios"] | undefined,
-  rubrica: Record<string, unknown> | null,
-): EjercicioEdit[] | null {
-  if (tpEjercicios && tpEjercicios.length > 0) {
-    return tpEjercicios.map((ej) => ({
-      titulo: ej.titulo ?? "",
-      enunciado: ej.enunciado_md ?? "",
-      inicial_codigo: ej.inicial_codigo ?? "",
-      rubrica: {},
-      rubricaRaw: "{}",
-    }))
-  }
-  if (!rubrica) return null
-  const arr = rubrica.ejercicios
-  if (!Array.isArray(arr) || arr.length === 0) return null
-  return (arr as Array<Record<string, string>>).map((ej) => ({
-    titulo: ej.titulo ?? "",
-    enunciado: ej.enunciado_md ?? ej.enunciado ?? "",
-    inicial_codigo: ej.inicial_codigo ?? "",
-    rubrica: {},
-    rubricaRaw: "{}",
-  }))
-}
-
-function ejerciciosToEnunciado(ejercicios: EjercicioEdit[]): string {
-  return ejercicios
-    .map((ej, i) => `## Ejercicio ${i + 1}: ${ej.titulo}\n\n${ej.enunciado}`)
-    .join("\n\n---\n\n")
+  template_id?: string | null
 }
 
 function TareaFormModal({
   isOpen,
   title,
   initial,
-  prefill,
   mode = "create",
+  comisionId,
+  getToken,
   onClose,
   onSubmit,
 }: {
   isOpen: boolean
   title: string
   initial: TareaPractica | null
-  prefill?: AIPrefill
   mode?: "create" | "edit" | "version"
+  comisionId?: string
+  getToken?: () => Promise<string | null>
   onClose: () => void
   onSubmit: (values: FormValues) => Promise<void>
 }) {
-  const initRubrica = prefill?.rubrica ?? initial?.rubrica ?? null
-  const initEjercicios = parseEjercicios(
-    initial?.ejercicios,
-    initRubrica as Record<string, unknown> | null,
-  )
   const isEditing = mode === "edit" || mode === "version"
-
-  const [step, setStep] = useState<"basics" | "ejercicios">(isEditing ? "ejercicios" : "basics")
 
   const [codigo, setCodigo] = useState(initial?.codigo ?? "")
   const [titulo, setTitulo] = useState(initial?.titulo ?? "")
+  const [enunciado, setEnunciado] = useState(initial?.enunciado ?? "")
   const [fechaInicio, setFechaInicio] = useState(isoToLocalInput(initial?.fecha_inicio ?? null))
   const [fechaFin, setFechaFin] = useState(isoToLocalInput(initial?.fecha_fin ?? null))
   const [peso, setPeso] = useState(initial?.peso ?? "1.0")
-  const [ejercicios, setEjercicios] = useState<EjercicioEdit[]>(
-    initEjercicios ?? [
-      { titulo: "Ejercicio 1", enunciado: "", inicial_codigo: "", rubrica: {}, rubricaRaw: "{}" },
-    ],
+  const [rubricaRaw, setRubricaRaw] = useState(() =>
+    initial?.rubrica ? JSON.stringify(initial.rubrica, null, 2) : "",
   )
-  const [expandedEj, setExpandedEj] = useState<number | null>(0)
 
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -809,412 +720,486 @@ function TareaFormModal({
   const showDriftBanner = Boolean(mode === "edit" && initial?.template_id && !initial.has_drift)
   const [driftAck, setDriftAck] = useState(false)
 
-  const updateEjercicio = (index: number, updates: Partial<EjercicioEdit>) => {
-    setEjercicios((prev) => prev.map((ej, i) => (i === index ? { ...ej, ...updates } : ej)))
-  }
+  // Plantillas (briefs pedagogicos) disponibles — solo en modo create.
+  const [templates, setTemplates] = useState<TareaPracticaTemplate[]>([])
+  const [templateId, setTemplateId] = useState<string | null>(initial?.template_id ?? null)
 
-  const removeEjercicio = (index: number) => {
-    setEjercicios((prev) => prev.filter((_, i) => i !== index))
-    setExpandedEj(null)
-  }
+  useEffect(() => {
+    if (!isOpen || mode !== "create" || !comisionId || !getToken) return
+    let cancelled = false
+    listMyComisiones(getToken)
+      .then((res) => res.items.find((c) => c.id === comisionId))
+      .then(async (com) => {
+        if (cancelled || !com) return
+        const list = await tareasPracticasTemplatesApi.list(
+          { materia_id: com.materia_id, periodo_id: com.periodo_id },
+          getToken,
+        )
+        if (!cancelled) setTemplates(list.filter((t) => t.estado !== "archived"))
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, mode, comisionId, getToken])
 
-  const addEjercicio = () => {
-    setEjercicios((prev) => [
-      ...prev,
-      {
-        titulo: `Ejercicio ${prev.length + 1}`,
-        enunciado: "",
-        inicial_codigo: "",
-        rubrica: {},
-        rubricaRaw: "{}",
-      },
-    ])
-    setExpandedEj(ejercicios.length)
-  }
-
-  const handleNextStep = () => {
-    setFormError(null)
-    if (!codigo.trim()) {
-      setFormError("El codigo es obligatorio.")
-      return
+  const handleSelectTemplate = (id: string | null) => {
+    setTemplateId(id)
+    if (id) {
+      const t = templates.find((x) => x.id === id)
+      if (t) {
+        if (!codigo.trim()) setCodigo(t.codigo)
+        if (!titulo.trim()) setTitulo(t.titulo)
+      }
     }
-    if (!titulo.trim()) {
-      setFormError("El titulo es obligatorio.")
-      return
-    }
-    if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-      setFormError("La fecha de fin debe ser posterior a la fecha de inicio.")
-      return
-    }
-    setStep("ejercicios")
   }
 
   const handleSubmit = async () => {
     setFormError(null)
-
-    if (ejercicios.length === 0) {
-      setFormError("Agrega al menos un ejercicio.")
+    if (!codigo.trim() || !titulo.trim() || !enunciado.trim()) {
+      setFormError("Codigo, titulo y enunciado son obligatorios")
       return
     }
-
-    const apiEjercicios: EjercicioInput[] = ejercicios.map((ej, i) => {
-      const n = ejercicios.length
-      const basePeso = Math.floor((1.0 / n) * 1000) / 1000
-      const isLast = i === n - 1
-      const ejPeso = isLast ? (1.0 - basePeso * (n - 1)).toFixed(3) : basePeso.toFixed(3)
-      return {
-        orden: i + 1,
-        titulo: ej.titulo,
-        enunciado_md: ej.enunciado,
-        inicial_codigo: ej.inicial_codigo || null,
-        peso: ejPeso,
+    if (showDriftBanner && !driftAck) {
+      setFormError("Confirma que entendes que esta edicion va a marcar drift del template")
+      return
+    }
+    let rubrica: Record<string, unknown> | null = null
+    if (rubricaRaw.trim()) {
+      try {
+        rubrica = JSON.parse(rubricaRaw)
+      } catch (e) {
+        setFormError(`Rubrica no es JSON valido: ${String(e)}`)
+        return
       }
-    })
-
-    const cleanEjercicios = ejercicios.map((ej) => {
-      let parsedRubrica = ej.rubrica
-      if (ej.rubricaRaw.trim()) {
-        try {
-          parsedRubrica = JSON.parse(ej.rubricaRaw)
-        } catch {
-          setFormError(`Rubrica invalida en ejercicio "${ej.titulo}".`)
-          return null
-        }
-      }
-      return {
-        titulo: ej.titulo,
-        enunciado: ej.enunciado,
-        inicial_codigo: ej.inicial_codigo,
-        rubrica: parsedRubrica,
-      }
-    })
-    if (cleanEjercicios.some((e) => e === null)) return
-
-    const rubrica = { ejercicios: cleanEjercicios }
-    const finalEnunciado = ejerciciosToEnunciado(ejercicios)
-
+    }
     setSubmitting(true)
     try {
       await onSubmit({
         codigo: codigo.trim(),
         titulo: titulo.trim(),
-        enunciado: finalEnunciado,
+        enunciado: enunciado.trim(),
         fecha_inicio: localInputToIso(fechaInicio),
         fecha_fin: localInputToIso(fechaFin),
-        peso: peso.trim(),
+        peso,
         rubrica,
-        ejercicios: apiEjercicios,
+        ...(mode === "create" && templateId ? { template_id: templateId } : {}),
       })
-    } catch (err) {
-      setFormError(String(err))
+    } catch (e) {
+      setFormError(String(e))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const inputClass =
-    "w-full px-2 py-1.5 text-sm border border-border rounded bg-white focus:outline-none focus:border-ink"
-
-  const stepTitle =
-    step === "basics" ? title : `${titulo || title} — Ejercicios (${ejercicios.length})`
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={stepTitle} size="lg">
-      {showDriftBanner && (
-        <div className="rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm text-warning mb-4">
-          <p className="font-medium">Este TP esta sincronizado con una plantilla de catedra.</p>
-          <p className="text-xs mt-1">
-            Editar lo desconectara de la plantilla y lo marcara como drift.
-          </p>
-          {!driftAck && (
-            <button
-              type="button"
-              onClick={() => setDriftAck(true)}
-              className="mt-2 px-3 py-1 text-xs bg-warning hover:bg-warning text-white rounded font-medium"
-            >
-              Entiendo, continuar
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Step indicator */}
-      {!isEditing && (
-        <div className="flex items-center gap-2 mb-4 text-xs">
-          <span
-            className={`px-2 py-0.5 rounded-full font-medium ${step === "basics" ? "bg-ink text-white" : "bg-border text-muted"}`}
-          >
-            1. Datos del TP
-          </span>
-          <span className="text-border">→</span>
-          <span
-            className={`px-2 py-0.5 rounded-full font-medium ${step === "ejercicios" ? "bg-ink text-white" : "bg-border text-muted"}`}
-          >
-            2. Ejercicios
-          </span>
-        </div>
-      )}
-
-      {/* Step 1: Basics */}
-      {step === "basics" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="block text-xs font-medium text-ink mb-1">Codigo</span>
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
+      <div className="space-y-4">
+        {showDriftBanner && (
+          <div className="rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm">
+            <p className="font-semibold text-warning">Este TP viene de una plantilla de catedra.</p>
+            <p className="mt-1 text-warning/90">
+              Si lo edita, va a marcarse como drift y no recibira mas actualizaciones automaticas
+              del template.
+            </p>
+            <label className="mt-2 inline-flex items-center gap-2 text-xs text-warning">
               <input
-                type="text"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                required
-                placeholder="TP1"
-                className={inputClass}
+                type="checkbox"
+                checked={driftAck}
+                onChange={(e) => setDriftAck(e.target.checked)}
               />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-medium text-ink mb-1">Peso (0 - 1)</span>
-              <input
-                type="number"
-                min={0}
-                max={1}
-                step={0.05}
-                value={peso}
-                onChange={(e) => setPeso(e.target.value)}
-                required
-                className={`${inputClass} tabular-nums`}
-              />
+              Entiendo y quiero continuar
             </label>
           </div>
+        )}
 
-          <label className="block">
-            <span className="block text-xs font-medium text-ink mb-1">Titulo del TP</span>
+        {formError && (
+          <div className="rounded border border-danger/30 bg-danger-soft p-2 text-xs text-danger">
+            {formError}
+          </div>
+        )}
+
+        {mode === "create" && templates.length > 0 && (
+          <div>
+            <label className="block text-xs text-muted mb-1">
+              Inspirar en una plantilla (opcional)
+            </label>
+            <select
+              value={templateId ?? ""}
+              onChange={(e) => handleSelectTemplate(e.target.value || null)}
+              className="w-full border border-border rounded px-2 py-1 text-sm bg-white"
+            >
+              <option value="">Sin plantilla</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.codigo}: {t.titulo} (v{t.version}, {t.estado})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-muted mb-1">Codigo</label>
             <input
               type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              required
-              placeholder="Ej: Listas y funciones en Python"
-              className={inputClass}
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              maxLength={20}
+              className="w-full border border-border rounded px-2 py-1 text-sm"
             />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="block text-xs font-medium text-ink mb-1">
-                Fecha de inicio (opcional)
-              </span>
-              <input
-                type="datetime-local"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-medium text-ink mb-1">
-                Fecha de fin (opcional)
-              </span>
-              <input
-                type="datetime-local"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-                className={inputClass}
-              />
-            </label>
           </div>
-
-          {formError && (
-            <div className="p-2 rounded bg-danger-soft text-danger text-xs">{formError}</div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors text-muted"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleNextStep}
-              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep text-white rounded-md font-medium transition-colors"
-            >
-              Siguiente: Ejercicios →
-            </button>
+          <div>
+            <label className="block text-xs text-muted mb-1">Peso (0-1)</label>
+            <input
+              type="text"
+              value={peso}
+              onChange={(e) => setPeso(e.target.value)}
+              className="w-full border border-border rounded px-2 py-1 text-sm font-mono"
+            />
           </div>
         </div>
-      )}
 
-      {/* Step 2: Ejercicios */}
-      {step === "ejercicios" && (
-        <div className="space-y-4">
-          {/* Summary strip of TP basics */}
-          {!isEditing && (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-canvas border border-border text-xs text-muted">
-              <span className="font-mono font-medium text-ink">{codigo}</span>
-              <span className="text-border">·</span>
-              <span>{titulo}</span>
-              <span className="text-border">·</span>
-              <span>peso {peso}</span>
-              {fechaInicio && (
-                <>
-                  <span className="text-border">·</span>
-                  <span>{formatShortDate(localInputToIso(fechaInicio))}</span>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setStep("basics")}
-                className="ml-auto text-[var(--color-accent-brand)] hover:underline"
-              >
-                Editar
-              </button>
-            </div>
-          )}
+        <div>
+          <label className="block text-xs text-muted mb-1">Titulo</label>
+          <input
+            type="text"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            maxLength={200}
+            className="w-full border border-border rounded px-2 py-1 text-sm"
+          />
+        </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-ink uppercase tracking-wider">
-                Ejercicios ({ejercicios.length})
-              </span>
-              <button
-                type="button"
-                onClick={addEjercicio}
-                className="text-xs text-muted hover:text-ink transition-colors"
-              >
-                + Agregar ejercicio
-              </button>
-            </div>
-            <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1">
-              {ejercicios.map((ej, i) => (
-                <div key={i} className="border border-border rounded-xl overflow-hidden">
+        <div>
+          <label className="block text-xs text-muted mb-1">Enunciado (markdown)</label>
+          <textarea
+            value={enunciado}
+            onChange={(e) => setEnunciado(e.target.value)}
+            rows={6}
+            className="w-full border border-border rounded px-2 py-1 text-sm font-mono"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-muted mb-1">Fecha inicio</label>
+            <input
+              type="datetime-local"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className="w-full border border-border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Fecha fin</label>
+            <input
+              type="datetime-local"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className="w-full border border-border rounded px-2 py-1 text-sm"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-muted mb-1">Rubrica (JSON, opcional)</label>
+          <textarea
+            value={rubricaRaw}
+            onChange={(e) => setRubricaRaw(e.target.value)}
+            rows={4}
+            className="w-full border border-border rounded px-2 py-1 text-xs font-mono"
+            placeholder='{"criterios": [{"nombre": "...", "puntaje_max": 1.0}]}'
+          />
+        </div>
+
+        <div className="rounded-lg border border-border-soft bg-surface-alt p-3 text-xs text-muted">
+          <strong className="text-ink">Composicion de ejercicios:</strong> al guardar la TP, abri
+          el modal &quot;Composicion&quot; desde la card para asociar ejercicios del banco. Los
+          ejercicios viven en /ejercicios y son reusables entre TPs (ADR-047).
+        </div>
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 border border-border rounded text-sm hover:bg-surface-alt"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="px-3 py-1.5 bg-accent-brand text-white rounded text-sm hover:bg-accent-brand-deep disabled:opacity-50"
+          >
+            {submitting ? "Guardando..." : isEditing ? "Guardar cambios" : "Crear TP"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Composicion modal (ADR-047) ────────────────────────────────────────
+
+function ComposicionModal({
+  tarea,
+  getToken,
+  onClose,
+}: {
+  tarea: TareaPractica
+  getToken: () => Promise<string | null>
+  onClose: () => void
+}) {
+  const [pairs, setPairs] = useState<TpEjercicio[]>([])
+  const [biblioteca, setBiblioteca] = useState<Ejercicio[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [selectedEjercicioId, setSelectedEjercicioId] = useState<string>("")
+  const [nuevoPeso, setNuevoPeso] = useState("1.0")
+
+  const editable = tarea.estado === "draft"
+
+  const fetchPairs = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [p, b] = await Promise.all([
+        tpEjerciciosApi.list(tarea.id, getToken),
+        listEjercicios({ limit: 200 }, getToken).then((r) => r.data),
+      ])
+      setPairs(p)
+      setBiblioteca(b)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [tarea.id, getToken])
+
+  useEffect(() => {
+    fetchPairs()
+  }, [fetchPairs])
+
+  const usedIds = new Set(pairs.map((p) => p.ejercicio_id))
+  const disponibles = biblioteca.filter((ej) => !usedIds.has(ej.id))
+
+  async function handleAdd() {
+    if (!selectedEjercicioId) return
+    setAdding(true)
+    setError(null)
+    try {
+      const nextOrden = pairs.length > 0 ? Math.max(...pairs.map((p) => p.orden)) + 1 : 1
+      await tpEjerciciosApi.add(
+        tarea.id,
+        { ejercicio_id: selectedEjercicioId, orden: nextOrden, peso_en_tp: nuevoPeso },
+        getToken,
+      )
+      setSelectedEjercicioId("")
+      setNuevoPeso("1.0")
+      await fetchPairs()
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function handleRemove(ejercicioId: string) {
+    setError(null)
+    try {
+      await tpEjerciciosApi.remove(tarea.id, ejercicioId, getToken)
+      await fetchPairs()
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  async function handleReorder(pair: TpEjercicio, direction: "up" | "down") {
+    const sorted = [...pairs].sort((a, b) => a.orden - b.orden)
+    const idx = sorted.findIndex((p) => p.id === pair.id)
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]!
+    setError(null)
+    try {
+      // Swap atomico no es posible por UNIQUE — usamos un orden temporal alto.
+      const temp = Math.max(...pairs.map((p) => p.orden)) + 100
+      await tpEjerciciosApi.updatePair(tarea.id, pair.ejercicio_id, { orden: temp }, getToken)
+      await tpEjerciciosApi.updatePair(
+        tarea.id,
+        other.ejercicio_id,
+        { orden: pair.orden },
+        getToken,
+      )
+      await tpEjerciciosApi.updatePair(
+        tarea.id,
+        pair.ejercicio_id,
+        { orden: other.orden },
+        getToken,
+      )
+      await fetchPairs()
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`Composicion · ${tarea.codigo}: ${tarea.titulo}`}
+      size="lg"
+    >
+      <div className="space-y-4">
+        {!editable && (
+          <div className="rounded border border-warning/30 bg-warning-soft p-2 text-xs text-warning">
+            La TP esta en estado &quot;{tarea.estado}&quot;. La composicion es solo lectura. Para
+            modificarla, crea una nueva version.
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded border border-danger/30 bg-danger-soft p-2 text-xs text-danger">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-sm text-muted">Cargando...</div>
+        ) : (
+          <>
+            {pairs.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-surface p-6 text-center">
+                <p className="text-sm text-muted">
+                  Esta TP todavia no tiene ejercicios asociados.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-border rounded overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-alt border-b border-border">
+                    <tr>
+                      <th className="text-left px-2 py-1 w-12">Orden</th>
+                      <th className="text-left px-2 py-1">Ejercicio</th>
+                      <th className="text-left px-2 py-1 w-20">Peso</th>
+                      <th className="text-right px-2 py-1 w-32">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...pairs]
+                      .sort((a, b) => a.orden - b.orden)
+                      .map((p, idx, arr) => (
+                        <tr key={p.id} className="border-b border-border last:border-0">
+                          <td className="px-2 py-1 font-mono text-xs">{p.orden}</td>
+                          <td className="px-2 py-1">{p.ejercicio.titulo}</td>
+                          <td className="px-2 py-1 font-mono text-xs">{p.peso_en_tp}</td>
+                          <td className="px-2 py-1 text-right">
+                            {editable && (
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleReorder(p, "up")}
+                                  disabled={idx === 0}
+                                  className="p-1 hover:bg-surface-alt rounded disabled:opacity-30"
+                                  title="Subir"
+                                >
+                                  <ArrowUp className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReorder(p, "down")}
+                                  disabled={idx === arr.length - 1}
+                                  className="p-1 hover:bg-surface-alt rounded disabled:opacity-30"
+                                  title="Bajar"
+                                >
+                                  <ArrowDown className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemove(p.ejercicio_id)}
+                                  className="p-1 hover:bg-danger-soft hover:text-danger rounded"
+                                  title="Quitar"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {editable && (
+              <div className="border-t border-border pt-3">
+                <p className="text-xs text-muted mb-2">Agregar desde la biblioteca</p>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-muted mb-1">Ejercicio</label>
+                    <select
+                      value={selectedEjercicioId}
+                      onChange={(e) => setSelectedEjercicioId(e.target.value)}
+                      className="w-full border border-border rounded px-2 py-1 text-sm bg-white"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {disponibles.map((ej) => (
+                        <option key={ej.id} value={ej.id}>
+                          {ej.titulo} ({ej.unidad_tematica})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-xs text-muted mb-1">Peso</label>
+                    <input
+                      type="text"
+                      value={nuevoPeso}
+                      onChange={(e) => setNuevoPeso(e.target.value)}
+                      className="w-full border border-border rounded px-2 py-1 text-sm font-mono"
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setExpandedEj(expandedEj === i ? null : i)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-canvas hover:bg-surface-alt transition-colors text-left"
+                    onClick={handleAdd}
+                    disabled={!selectedEjercicioId || adding}
+                    className="px-3 py-1.5 bg-accent-brand text-white rounded text-sm hover:bg-accent-brand-deep disabled:opacity-50"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted bg-white border border-border rounded px-1.5 py-0.5">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-medium text-ink truncate max-w-xs">
-                        {ej.titulo || `Ejercicio ${i + 1}`}
-                      </span>
-                      {ej.enunciado && (
-                        <span className="text-[10px] text-success bg-success-soft border border-green-200 rounded px-1.5 py-0.5">
-                          con contenido
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {ejercicios.length > 1 && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            removeEjercicio(i)
-                          }}
-                          onKeyDown={(ev) => {
-                            if (ev.key === "Enter") {
-                              ev.stopPropagation()
-                              removeEjercicio(i)
-                            }
-                          }}
-                          className="text-xs text-danger hover:text-danger px-1"
-                        >
-                          Quitar
-                        </span>
-                      )}
-                      <span className="text-muted text-xs">{expandedEj === i ? "▲" : "▼"}</span>
-                    </div>
+                    {adding ? "Agregando..." : "Agregar"}
                   </button>
-                  {expandedEj === i && (
-                    <div className="p-4 space-y-3">
-                      <label className="block">
-                        <span className="block text-xs font-medium text-ink mb-1">Titulo</span>
-                        <input
-                          type="text"
-                          value={ej.titulo}
-                          onChange={(e) => updateEjercicio(i, { titulo: e.target.value })}
-                          className={inputClass}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="block text-xs font-medium text-ink mb-1">
-                          Enunciado (markdown)
-                        </span>
-                        <textarea
-                          value={ej.enunciado}
-                          onChange={(e) => updateEjercicio(i, { enunciado: e.target.value })}
-                          rows={8}
-                          placeholder="Describir el ejercicio en markdown..."
-                          className={`${inputClass} font-mono resize-y`}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="block text-xs font-medium text-ink mb-1">
-                          Codigo inicial (opcional)
-                        </span>
-                        <textarea
-                          value={ej.inicial_codigo}
-                          onChange={(e) => updateEjercicio(i, { inicial_codigo: e.target.value })}
-                          rows={5}
-                          placeholder="# Codigo que el alumno ve al empezar..."
-                          className="w-full px-2 py-1.5 text-sm font-mono border border-border rounded bg-surface-alt text-ink resize-y focus:outline-none focus:border-ink"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="block text-xs font-medium text-ink mb-1">
-                          Rubrica (JSON, opcional)
-                        </span>
-                        <textarea
-                          value={ej.rubricaRaw}
-                          onChange={(e) => updateEjercicio(i, { rubricaRaw: e.target.value })}
-                          onBlur={(e) => {
-                            try {
-                              const parsed = JSON.parse(e.target.value)
-                              updateEjercicio(i, { rubrica: parsed })
-                            } catch {
-                              /* se parsea al guardar */
-                            }
-                          }}
-                          rows={4}
-                          placeholder='{"criterios": [...]}'
-                          className={`${inputClass} text-xs font-mono resize-y`}
-                        />
-                      </label>
-                    </div>
-                  )}
                 </div>
-              ))}
-            </div>
-          </div>
+                {disponibles.length === 0 && biblioteca.length > 0 && (
+                  <p className="text-xs text-muted mt-2">
+                    Todos los ejercicios de la biblioteca ya estan en esta TP.
+                  </p>
+                )}
+                {biblioteca.length === 0 && (
+                  <p className="text-xs text-muted mt-2">
+                    No hay ejercicios en la biblioteca. Crea uno desde /ejercicios.
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
-          {formError && (
-            <div className="p-2 rounded bg-danger-soft text-danger text-xs">{formError}</div>
-          )}
-
-          <div className="flex justify-between gap-2 pt-2 border-t border-border">
-            <button
-              type="button"
-              onClick={() => (isEditing ? onClose() : setStep("basics"))}
-              disabled={submitting}
-              className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-canvas transition-colors disabled:opacity-40 text-muted"
-            >
-              {isEditing ? "Cancelar" : "← Volver"}
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting || (showDriftBanner && !driftAck)}
-              className="px-4 py-1.5 text-sm bg-accent-brand hover:bg-accent-brand-deep disabled:bg-border text-white rounded-md font-medium transition-colors"
-            >
-              {submitting ? "Guardando..." : "Guardar TP"}
-            </button>
-          </div>
+        <div className="flex justify-end pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 border border-border rounded text-sm hover:bg-surface-alt"
+          >
+            Cerrar
+          </button>
         </div>
-      )}
+      </div>
     </Modal>
   )
 }

@@ -1,4 +1,11 @@
-"""Schemas para Tarea Práctica (TP)."""
+"""Schemas para Tarea Práctica (TP).
+
+ADR-047: los ejercicios dejaron de vivir embebidos como JSONB. Ahora
+son entidad de primera clase (`Ejercicio`) asociada a TPs via la tabla
+intermedia `tp_ejercicios`. Los schemas de composición viven en
+`packages/contracts/.../academic/ejercicio.py` (`TpEjercicioCreate`,
+`TpEjercicioRead`).
+"""
 
 from __future__ import annotations
 
@@ -8,8 +15,6 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-from platform_contracts.academic.schemas import EjercicioSchema, EjerciciosValidator
 
 
 class TareaPracticaBase(BaseModel):
@@ -24,8 +29,6 @@ class TareaPracticaBase(BaseModel):
     # ADR-034 (Sec 9): test cases ejecutables. Cada elemento:
     # {id, name, type, code, expected, is_public, weight}.
     test_cases: list[dict[str, Any]] = Field(default_factory=list)
-    # tp-entregas-correccion: ejercicios secuenciales. Vacío = TP monolítica.
-    ejercicios: list[EjercicioSchema] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_dates(self) -> TareaPracticaBase:
@@ -37,13 +40,6 @@ class TareaPracticaBase(BaseModel):
             raise ValueError("fecha_fin debe ser posterior a fecha_inicio")
         return self
 
-    @model_validator(mode="after")
-    def check_ejercicios(self) -> TareaPracticaBase:
-        if self.ejercicios:
-            # Delegates to EjerciciosValidator for full validation
-            EjerciciosValidator(ejercicios=self.ejercicios)
-        return self
-
 
 class TareaPracticaCreate(TareaPracticaBase):
     comision_id: UUID
@@ -51,6 +47,9 @@ class TareaPracticaCreate(TareaPracticaBase):
     created_via_ai: bool = False
     # ADR-041: Unidad temática opcional al crear la TP.
     unidad_id: UUID | None = None
+    # Trazabilidad: si el TP nació inspirado por un brief (plantilla) lo
+    # referenciamos para auditoría. NO copia campos — el TP es independiente.
+    template_id: UUID | None = None
 
 
 class TareaPracticaUpdate(BaseModel):
@@ -62,15 +61,8 @@ class TareaPracticaUpdate(BaseModel):
     peso: Decimal | None = Field(default=None, ge=0, le=1)
     rubrica: dict[str, Any] | None = None
     test_cases: list[dict[str, Any]] | None = None
-    ejercicios: list[EjercicioSchema] | None = None
     # ADR-041: asignación opcional a Unidad temática. null = quitar de la Unidad.
     unidad_id: UUID | None = None
-
-    @model_validator(mode="after")
-    def check_ejercicios(self) -> TareaPracticaUpdate:
-        if self.ejercicios:
-            EjerciciosValidator(ejercicios=self.ejercicios)
-        return self
 
 
 class TareaPracticaOut(TareaPracticaBase):

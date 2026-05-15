@@ -34,8 +34,14 @@ class Settings(BaseSettings):
     governance_service_url: str = "http://127.0.0.1:8010"
     ai_gateway_url: str = "http://127.0.0.1:8011"
 
-    # Rate limiting
+    # Rate limiting (Redis-backed, por principal+path — middleware preexistente)
     rate_limit_redis_url: str = "redis://127.0.0.1:6379/4"
+
+    # User-bucket rate limit (slowapi, in-memory) — protege contra runaway
+    # clients (ej. useEffect en loop). Por `X-User-Id`, fallback IP. Aplica
+    # solo a `/api/v1/*`. Desactivar (`rate_limit_enabled=False`) en tests.
+    rate_limit_default: str = "100/minute"
+    rate_limit_enabled: bool = True
 
     # JWT validation (F5). Si jwt_issuer está vacío, el gateway cae en
     # modo dev y acepta headers X-* tal cual vienen (solo para local).

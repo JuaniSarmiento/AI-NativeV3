@@ -10,6 +10,7 @@
  * carrusel horizontal apretado.
  */
 import { type NavGroup, Sidebar } from "@platform/ui"
+import { TenantSelector } from "../components/TenantSelector"
 import {
   Building2,
   CalendarDays,
@@ -119,6 +120,9 @@ export function Router(): ReactNode {
         onNavigate={(id) => navigate(id as Route)}
       />
       <main className="flex-1 overflow-x-hidden">
+        <div className="border-b border-border bg-surface-alt px-6 py-3 flex justify-end">
+          <TenantSelector />
+        </div>
         <div className="container mx-auto p-6 max-w-6xl">
           {current === "home" && <HomePage />}
           {current === "universidades" && <UniversidadesPage />}

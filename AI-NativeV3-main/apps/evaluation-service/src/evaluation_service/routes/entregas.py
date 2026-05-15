@@ -260,20 +260,35 @@ async def mark_ejercicio_completado(
         )
 
     episode_id = body.episode_id if body else None
+    ejercicio_id = body.ejercicio_id if body else None
 
+    # ADR-047: match prefiere `ejercicio_id` (UUID estable) sobre `orden`
+    # cuando ambos están disponibles. Entregas legacy sin `ejercicio_id`
+    # caen al match por orden.
     estados = list(entrega.ejercicio_estados or [])
     found = False
     for est in estados:
-        if est.get("orden") == orden:
+        matches_by_uuid = (
+            ejercicio_id is not None
+            and est.get("ejercicio_id") == str(ejercicio_id)
+        )
+        matches_by_orden = est.get("orden") == orden and est.get("ejercicio_id") is None
+        if matches_by_uuid or matches_by_orden:
             est["completado"] = True
             est["completed_at"] = datetime.now(UTC).isoformat()
             if episode_id:
                 est["episode_id"] = str(episode_id)
+            # Backfill `ejercicio_id` si llegó por primera vez en esta llamada
+            if ejercicio_id is not None and est.get("ejercicio_id") is None:
+                est["ejercicio_id"] = str(ejercicio_id)
+            # Actualizar orden si cambió (snapshot del momento de la marca)
+            est["orden"] = orden
             found = True
             break
 
     if not found:
         estados.append({
+            "ejercicio_id": str(ejercicio_id) if ejercicio_id else None,
             "orden": orden,
             "episode_id": str(episode_id) if episode_id else None,
             "completado": True,

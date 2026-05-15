@@ -7,8 +7,16 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from slowapi.errors import RateLimitExceeded
+
 from api_gateway.config import settings
-from api_gateway.middleware import JWTMiddleware, RateLimitMiddleware
+from api_gateway.middleware import (
+    JWTMiddleware,
+    RateLimitMiddleware,
+    UserRateLimitMiddleware,
+    user_rate_limit_exceeded_handler,
+    user_rate_limiter,
+)
 from api_gateway.observability import setup_observability
 from api_gateway.routes import health, proxy
 from api_gateway.services import JWTValidator, JWTValidatorConfig
@@ -61,6 +69,15 @@ _rate_limit_redis = redis.from_url(
     decode_responses=True,
 )
 app.add_middleware(RateLimitMiddleware, redis_client=_rate_limit_redis)
+
+# ── Rate limit por usuario (slowapi, in-memory) ─────────────────────
+# Cap adicional contra runaway clients (ej. useEffect en loop). Por
+# `X-User-Id` con fallback a IP; 100/min default; solo `/api/v1/*`.
+# El middleware queda OFF cuando `rate_limit_enabled=False` (útil en tests).
+if settings.rate_limit_enabled:
+    app.state.limiter = user_rate_limiter
+    app.add_exception_handler(RateLimitExceeded, user_rate_limit_exceeded_handler)
+    app.add_middleware(UserRateLimitMiddleware)
 
 app.include_router(health.router)
 app.include_router(proxy.router)

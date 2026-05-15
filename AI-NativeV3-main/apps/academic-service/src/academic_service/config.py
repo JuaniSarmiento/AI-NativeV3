@@ -41,8 +41,18 @@ class Settings(BaseSettings):
     governance_service_url: str = Field(default="http://127.0.0.1:8010")
     ai_gateway_url: str = Field(default="http://127.0.0.1:8011")
     content_service_url: str = Field(default="http://127.0.0.1:8009")
+    # Bootstrap mínimo F9: el endpoint /comisiones/{id}/config-hashes pide
+    # el hash vigente del classifier al servicio dueño de la fórmula
+    # determinista (compute_classifier_config_hash). Si no responde, el
+    # handler degrada al fallback hardcoded "d"*64 (warning en log).
+    classifier_service_url: str = Field(default="http://127.0.0.1:8008")
     tp_generator_prompt_version: str = Field(default="v1.0.0")
     tp_generator_default_model: str = Field(default="mistral-small-latest")
+    # ADR-047 + ADR-048: wizard IA standalone para generar Ejercicios
+    # reusables del banco. Devuelve borrador con todos los campos
+    # pedagógicos (banco N1-N4, misconceptions, tutor_rules, etc.).
+    ejercicio_generator_prompt_version: str = Field(default="v1.0.0")
+    ejercicio_generator_default_model: str = Field(default="mistral-small-latest")
 
 
 @lru_cache

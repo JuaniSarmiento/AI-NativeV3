@@ -225,6 +225,26 @@ POLICIES: list[tuple[str, str, str, str]] = [
     ("role:tutor_service", "*", "tarea_practica_template:*", "read"),
     ("role:tutor_service", "*", "comision:*", "read"),
     ("role:evaluation_service", "*", "entrega:*", "read"),
+    # ── Ejercicios reusables (ADR-047 + ADR-048) ─────────────────────
+    # Banco de ejercicios standalone por tenant. CRUD para superadmin,
+    # docente_admin y docente (cualquier docente puede crear ejercicios
+    # en el banco compartido del tenant). Estudiantes solo lectura.
+    # tutor_service necesita lectura para resolver el ejercicio del
+    # episodio (ver ADR-049: propagación de ejercicio_id al CTR).
+    ("role:superadmin", "*", "ejercicio:*", "create"),
+    ("role:superadmin", "*", "ejercicio:*", "read"),
+    ("role:superadmin", "*", "ejercicio:*", "update"),
+    ("role:superadmin", "*", "ejercicio:*", "delete"),
+    ("role:docente_admin", "*", "ejercicio:*", "create"),
+    ("role:docente_admin", "*", "ejercicio:*", "read"),
+    ("role:docente_admin", "*", "ejercicio:*", "update"),
+    ("role:docente_admin", "*", "ejercicio:*", "delete"),
+    ("role:docente", "*", "ejercicio:*", "create"),
+    ("role:docente", "*", "ejercicio:*", "read"),
+    ("role:docente", "*", "ejercicio:*", "update"),
+    ("role:docente", "*", "ejercicio:*", "delete"),
+    ("role:estudiante", "*", "ejercicio:*", "read"),
+    ("role:tutor_service", "*", "ejercicio:*", "read"),
 ]
 
 

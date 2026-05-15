@@ -36,13 +36,17 @@ async def create_materia(
 @router.get("", response_model=ListResponse[MateriaOut])
 async def list_materias(
     limit: int = Query(50, ge=1, le=200),
-    cursor: UUID | None = None,
-    plan_id: UUID | None = None,
+    cursor: str | None = None,
+    plan_id: str | None = None,
     user: User = Depends(require_permission("materia", "read")),
     db: AsyncSession = Depends(get_db),
 ) -> ListResponse[MateriaOut]:
+    # Aceptar query params vacios (plan_id=, cursor=) que el frontend manda
+    # cuando el selector aun no eligio; Pydantic UUID rechaza string vacio con 422.
+    plan_uuid: UUID | None = UUID(plan_id) if plan_id else None
+    cursor_uuid: UUID | None = UUID(cursor) if cursor else None
     svc = MateriaService(db)
-    objs = await svc.list(limit=limit, cursor=cursor, plan_id=plan_id)
+    objs = await svc.list(limit=limit, cursor=cursor_uuid, plan_id=plan_uuid)
     items = [MateriaOut.model_validate(o) for o in objs]
     next_cursor = str(objs[-1].id) if len(objs) == limit else None
     return ListResponse(data=items, meta=ListMeta(cursor_next=next_cursor))

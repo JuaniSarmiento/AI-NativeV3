@@ -283,13 +283,6 @@ export interface TareaPractica {
   fecha_fin: string | null
   peso: string // decimal serializado como string
   rubrica: Record<string, unknown> | null
-  ejercicios: Array<{
-    orden: number
-    titulo: string
-    enunciado_md: string
-    inicial_codigo: string | null
-    peso: string
-  }>
   estado: TareaEstado
   version: number
   parent_tarea_id: string | null
@@ -312,15 +305,6 @@ export interface TareaPractica {
   unidad_id: string | null
 }
 
-export interface EjercicioInput {
-  orden: number
-  titulo: string
-  enunciado_md: string
-  inicial_codigo?: string | null
-  test_cases?: Array<Record<string, unknown>>
-  peso: string
-}
-
 export interface TareaPracticaCreate {
   comision_id: string
   codigo: string
@@ -330,8 +314,8 @@ export interface TareaPracticaCreate {
   fecha_fin?: string | null
   peso?: string
   rubrica?: Record<string, unknown> | null
-  ejercicios?: EjercicioInput[]
   created_via_ai?: boolean
+  template_id?: string | null
 }
 
 export interface TareaPracticaUpdate {
@@ -342,7 +326,6 @@ export interface TareaPracticaUpdate {
   fecha_fin?: string | null
   peso?: string
   rubrica?: Record<string, unknown> | null
-  ejercicios?: EjercicioInput[]
   unidad_id?: string | null
 }
 
@@ -495,6 +478,7 @@ export interface GenerateTPRequest {
   dificultad?: DificultadIA
   contexto?: string
   comision_id?: string
+  template_id?: string
 }
 
 export interface TestCaseIA {
@@ -600,6 +584,11 @@ export const comisionesApi = {
  * estable para la cadena CTR; el template solo provee la fuente de
  * enunciado/rubrica/peso.
  */
+/**
+ * Plantilla = brief pedagógico (consigna + meta). NO es una copia del TP.
+ * Sirve como prompt para que el docente o la IA generen el TP en cada
+ * comisión. Sin fan-out automático (refactor 2026-05-12).
+ */
 export interface TareaPracticaTemplate {
   id: string
   tenant_id: string
@@ -607,12 +596,8 @@ export interface TareaPracticaTemplate {
   periodo_id: string
   codigo: string
   titulo: string
-  enunciado: string // markdown
-  inicial_codigo: string | null
-  rubrica: Record<string, unknown> | null
+  consigna: string // directiva pedagógica: qué debe cubrir el TP
   peso: string // decimal serializado como string
-  fecha_inicio: string | null // ISO 8601
-  fecha_fin: string | null
   estado: TareaEstado
   version: number
   parent_template_id: string | null
@@ -626,27 +611,19 @@ export interface TareaPracticaTemplateCreate {
   periodo_id: string
   codigo: string
   titulo: string
-  enunciado: string
-  inicial_codigo?: string | null
-  rubrica?: Record<string, unknown> | null
+  consigna: string
   peso?: string
-  fecha_inicio?: string | null
-  fecha_fin?: string | null
 }
 
 /**
  * Update parcial. `materia_id`, `periodo_id`, `codigo` y `version` son
- * inmutables (ADR-016: el template se versiona via new-version, no se
- * re-ancla). `estado` muta solo via publish/archive endpoints dedicados.
+ * inmutables (se versiona via new-version, no se re-ancla). `estado`
+ * muta solo via publish/archive endpoints dedicados.
  */
 export interface TareaPracticaTemplateUpdate {
   titulo?: string
-  enunciado?: string
-  inicial_codigo?: string | null
-  rubrica?: Record<string, unknown> | null
+  consigna?: string
   peso?: string
-  fecha_inicio?: string | null
-  fecha_fin?: string | null
 }
 
 export interface TareaPracticaTemplateVersionRef {
@@ -657,14 +634,15 @@ export interface TareaPracticaTemplateVersionRef {
   is_current: boolean
 }
 
-export interface TareaPracticaInstancesResponse {
-  template_id: string
-  instances: TareaPractica[]
-}
-
 export interface TareaPracticaTemplateNewVersionBody {
   patch: TareaPracticaTemplateUpdate
-  reinstance_non_drifted: boolean
+}
+
+export interface TareaPracticaTemplatePrompt {
+  template_id: string
+  codigo: string
+  titulo: string
+  prompt: string
 }
 
 export async function listTareasPracticasTemplates(
@@ -777,7 +755,7 @@ export async function newVersionTareaPracticaTemplate(
 export async function getTareaPracticaTemplateInstances(
   id: string,
   getToken?: TokenGetter,
-): Promise<TareaPracticaInstancesResponse> {
+): Promise<TareaPractica[]> {
   const r = await fetch(`/api/v1/tareas-practicas-templates/${id}/instances`, {
     headers: await authHeaders(getToken),
   })
@@ -796,6 +774,17 @@ export async function listVersionsTareaPracticaTemplate(
   return r.json()
 }
 
+export async function exportPromptTareaPracticaTemplate(
+  id: string,
+  getToken?: TokenGetter,
+): Promise<TareaPracticaTemplatePrompt> {
+  const r = await fetch(`/api/v1/tareas-practicas-templates/${id}/prompt`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
 export const tareasPracticasTemplatesApi = {
   list: listTareasPracticasTemplates,
   get: getTareaPracticaTemplate,
@@ -807,6 +796,7 @@ export const tareasPracticasTemplatesApi = {
   newVersion: newVersionTareaPracticaTemplate,
   instances: getTareaPracticaTemplateInstances,
   versions: listVersionsTareaPracticaTemplate,
+  exportPrompt: exportPromptTareaPracticaTemplate,
 }
 
 // ── Catalogo academico (para el selector cascada Univ → ... → Periodo) ─
@@ -1433,3 +1423,322 @@ export const entregasDocenteApi = {
 // el contrato canónico (que matchea con el response real verificado en QA pass)
 // es el de la línea 481 — `materia_id: string`, `test_cases: TestCaseIA[]`,
 // `GenerateTPResponse` con `model_used`, `provider_used`, `rag_chunks_hash`.
+
+// ── Ejercicios reusables (ADR-047 + ADR-048) ─────────────────────────
+
+export type UnidadTematica = "secuenciales" | "condicionales" | "repetitivas" | "mixtos"
+export type Dificultad = "basica" | "intermedia" | "avanzada"
+
+export interface PreguntaSocratica {
+  texto: string
+  senal_comprension: string
+  senal_alerta: string
+}
+
+export interface BancoPreguntas {
+  n1: PreguntaSocratica[]
+  n2: PreguntaSocratica[]
+  n3: PreguntaSocratica[]
+  n4: PreguntaSocratica[]
+}
+
+export interface Misconception {
+  descripcion: string
+  probabilidad_estimada: number
+  pregunta_diagnostica: string
+}
+
+export interface Pista {
+  nivel: 1 | 2 | 3 | 4
+  pista: string
+}
+
+export interface HeuristicaCierre {
+  tests_min_pasados: number
+  heuristica: string
+}
+
+export interface AntiPatron {
+  patron: string
+  descripcion: string
+  mensaje_orientacion: string
+}
+
+export interface Prerequisitos {
+  sintacticos: string[]
+  conceptuales: string[]
+}
+
+export interface TutorRules {
+  prohibido_dar_solucion: boolean
+  forzar_pregunta_antes_de_hint: boolean
+  nivel_socratico_minimo: 1 | 2 | 3 | 4
+  instrucciones_adicionales: string | null
+}
+
+export interface CriterioRubrica {
+  nombre: string
+  descripcion: string
+  puntaje_max: string // Decimal serializado
+}
+
+export interface RubricaEjercicio {
+  criterios: CriterioRubrica[]
+}
+
+export interface TestCaseEjercicio {
+  id: string
+  name: string
+  type: "stdin_stdout" | "pytest_assert"
+  code: string
+  expected: string | null
+  is_public: boolean
+  weight: number
+}
+
+export interface Ejercicio {
+  id: string
+  tenant_id: string
+  titulo: string
+  enunciado_md: string
+  inicial_codigo: string | null
+  unidad_tematica: UnidadTematica
+  dificultad: Dificultad | null
+  prerequisitos: Prerequisitos
+  test_cases: TestCaseEjercicio[]
+  rubrica: RubricaEjercicio | null
+  tutor_rules: TutorRules | null
+  banco_preguntas: BancoPreguntas | null
+  misconceptions: Misconception[]
+  respuesta_pista: Pista[]
+  heuristica_cierre: HeuristicaCierre | null
+  anti_patrones: AntiPatron[]
+  created_by: string
+  created_via_ai: boolean
+  created_at: string
+  deleted_at: string | null
+}
+
+export interface EjercicioCreate {
+  titulo: string
+  enunciado_md: string
+  inicial_codigo?: string | null
+  unidad_tematica: UnidadTematica
+  dificultad?: Dificultad | null
+  prerequisitos?: Prerequisitos
+  test_cases?: TestCaseEjercicio[]
+  rubrica?: RubricaEjercicio | null
+  tutor_rules?: TutorRules | null
+  banco_preguntas?: BancoPreguntas | null
+  misconceptions?: Misconception[]
+  respuesta_pista?: Pista[]
+  heuristica_cierre?: HeuristicaCierre | null
+  anti_patrones?: AntiPatron[]
+  created_via_ai?: boolean
+}
+
+export type EjercicioUpdate = Partial<EjercicioCreate>
+
+export interface EjercicioListResponse {
+  data: Ejercicio[]
+  meta: { cursor_next: string | null }
+}
+
+export async function listEjercicios(
+  params: {
+    unidad_tematica?: UnidadTematica
+    dificultad?: Dificultad
+    created_by?: string
+    created_via_ai?: boolean
+    cursor?: string
+    limit?: number
+  } = {},
+  getToken?: TokenGetter,
+): Promise<EjercicioListResponse> {
+  const qs = new URLSearchParams()
+  if (params.unidad_tematica) qs.set("unidad_tematica", params.unidad_tematica)
+  if (params.dificultad) qs.set("dificultad", params.dificultad)
+  if (params.created_by) qs.set("created_by", params.created_by)
+  if (params.created_via_ai !== undefined) qs.set("created_via_ai", String(params.created_via_ai))
+  if (params.cursor) qs.set("cursor", params.cursor)
+  if (params.limit) qs.set("limit", String(params.limit))
+  const r = await fetch(`/api/v1/ejercicios?${qs.toString()}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function getEjercicio(id: string, getToken?: TokenGetter): Promise<Ejercicio> {
+  const r = await fetch(`/api/v1/ejercicios/${id}`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function createEjercicio(
+  body: EjercicioCreate,
+  getToken?: TokenGetter,
+): Promise<Ejercicio> {
+  const r = await fetch("/api/v1/ejercicios", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function updateEjercicio(
+  id: string,
+  body: EjercicioUpdate,
+  getToken?: TokenGetter,
+): Promise<Ejercicio> {
+  const r = await fetch(`/api/v1/ejercicios/${id}`, {
+    method: "PATCH",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function deleteEjercicio(id: string, getToken?: TokenGetter): Promise<void> {
+  const r = await fetch(`/api/v1/ejercicios/${id}`, {
+    method: "DELETE",
+    headers: await authHeaders(getToken),
+  })
+  if (r.status !== 204) await throwIfNotOk(r)
+}
+
+// ── Wizard IA standalone (POST /api/v1/ejercicios/generate) ──────────
+
+export interface EjercicioGenerateRequest {
+  materia_id: string
+  descripcion_nl: string
+  unidad_tematica: UnidadTematica
+  dificultad?: Dificultad
+  contexto?: string
+  comision_id?: string
+}
+
+export interface EjercicioGenerateResponse {
+  borrador: EjercicioCreate
+  prompt_version: string
+  model_used: string
+  provider_used: string
+  tokens_input: number
+  tokens_output: number
+  rag_chunks_used: number
+  rag_chunks_hash: string | null
+}
+
+export async function generateEjercicioWithAI(
+  body: EjercicioGenerateRequest,
+  getToken?: TokenGetter,
+): Promise<EjercicioGenerateResponse> {
+  const r = await fetch("/api/v1/ejercicios/generate", {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+// ── Composición TP ↔ Ejercicio (tabla intermedia tp_ejercicios) ──────
+
+export interface TpEjercicio {
+  id: string
+  tarea_practica_id: string
+  ejercicio_id: string
+  orden: number
+  peso_en_tp: string // Decimal serializado
+  ejercicio: Ejercicio
+}
+
+export interface TpEjercicioCreate {
+  ejercicio_id: string
+  orden: number
+  peso_en_tp: string
+}
+
+export interface TpEjercicioUpdate {
+  orden?: number
+  peso_en_tp?: string
+}
+
+export async function listTpEjercicios(
+  tareaPracticaId: string,
+  getToken?: TokenGetter,
+): Promise<TpEjercicio[]> {
+  const r = await fetch(`/api/v1/tareas-practicas/${tareaPracticaId}/ejercicios`, {
+    headers: await authHeaders(getToken),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function addEjercicioToTp(
+  tareaPracticaId: string,
+  body: TpEjercicioCreate,
+  getToken?: TokenGetter,
+): Promise<TpEjercicio> {
+  const r = await fetch(`/api/v1/tareas-practicas/${tareaPracticaId}/ejercicios`, {
+    method: "POST",
+    headers: await authHeaders(getToken),
+    body: JSON.stringify(body),
+  })
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function updateTpEjercicioPair(
+  tareaPracticaId: string,
+  ejercicioId: string,
+  body: TpEjercicioUpdate,
+  getToken?: TokenGetter,
+): Promise<TpEjercicio> {
+  const r = await fetch(
+    `/api/v1/tareas-practicas/${tareaPracticaId}/ejercicios/${ejercicioId}`,
+    {
+      method: "PATCH",
+      headers: await authHeaders(getToken),
+      body: JSON.stringify(body),
+    },
+  )
+  await throwIfNotOk(r)
+  return r.json()
+}
+
+export async function removeEjercicioFromTp(
+  tareaPracticaId: string,
+  ejercicioId: string,
+  getToken?: TokenGetter,
+): Promise<void> {
+  const r = await fetch(
+    `/api/v1/tareas-practicas/${tareaPracticaId}/ejercicios/${ejercicioId}`,
+    {
+      method: "DELETE",
+      headers: await authHeaders(getToken),
+    },
+  )
+  if (r.status !== 204) await throwIfNotOk(r)
+}
+
+export const ejerciciosApi = {
+  list: listEjercicios,
+  get: getEjercicio,
+  create: createEjercicio,
+  update: updateEjercicio,
+  delete: deleteEjercicio,
+  generate: generateEjercicioWithAI,
+}
+
+export const tpEjerciciosApi = {
+  list: listTpEjercicios,
+  add: addEjercicioToTp,
+  updatePair: updateTpEjercicioPair,
+  remove: removeEjercicioFromTp,
+}

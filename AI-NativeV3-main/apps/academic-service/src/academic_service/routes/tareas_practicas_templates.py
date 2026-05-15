@@ -1,12 +1,8 @@
-"""Endpoints de Tarea Práctica Template (ADR-016).
+"""Endpoints de Tarea Práctica Template (refactor 2026-05-12).
 
-Plantilla canónica de TP por `(materia_id, periodo_id)`. Al crear o
-versionar un template se fan-out-ean instancias `TareaPractica` en cada
-comisión de esa materia+periodo, manteniendo el `problema_id` de cada
-instancia estable para la cadena CTR. Los campos canónicos del template
-heredan a la instancia; una edición en la instancia dispara
-`has_drift=True` en esa fila (sin afectar al template ni a las demás
-comisiones).
+La plantilla es un BRIEF pedagógico (consigna + meta) que sirve como prompt
+para que el docente o el wizard de IA generen el TP real en cada comisión.
+Sin fan-out automático.
 
 Todos los endpoints exigen `X-Tenant-Id` + `X-User-Id` inyectados por
 api-gateway (o por los vite proxies en dev_trust_headers). El permiso
@@ -25,9 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from academic_service.auth import User, get_db, require_permission
 from academic_service.schemas.tarea_practica import TareaPracticaOut
 from academic_service.schemas.tarea_practica_template import (
-    TareaPracticaInstancesResponse,
     TareaPracticaTemplateCreate,
     TareaPracticaTemplateOut,
+    TareaPracticaTemplatePrompt,
     TareaPracticaTemplateUpdate,
     TareaPracticaTemplateVersionRef,
 )
@@ -42,10 +38,9 @@ router = APIRouter(
 
 
 class NewVersionRequest(BaseModel):
-    """Body del endpoint `new-version`: patch + flag de re-instanciación."""
+    """Body del endpoint `new-version`: solo el patch a aplicar."""
 
     patch: TareaPracticaTemplateUpdate
-    reinstance_non_drifted: bool = False
 
 
 @router.post(
@@ -148,30 +143,42 @@ async def new_version_template(
     db: AsyncSession = Depends(get_db),
 ) -> TareaPracticaTemplateOut:
     svc = TareaPracticaTemplateService(db)
-    obj = await svc.new_version(
-        template_id,
-        body.patch,
-        user,
-        reinstance_non_drifted=body.reinstance_non_drifted,
-    )
+    obj = await svc.new_version(template_id, body.patch, user)
     return TareaPracticaTemplateOut.model_validate(obj)
 
 
 @router.get(
     "/{template_id}/instances",
-    response_model=TareaPracticaInstancesResponse,
+    response_model=list[TareaPracticaOut],
 )
 async def list_template_instances(
     template_id: UUID,
     user: User = Depends(require_permission("tarea_practica_template", "read")),
     db: AsyncSession = Depends(get_db),
-) -> TareaPracticaInstancesResponse:
+) -> list[TareaPracticaOut]:
+    """Lista TPs (instancias) creados manualmente que referencian este template
+    via `template_id`. Útil para trazabilidad — qué TPs nacieron de qué brief.
+    """
     svc = TareaPracticaTemplateService(db)
     instances = await svc.list_instances(template_id, user.tenant_id)
-    return TareaPracticaInstancesResponse(
-        template_id=template_id,
-        instances=[TareaPracticaOut.model_validate(i) for i in instances],
-    )
+    return [TareaPracticaOut.model_validate(i) for i in instances]
+
+
+@router.get(
+    "/{template_id}/prompt",
+    response_model=TareaPracticaTemplatePrompt,
+)
+async def export_template_prompt(
+    template_id: UUID,
+    user: User = Depends(require_permission("tarea_practica_template", "read")),
+    db: AsyncSession = Depends(get_db),
+) -> TareaPracticaTemplatePrompt:
+    """Devuelve la plantilla formateada como prompt listo para copiar/pegar
+    en una IA externa (ChatGPT, Claude) o pasar al wizard interno.
+    """
+    svc = TareaPracticaTemplateService(db)
+    data = await svc.get_prompt(template_id, user.tenant_id)
+    return TareaPracticaTemplatePrompt.model_validate(data)
 
 
 @router.get(

@@ -22,12 +22,13 @@ if TYPE_CHECKING:
     from academic_service.models.operacional import Comision
 
 
-class Universidad(Base, TimestampMixin):
-    """Raíz del árbol institucional. Tenant por definición.
+class Universidad(Base, TenantMixin, TimestampMixin):
+    """Raíz del árbol institucional. 1 universidad = 1 tenant.
 
-    Esta tabla es especial: NO tiene tenant_id porque ES el tenant.
-    No lleva policy RLS — su lectura está controlada por la capa de
-    aplicación según el rol.
+    Por convencion enforzada en `UniversidadService.create()`,
+    `tenant_id == id`. La migration `20260514_0004` agrega el `tenant_id`
+    + RLS forced para que `GET /universidades` solo devuelva la propia
+    universidad del caller (aislamiento academico).
     """
 
     __tablename__ = "universidades"
